@@ -1,7 +1,7 @@
 name: finora
-description: Aplicativo mobile de gestão financeira pessoal.
+description: Finora - gestão financeira pessoal mobile.
 publish_to: "none"
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -9,7 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.8
   provider: ^6.1.2
   shared_preferences: ^2.3.2
 
