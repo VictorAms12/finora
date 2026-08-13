@@ -69,11 +69,213 @@ Future<void> showTransactionForm(BuildContext c,TransactionType type,{Transactio
   const SizedBox(height:13),SizedBox(width:double.infinity,child:FilledButton(onPressed:(){final v=double.tryParse(amount.text.replaceAll(',','.'))??0;if(v<=0||title.text.trim().isEmpty)return;if(editing!=null){s.updateTransaction(editing,TransactionItem(id:editing.id,type:editing.type,title:title.text.trim(),category:category,amount:v,date:editing.date,account:account,recurrenceId:editing.recurrenceId,installmentId:editing.installmentId,installmentNumber:editing.installmentNumber,installmentTotal:editing.installmentTotal));}else if(installment&&type==TransactionType.expense){final n=int.tryParse(parcels.text)??1;if(n<2)return;s.addInstallment(title.text.trim(),category,v,n,account);}else if(recurring){s.addRecurring(type,title.text.trim(),category,v,account,frequency);}else{s.addTransaction(TransactionItem(id:FinanceStore.id(),type:type,title:title.text.trim(),category:category,amount:v,date:DateTime.now(),account:account));}Navigator.pop(sheet);ScaffoldMessenger.of(c).showSnackBar(SnackBar(content:Text(editing==null?'Salvo com sucesso':'Movimentação atualizada'),behavior:SnackBarBehavior.floating));},child:Text(editing==null?'Salvar':'Atualizar')))])))));
 }
 
-Future<void> showTransactionDetails(BuildContext c,TransactionItem item)async{Color color=FinoraColors.balance;if(item.type==TransactionType.income)color=FinoraColors.income;if(item.type==TransactionType.expense)color=FinoraColors.expense;await showModalBottomSheet(context:c,showDragHandle:true,builder:(sheet)=>SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(16,0,16,18),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[Text(item.title,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const SizedBox(height:6),Text(money(c,item.amount),style:TextStyle(fontSize:24,fontWeight:FontWeight.w900,color:color)),const SizedBox(height:14),_detail(c,'Categoria',item.category),_detail(c,'Conta',item.account),_detail(c,'Data',shortDate(item.date)),if(item.installmentNumber!=null)_detail(c,'Parcela','${item.installmentNumber}/${item.installmentTotal}'),if(item.recurrenceId!=null)_detail(c,'Tipo','Recorrente'),if(item.type!=TransactionType.transfer)...[const SizedBox(height:12),Row(children:[Expanded(child:OutlinedButton.icon(onPressed:(){Navigator.pop(sheet);showTransactionForm(c,item.type,editing:item);},icon:const Icon(Icons.edit_outlined),label:const Text('Editar'))),const SizedBox(width:8),Expanded(child:OutlinedButton.icon(onPressed:()async{final ok=await showDialog<bool>(context:c,builder:(d)=>AlertDialog(title:const Text('Excluir movimentação?'),content:const Text('O saldo da conta será ajustado automaticamente.'),actions:[TextButton(onPressed:()=>Navigator.pop(d,false),child:const Text('Cancelar')),FilledButton(onPressed:()=>Navigator.pop(d,true),child:const Text('Excluir'))]))??false;if(ok){c.read<FinanceStore>().deleteTransaction(item);Navigator.pop(sheet);}},icon:const Icon(Icons.delete_outline_rounded),label:const Text('Excluir')))])]])))));}
+Future<void> showTransactionDetails(
+  BuildContext c,
+  TransactionItem item,
+) async {
+  Color color = FinoraColors.balance;
+  if (item.type == TransactionType.income) color = FinoraColors.income;
+  if (item.type == TransactionType.expense) color = FinoraColors.expense;
+
+  await showModalBottomSheet<void>(
+    context: c,
+    showDragHandle: true,
+    builder: (sheet) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              money(c, item.amount),
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _detail(c, 'Categoria', item.category),
+            _detail(c, 'Conta', item.account),
+            _detail(c, 'Data', shortDate(item.date)),
+            if (item.installmentNumber != null)
+              _detail(
+                c,
+                'Parcela',
+                '${item.installmentNumber}/${item.installmentTotal}',
+              ),
+            if (item.recurrenceId != null)
+              _detail(c, 'Tipo', 'Recorrente'),
+            if (item.type != TransactionType.transfer) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(sheet);
+                        showTransactionForm(
+                          c,
+                          item.type,
+                          editing: item,
+                        );
+                      },
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Editar'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final ok = await showDialog<bool>(
+                              context: c,
+                              builder: (d) => AlertDialog(
+                                title: const Text('Excluir movimentação?'),
+                                content: const Text(
+                                  'O saldo da conta será ajustado automaticamente.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(d, false),
+                                    child: const Text('Cancelar'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.pop(d, true),
+                                    child: const Text('Excluir'),
+                                  ),
+                                ],
+                              ),
+                            ) ??
+                            false;
+
+                        if (ok) {
+                          c.read<FinanceStore>().deleteTransaction(item);
+                          if (sheet.mounted) Navigator.pop(sheet);
+                        }
+                      },
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text('Excluir'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+  );
+}
 Widget _detail(BuildContext c,String l,String v)=>Padding(padding:const EdgeInsets.symmetric(vertical:5),child:Row(children:[Expanded(child:Text(l,style:TextStyle(fontSize:9.5,color:Theme.of(c).colorScheme.onSurfaceVariant))),Text(v,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w800))]));
 
-Future<void> showTransferForm(BuildContext c)async{final s=c.read<FinanceStore>();if(s.data.accounts.length<2){ScaffoldMessenger.of(c).showSnackBar(const SnackBar(content:Text('Cadastre pelo menos duas contas para transferir.'),behavior:SnackBarBehavior.floating));return;}final amount=TextEditingController();var from=s.data.accounts.first.name,to=s.data.accounts[1].name;await showModalBottomSheet(context:c,showDragHandle:true,isScrollControlled:true,builder:(sheet)=>Padding(padding:EdgeInsets.fromLTRB(14,0,14,MediaQuery.of(sheet).viewInsets.bottom+16),child:StatefulBuilder(builder:(ctx,setLocal)=>Column(mainAxisSize:MainAxisSize.min,children:[const Text('Transferir',style:TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const SizedBox(height:13),TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Valor')),const SizedBox(height:9),DropdownButtonFormField<String>(value:from,decoration:const InputDecoration(labelText:'Origem'),items:s.data.accounts.map((e)=>DropdownMenuItem(value:e.name,child:Text(e.name))).toList(),onChanged:(v){if(v!=null)setLocal(()=>from=v);}),const SizedBox(height:9),DropdownButtonFormField<String>(value:to,decoration:const InputDecoration(labelText:'Destino'),items:s.data.accounts.map((e)=>DropdownMenuItem(value:e.name,child:Text(e.name))).toList(),onChanged:(v){if(v!=null)setLocal(()=>to=v);}),const SizedBox(height:13),SizedBox(width:double.infinity,child:FilledButton(onPressed:(){final v=double.tryParse(amount.text.replaceAll(',','.'))??0;if(v<=0||from==to)return;s.transfer(v,from,to);Navigator.pop(sheet);},child:const Text('Transferir')))])))));}
+Future<void> showTransferForm(BuildContext c) async {
+  final s = c.read<FinanceStore>();
 
+  if (s.data.accounts.length < 2) {
+    ScaffoldMessenger.of(c).showSnackBar(
+      const SnackBar(
+        content: Text('Cadastre pelo menos duas contas para transferir.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    return;
+  }
+
+  final amount = TextEditingController();
+  var from = s.data.accounts.first.name;
+  var to = s.data.accounts[1].name;
+
+  await showModalBottomSheet<void>(
+    context: c,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (sheet) => Padding(
+      padding: EdgeInsets.fromLTRB(
+        14,
+        0,
+        14,
+        MediaQuery.of(sheet).viewInsets.bottom + 16,
+      ),
+      child: StatefulBuilder(
+        builder: (ctx, setLocal) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Transferir',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 13),
+            TextField(
+              controller: amount,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(labelText: 'Valor'),
+            ),
+            const SizedBox(height: 9),
+            DropdownButtonFormField<String>(
+              value: from,
+              decoration: const InputDecoration(labelText: 'Origem'),
+              items: s.data.accounts
+                  .map(
+                    (e) => DropdownMenuItem<String>(
+                      value: e.name,
+                      child: Text(e.name),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setLocal(() => from = v);
+              },
+            ),
+            const SizedBox(height: 9),
+            DropdownButtonFormField<String>(
+              value: to,
+              decoration: const InputDecoration(labelText: 'Destino'),
+              items: s.data.accounts
+                  .map(
+                    (e) => DropdownMenuItem<String>(
+                      value: e.name,
+                      child: Text(e.name),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setLocal(() => to = v);
+              },
+            ),
+            const SizedBox(height: 13),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () {
+                  final v =
+                      double.tryParse(amount.text.replaceAll(',', '.')) ?? 0;
+                  if (v <= 0 || from == to) return;
+
+                  s.transfer(v, from, to);
+                  Navigator.pop(sheet);
+                },
+                child: const Text('Transferir'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 class _F{final String label;final TextEditingController c;final bool number;_F(this.label,this.c,{this.number=false});}
 Future<void> _simple(BuildContext c,String title,List<_F> fields,bool Function() save)async{await showModalBottomSheet(context:c,showDragHandle:true,isScrollControlled:true,builder:(sheet)=>Padding(padding:EdgeInsets.fromLTRB(14,0,14,MediaQuery.of(sheet).viewInsets.bottom+16),child:Column(mainAxisSize:MainAxisSize.min,children:[Text(title,style:const TextStyle(fontSize:18,fontWeight:FontWeight.w900)),const SizedBox(height:13),...fields.expand((f)=>[TextField(controller:f.c,keyboardType:f.number?const TextInputType.numberWithOptions(decimal:true):TextInputType.text,decoration:InputDecoration(labelText:f.label)),const SizedBox(height:9)]),SizedBox(width:double.infinity,child:FilledButton(onPressed:(){if(save())Navigator.pop(sheet);},child:const Text('Salvar')))])));}
 Future<void> showBudgetForm(BuildContext c)async{final a=TextEditingController(),b=TextEditingController();await _simple(c,'Novo orçamento',[_F('Categoria',a),_F('Limite mensal',b,number:true)],(){final v=double.tryParse(b.text.replaceAll(',','.'))??0;if(a.text.trim().isEmpty||v<=0)return false;c.read<FinanceStore>().addBudget(a.text.trim(),v);return true;});}
