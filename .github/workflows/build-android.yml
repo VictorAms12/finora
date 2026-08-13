@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    name: Verificar e compilar APK
+    name: Verificar e compilar Android
     runs-on: ubuntu-latest
 
     steps:
@@ -30,6 +30,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Mostrar versão do Flutter
+        run: flutter --version
+
       - name: Gerar estrutura Android
         run: flutter create . --platforms=android --project-name=finora --org=com.finora
 
@@ -39,8 +42,8 @@ jobs:
       - name: Baixar dependências
         run: flutter pub get
 
-      - name: Verificar sintaxe e análise estática
-        run: flutter analyze
+      - name: Verificar código
+        run: flutter analyze --no-fatal-infos
 
       - name: Compilar APK Release
         run: flutter build apk --release
@@ -48,20 +51,18 @@ jobs:
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-APK-v0.2.2
+          name: Finora-APK-v0.2.3
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Compilar AAB Release
-        continue-on-error: true
         run: flutter build appbundle --release
 
       - name: Publicar AAB
-        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-AAB-v0.2.2
-          if-no-files-found: ignore
+          name: Finora-AAB-v0.2.3
+          if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/bundle/release/app-release.aab

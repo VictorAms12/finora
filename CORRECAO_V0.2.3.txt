@@ -1,0 +1,33 @@
+FINORA V0.2.3 - CORREÇÃO DO ANALYZE
+
+O log real da execução #4 mostrou que:
+- o workflow novo foi aplicado corretamente;
+- test/widget_test.dart foi removido corretamente;
+- os erros de sintaxe anteriores desapareceram;
+- flutter analyze encontrou apenas avisos INFO de APIs depreciadas;
+- como o analyze retornou exit code 1, o APK não chegou a ser compilado.
+
+Correções desta versão:
+- troca withOpacity(...) por withValues(alpha: ...);
+- troca DropdownButtonFormField.value por initialValue onde aplicável;
+- flutter analyze usa --no-fatal-infos;
+- erros reais continuam bloqueando a compilação;
+- APK e AAB usam artifacts separados.
+
+ATUALIZAÇÃO:
+Substitua os arquivos no repositório e execute:
+
+git add .
+git commit -m "Finora v0.2.3 corrige analyze e build"
+git push
+
+Na execução do Actions, o fluxo esperado é:
+1. Verificar código
+2. Compilar APK Release
+3. Publicar APK
+4. Compilar AAB Release
+5. Publicar AAB
+
+Artifacts:
+Finora-APK-v0.2.3
+Finora-AAB-v0.2.3
