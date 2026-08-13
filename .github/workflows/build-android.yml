@@ -1,0 +1,67 @@
+name: Compilar Finora Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: APK e AAB
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Instalar Flutter Stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Mostrar versões
+        run: |
+          flutter --version
+          java -version
+          flutter doctor -v
+
+      - name: Gerar estrutura Android
+        run: |
+          flutter create . \
+            --platforms=android \
+            --project-name=finora \
+            --org=com.finora
+
+      - name: Baixar dependências
+        run: flutter pub get
+
+      - name: Analisar código
+        continue-on-error: true
+        run: flutter analyze
+
+      - name: Compilar APK Release
+        run: flutter build apk --release
+
+      - name: Compilar App Bundle
+        run: flutter build appbundle --release
+
+      - name: Publicar arquivos compilados
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finora-Android-v0.1
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
