@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
+import 'accounts.dart';
+import 'categories_settings.dart';
 import 'common.dart';
 import 'goals_reserves.dart';
 import 'reports.dart';
-import 'accounts.dart';
-import 'categories_settings.dart';
 
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
@@ -30,7 +30,7 @@ class MoreScreen extends StatelessWidget {
               context,
               Icons.shield_outlined,
               'Reservas',
-              'Proteção financeira',
+              'Proteção e cobertura financeira',
               FinoraColors.warning,
               const ReservesScreen(),
             ),
@@ -46,7 +46,7 @@ class MoreScreen extends StatelessWidget {
               context,
               Icons.bar_chart_rounded,
               'Relatórios',
-              'Comparativos e categorias',
+              'Comparativos, histórico e projeções',
               FinoraColors.balance,
               const ReportsScreen(),
             ),
@@ -68,9 +68,17 @@ class MoreScreen extends StatelessWidget {
             ),
             _item(
               context,
+              Icons.notifications_none_rounded,
+              'Notificações',
+              'Atrasos, próximos compromissos e faturas',
+              FinoraColors.warning,
+              const NotificationCenterScreen(),
+            ),
+            _item(
+              context,
               Icons.lightbulb_outline_rounded,
               'Conselhos',
-              'Insights automáticos',
+              'Insights automáticos do período',
               FinoraColors.income,
               const InsightsScreen(),
             ),
@@ -78,7 +86,7 @@ class MoreScreen extends StatelessWidget {
               context,
               Icons.settings_outlined,
               'Configurações',
-              'Tema, privacidade e dados',
+              'Tema, biometria, notificações e dados',
               Colors.grey,
               const SettingsScreen(),
             ),
@@ -97,10 +105,7 @@ class MoreScreen extends StatelessWidget {
     Widget page,
   ) =>
       ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: 3,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
         leading: Container(
           width: 40,
           height: 40,
@@ -112,20 +117,10 @@ class MoreScreen extends StatelessWidget {
         ),
         title: Text(
           title,
-          style: const TextStyle(
-            fontSize: 12.3,
-            fontWeight: FontWeight.w900,
-          ),
+          style: const TextStyle(fontSize: 12.3, fontWeight: FontWeight.w900),
         ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(fontSize: 8.8),
-        ),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 8.8)),
         trailing: const Icon(Icons.chevron_right_rounded),
-        onTap: () => Navigator.push(
-          context,
-          PremiumRoute(page: page),
-        ),
+        onTap: () => Navigator.push(context, PremiumRoute(page: page)),
       );
 }
-
