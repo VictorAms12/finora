@@ -245,11 +245,11 @@ class FinanceStore extends ChangeNotifier {
 
   double get availableToSpend {
     final now = DateTime.now();
-    final planning = FinanceStorePlanning(this);
-    return (cashBalance +
-            planning.cashPlannedReceivableForMonth(now) -
-            planning.cashPlannedPayableForMonth(now) -
-            suggestedGoalContribution)
+    final receivable = FinanceStorePlanning(this)
+        .cashPlannedReceivableForMonth(now);
+    final payable = FinanceStorePlanning(this)
+        .cashPlannedPayableForMonth(now);
+    return (cashBalance + receivable - payable - suggestedGoalContribution)
         .clamp(0.0, double.infinity)
         .toDouble();
   }
@@ -362,12 +362,13 @@ class FinanceStore extends ChangeNotifier {
       return incomeForMonth(target) - expenseForMonth(target);
     }
 
-    final planning = FinanceStorePlanning(this);
     var balance = cashBalance;
     var cursor = now;
     while (!cursor.isAfter(target)) {
-      balance += planning.cashPlannedReceivableForMonth(cursor);
-      balance -= planning.cashPlannedPayableForMonth(cursor);
+      balance += FinanceStorePlanning(this)
+          .cashPlannedReceivableForMonth(cursor);
+      balance -= FinanceStorePlanning(this)
+          .cashPlannedPayableForMonth(cursor);
       cursor = DateTime(cursor.year, cursor.month + 1);
     }
     return balance;
