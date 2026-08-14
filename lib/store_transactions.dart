@@ -74,7 +74,11 @@ extension FinanceStoreTransactions on FinanceStore {
     final targetMonth = month ?? selectedMonth;
     if (card == null || account == null) return;
 
-    final amount = invoiceOutstandingForMonth(cardId, targetMonth);
+    var amount = invoiceOutstandingForMonth(cardId, targetMonth);
+    final now = DateTime.now();
+    if (amount <= 0 && sameMonth(targetMonth, now) && card.used > 0) {
+      amount = card.used;
+    }
     if (amount <= 0) return;
 
     account.balance -= amount;
