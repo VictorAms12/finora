@@ -12,7 +12,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Criar commit final e atualizar main
+      - name: Criar commit final
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -38,14 +38,4 @@ jobs:
           new_sha=$(printf '%s' "$response" | jq -r '.sha')
           test -n "$new_sha"
           test "$new_sha" != "null"
-
-          update=$(jq -n --arg sha "$new_sha" '{sha:$sha, force:false}')
-          curl --fail-with-body -sS \
-            -X PATCH \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/$REPO/git/refs/heads/main" \
-            -d "$update"
-
-          echo "Publicado commit $new_sha na main"
+          echo "FINAL_V03_SHA=$new_sha"
