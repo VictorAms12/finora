@@ -162,7 +162,7 @@ extension FinanceStorePlanning on FinanceStore {
     required RecurrenceFrequency frequency,
     required DateTime startDate,
     DateTime? endDate,
-    int? maxOccurrences,
+    num? maxOccurrences,
   }) {
     final id = FinanceStore.newId();
     final rule = RecurringRule(
@@ -177,7 +177,7 @@ extension FinanceStorePlanning on FinanceStore {
       startDate: startDate,
       frequency: frequency,
       endDate: endDate,
-      maxOccurrences: maxOccurrences,
+      maxOccurrences: maxOccurrences?.toInt(),
     );
     data.recurringRules.add(rule);
 
@@ -204,14 +204,14 @@ extension FinanceStorePlanning on FinanceStore {
     required double amount,
     required RecurrenceFrequency frequency,
     DateTime? endDate,
-    int? maxOccurrences,
+    num? maxOccurrences,
   }) {
     rule.title = title;
     rule.category = category;
     rule.amount = amount;
     rule.frequency = frequency;
     rule.endDate = endDate;
-    rule.maxOccurrences = maxOccurrences;
+    rule.maxOccurrences = maxOccurrences?.toInt();
     _materializeRecurringFuture(rule);
     commit();
   }
