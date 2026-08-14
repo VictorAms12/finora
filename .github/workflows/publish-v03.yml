@@ -1,0 +1,51 @@
+name: Publicar Finora v0.3
+
+on:
+  push:
+    branches:
+      - agent/finora-v0.3-final
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Criar commit final e atualizar main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TREE_SHA: 1eb4e96e89e10034795f3a770da2db8b1daa0ffb
+          PARENT_SHA: d92035c56a2cf508579720afcf82223d0cbb58bc
+          COMMIT_MESSAGE: Finora v0.3 - Correções e +recursos
+        run: |
+          set -euo pipefail
+          payload=$(jq -n \
+            --arg message "$COMMIT_MESSAGE" \
+            --arg tree "$TREE_SHA" \
+            --arg parent "$PARENT_SHA" \
+            '{message:$message, tree:$tree, parents:[$parent]}')
+
+          response=$(curl --fail-with-body -sS \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/git/commits" \
+            -d "$payload")
+
+          new_sha=$(printf '%s' "$response" | jq -r '.sha')
+          test -n "$new_sha"
+          test "$new_sha" != "null"
+
+          update=$(jq -n --arg sha "$new_sha" '{sha:$sha, force:false}')
+          curl --fail-with-body -sS \
+            -X PATCH \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/git/refs/heads/main" \
+            -d "$update"
+
+          echo "Publicado commit $new_sha na main"
