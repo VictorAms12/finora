@@ -1,16 +1,18 @@
 name: finora
 description: Finora - gestão financeira pessoal mobile.
 publish_to: "none"
-version: 0.3.0+6
+version: 0.3.5+7
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
+  sdk: ">=3.10.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
   provider: ^6.1.2
   shared_preferences: ^2.3.2
+  local_auth: ^3.0.2
+  flutter_local_notifications: ^22.2.0
 
 dev_dependencies:
   flutter_test:
