@@ -3,8 +3,7 @@ name: Compilar Finora Android
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
@@ -13,56 +12,42 @@ jobs:
   build:
     name: Verificar e compilar Android
     runs-on: ubuntu-latest
-
     steps:
       - name: Baixar repositório
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@v5
       - name: Configurar Java 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
-
       - name: Instalar Flutter Stable
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
-
-      - name: Mostrar versão do Flutter
-        run: flutter --version
-
       - name: Gerar estrutura Android
         run: flutter create . --platforms=android --project-name=finora --org=com.finora
-
-      - name: Remover teste padrão do flutter create
+      - name: Remover teste padrão
         run: rm -f test/widget_test.dart
-
       - name: Baixar dependências
         run: flutter pub get
-
       - name: Verificar código
         run: flutter analyze --no-fatal-infos
-
       - name: Compilar APK Release
         run: flutter build apk --release
-
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-APK-v0.2.3
+          name: Finora-APK-v0.3
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/flutter-apk/app-release.apk
-
       - name: Compilar AAB Release
         run: flutter build appbundle --release
-
       - name: Publicar AAB
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-AAB-v0.2.3
+          name: Finora-AAB-v0.3
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/bundle/release/app-release.aab

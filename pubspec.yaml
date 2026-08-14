@@ -1,7 +1,7 @@
 name: finora
 description: Finora - gestão financeira pessoal mobile.
 publish_to: "none"
-version: 0.2.3+5
+version: 0.3.0+6
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

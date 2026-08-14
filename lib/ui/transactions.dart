@@ -1,0 +1,10 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models.dart';
+import '../store.dart';
+import 'common.dart';
+import 'forms.dart';
+
+class TransactionsScreen extends StatefulWidget { const TransactionsScreen({super.key}); @override State<TransactionsScreen> createState()=>_TransactionsScreenState(); }
+class _TransactionsScreenState extends State<TransactionsScreen>{TransactionType? filter;String search='';@override Widget build(BuildContext c){final s=c.watch<FinanceStore>();var items=s.monthTransactions;if(filter!=null)items=items.where((e)=>e.type==filter).toList();if(search.trim().isNotEmpty){final q=search.toLowerCase();items=items.where((e)=>'${e.title} ${e.category} ${e.account}'.toLowerCase().contains(q)).toList();}return PageScaffold(eyebrow:'HISTÓRICO',title:'Movimentações',child:Column(children:[const MonthSwitcher(),const SizedBox(height:10),TextField(onChanged:(v)=>setState(()=>search=v),decoration:const InputDecoration(prefixIcon:Icon(Icons.search_rounded),hintText:'Pesquisar...')),const SizedBox(height:10),SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[_chip('Todas',filter==null,()=>setState(()=>filter=null)),_chip('Entradas',filter==TransactionType.income,()=>setState(()=>filter=TransactionType.income)),_chip('Saídas',filter==TransactionType.expense,()=>setState(()=>filter=TransactionType.expense)),_chip('Transferências',filter==TransactionType.transfer,()=>setState(()=>filter=TransactionType.transfer))])),const SizedBox(height:10),SurfaceCard(padding:const EdgeInsets.symmetric(horizontal:14,vertical:5),child:items.isEmpty?EmptyState(icon:Icons.receipt_long_outlined,title:'Nenhuma movimentação',subtitle:'Os lançamentos deste mês aparecerão aqui.',actionLabel:'Adicionar',onAction:()=>showQuickActions(c)):Column(children:items.map((e)=>TransactionTile(item:e,onTap:()=>showTransactionDetails(c,e))).toList()))]));}
+Widget _chip(String l,bool selected,VoidCallback tap)=>Padding(padding:const EdgeInsets.only(right:7),child:ChoiceChip(label:Text(l),selected:selected,onSelected:(_)=>tap()));}

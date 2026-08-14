@@ -3,120 +3,267 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
 
+part 'store_transactions.dart';
+part 'store_planning.dart';
+part 'store_entities.dart';
+
 class FinanceStore extends ChangeNotifier {
-  static const _key='finora_data_v02';
-  FinanceData data=emptyData();
+  static const _key = 'finora_data_v02';
+
+  FinanceData data = emptyData();
+  DateTime selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
+
+  static const defaultExpenseCategories = [
+    'Alimentação', 'Transporte', 'Moradia', 'Saúde', 'Lazer', 'Compras',
+    'Tecnologia', 'Pets', 'Educação', 'Serviços', 'Cartão', 'Outros',
+  ];
+  static const defaultIncomeCategories = [
+    'Renda', 'Renda extra', 'Venda', 'Reembolso', 'Investimentos', 'Outros',
+  ];
 
   Future<void> load() async {
-    final prefs=await SharedPreferences.getInstance();
-    final raw=prefs.getString(_key);
-    if(raw!=null){
-      try{data=FinanceData.fromJson(jsonDecode(raw));}catch(_){data=emptyData();}
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_key);
+    if (raw != null) {
+      try {
+        data = FinanceData.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      } catch (_) {
+        data = emptyData();
+      }
     }
     notifyListeners();
   }
 
   Future<void> _save() async {
-    final prefs=await SharedPreferences.getInstance();
-    await prefs.setString(_key,data.encode());
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, data.encode());
   }
-  void commit(){_save();notifyListeners();}
-  static String id()=>DateTime.now().microsecondsSinceEpoch.toString();
 
-  AccountItem? findAccount(String name){
-    for(final a in data.accounts){if(a.name==name)return a;}
+  void commit() {
+    _save();
+    notifyListeners();
+  }
+
+  static String newId() => DateTime.now().microsecondsSinceEpoch.toString();
+
+  bool sameMonth(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month;
+
+  void previousMonth() {
+    selectedMonth = DateTime(selectedMonth.year, selectedMonth.month - 1);
+    notifyListeners();
+  }
+
+  void nextMonth() {
+    selectedMonth = DateTime(selectedMonth.year, selectedMonth.month + 1);
+    notifyListeners();
+  }
+
+  void currentMonth() {
+    final now = DateTime.now();
+    selectedMonth = DateTime(now.year, now.month);
+    notifyListeners();
+  }
+
+  AccountItem? findAccount(String name) {
+    for (final item in data.accounts) {
+      if (item.name == name) return item;
+    }
     return null;
   }
 
-  void finishOnboarding(String account,double balance,String goal){
-    data.onboardingCompleted=true;data.primaryGoal=goal;
-    if(account.trim().isNotEmpty){data.accounts.add(AccountItem(id:id(),name:account.trim(),type:'Conta principal',balance:balance));}
-    commit();
-  }
-  void setDarkMode(bool v){data.darkMode=v;commit();}
-  void setPrivacyMode(bool v){data.privacyMode=v;commit();}
-  bool sameMonth(DateTime a,DateTime b)=>a.year==b.year&&a.month==b.month;
-
-  double get cashBalance=>data.accounts.fold<double>(0,(s,e)=>s+e.balance);
-  double get reserveBalance=>data.reserves.fold<double>(0,(s,e)=>s+e.saved);
-  double get investmentBalance=>data.investments.fold<double>(0,(s,e)=>s+e.amount);
-  double get netWorth=>cashBalance+reserveBalance+investmentBalance;
-  List<TransactionItem> get monthTransactions{final now=DateTime.now();return data.transactions.where((e)=>sameMonth(e.date,now)).toList();}
-  double get monthIncome=>monthTransactions.where((e)=>e.type==TransactionType.income).fold<double>(0,(s,e)=>s+e.amount);
-  double get monthExpense=>monthTransactions.where((e)=>e.type==TransactionType.expense).fold<double>(0,(s,e)=>s+e.amount);
-  double get monthBalance=>monthIncome-monthExpense;
-
-  List<PlannedItem> get futurePlanned{
-    final n=DateTime.now();final today=DateTime(n.year,n.month,n.day);
-    final list=data.planned.where((e)=>!e.date.isBefore(today)).toList();
-    list.sort((a,b)=>a.date.compareTo(b.date));return list;
-  }
-  double get plannedReceivable=>futurePlanned.where((e)=>e.type==TransactionType.income).fold<double>(0,(s,e)=>s+e.amount);
-  double get plannedPayable=>futurePlanned.where((e)=>e.type==TransactionType.expense).fold<double>(0,(s,e)=>s+e.amount);
-  double get currentMonthPayable{final n=DateTime.now();return futurePlanned.where((e)=>e.type==TransactionType.expense&&sameMonth(e.date,n)).fold<double>(0,(s,e)=>s+e.amount);}
-  double get budgetLimit=>data.budgets.fold<double>(0,(s,e)=>s+e.limit);
-  double get availableToSpend{
-    final goalPlan=data.goals.fold<double>(0,(s,g)=>s+(g.target-g.saved).clamp(0,200).toDouble());
-    return (cashBalance-currentMonthPayable-goalPlan).clamp(0,double.infinity).toDouble();
-  }
-  Map<String,double> get expensesByCategory{
-    final m=<String,double>{};
-    for(final t in monthTransactions){if(t.type==TransactionType.expense)m[t.category]=(m[t.category]??0)+t.amount;}
-    return m;
+  CardItem? findCard(String? id) {
+    if (id == null) return null;
+    for (final item in data.cards) {
+      if (item.id == id) return item;
+    }
+    return null;
   }
 
-  void addTransaction(TransactionItem item){
-    data.transactions.add(item);final a=findAccount(item.account);
-    if(a!=null){if(item.type==TransactionType.income)a.balance+=item.amount;if(item.type==TransactionType.expense)a.balance-=item.amount;}
-    commit();
-  }
-  void updateTransaction(TransactionItem before,TransactionItem after){
-    final i=data.transactions.indexWhere((e)=>e.id==before.id);if(i<0)return;
-    final old=findAccount(before.account);if(old!=null){if(before.type==TransactionType.income)old.balance-=before.amount;if(before.type==TransactionType.expense)old.balance+=before.amount;}
-    data.transactions[i]=after;final fresh=findAccount(after.account);if(fresh!=null){if(after.type==TransactionType.income)fresh.balance+=after.amount;if(after.type==TransactionType.expense)fresh.balance-=after.amount;}commit();
-  }
-  void deleteTransaction(TransactionItem item){
-    final a=findAccount(item.account);if(a!=null){if(item.type==TransactionType.income)a.balance-=item.amount;if(item.type==TransactionType.expense)a.balance+=item.amount;}
-    data.transactions.removeWhere((e)=>e.id==item.id);commit();
+  List<String> get expenseCategories {
+    final custom = data.categories
+        .where((e) => !e.income)
+        .map((e) => e.name)
+        .where((e) => !defaultExpenseCategories.contains(e));
+    return [...defaultExpenseCategories, ...custom];
   }
 
-  void addRecurring(TransactionType type,String title,String category,double amount,String account,RecurrenceFrequency frequency){
-    final rid=id();final now=DateTime.now();
-    data.recurringRules.add(RecurringRule(id:rid,type:type,title:title,category:category,amount:amount,account:account,startDate:now,frequency:frequency));
-    data.transactions.add(TransactionItem(id:id(),type:type,title:title,category:category,amount:amount,date:now,account:account,recurrenceId:rid));
-    final a=findAccount(account);if(a!=null){if(type==TransactionType.income)a.balance+=amount;if(type==TransactionType.expense)a.balance-=amount;}
-    var cursor=now;for(var i=0;i<6;i++){cursor=nextOccurrence(cursor,frequency);data.planned.add(PlannedItem(id:id(),type:type,title:title,category:category,amount:amount,date:cursor,recurrenceId:rid));}
+  List<String> get incomeCategories {
+    final custom = data.categories
+        .where((e) => e.income)
+        .map((e) => e.name)
+        .where((e) => !defaultIncomeCategories.contains(e));
+    return [...defaultIncomeCategories, ...custom];
+  }
+
+  void finishOnboarding({
+    required String accountName,
+    required double initialBalance,
+    required String primaryGoal,
+  }) {
+    data.onboardingCompleted = true;
+    data.primaryGoal = primaryGoal;
+    if (accountName.trim().isNotEmpty) {
+      data.accounts.add(AccountItem(
+        id: newId(), name: accountName.trim(), type: 'Conta principal',
+        balance: initialBalance,
+      ));
+    }
     commit();
   }
 
-  void addInstallment(String title,String category,double total,int count,String account){
-    final pid=id();final now=DateTime.now();final part=total/count;
-    data.installmentPlans.add(InstallmentPlan(id:pid,title:title,category:category,account:account,totalAmount:total,installments:count,startDate:now));
-    data.transactions.add(TransactionItem(id:id(),type:TransactionType.expense,title:'$title (1/$count)',category:category,amount:part,date:now,account:account,installmentId:pid,installmentNumber:1,installmentTotal:count));
-    final a=findAccount(account);if(a!=null)a.balance-=part;
-    for(var i=2;i<=count;i++){data.planned.add(PlannedItem(id:id(),type:TransactionType.expense,title:'$title ($i/$count)',category:category,amount:part,date:addMonths(now,i-1),installmentId:pid,installmentNumber:i,installmentTotal:count));}
+  void setDarkMode(bool value) {
+    data.darkMode = value;
     commit();
   }
 
-  void transfer(double amount,String from,String to){
-    final a=findAccount(from),b=findAccount(to);if(a!=null)a.balance-=amount;if(b!=null)b.balance+=amount;
-    data.transactions.add(TransactionItem(id:id(),type:TransactionType.transfer,title:'Transferência',category:'Transferência',amount:amount,date:DateTime.now(),account:'$from → $to'));commit();
+  void setPrivacyMode(bool value) {
+    data.privacyMode = value;
+    commit();
   }
 
-  void addBudget(String category,double limit){data.budgets.add(BudgetItem(id:id(),category:category,limit:limit));commit();}
-  void addGoal(String name,double target,double saved){data.goals.add(GoalItem(id:id(),name:name,target:target,saved:saved,deadline:DateTime.now().add(const Duration(days:365))));commit();}
-  void addReserve(String name,double target,double saved){data.reserves.add(ReserveItem(id:id(),name:name,target:target,saved:saved,months:6));commit();}
-  void addInvestment(String name,double amount,double ret){data.investments.add(InvestmentItem(id:id(),name:name,assetClass:'Renda fixa',amount:amount,estimatedReturn:ret));commit();}
-  void addAccount(String name,double balance){data.accounts.add(AccountItem(id:id(),name:name,type:'Conta',balance:balance));commit();}
-  void addCard(String name,double limit,double used){data.cards.add(CardItem(id:id(),name:name,limit:limit,used:used,closeDay:25,dueDay:5));commit();}
-  void contributeGoal(String id,double value){final x=data.goals.firstWhere((e)=>e.id==id);x.saved=(x.saved+value).clamp(0,x.target).toDouble();commit();}
-  void contributeReserve(String id,double value){final x=data.reserves.firstWhere((e)=>e.id==id);x.saved=(x.saved+value).clamp(0,x.target).toDouble();commit();}
-  void loadDemo(){final dark=data.darkMode;data=demoData()..darkMode=dark;commit();}
-  void clearForRealUse(){final dark=data.darkMode;data=emptyData()..darkMode=dark..onboardingCompleted=true;commit();}
+  double get cashBalance =>
+      data.accounts.fold<double>(0, (sum, item) => sum + item.balance);
+  double get reserveBalance =>
+      data.reserves.fold<double>(0, (sum, item) => sum + item.saved);
+  double get investmentBalance =>
+      data.investments.fold<double>(0, (sum, item) => sum + item.amount);
+  double get netWorth => cashBalance + reserveBalance + investmentBalance;
 
-  static DateTime nextOccurrence(DateTime d,RecurrenceFrequency f){if(f==RecurrenceFrequency.weekly)return d.add(const Duration(days:7));if(f==RecurrenceFrequency.yearly)return DateTime(d.year+1,d.month,d.day);return addMonths(d,1);}
-  static DateTime addMonths(DateTime d,int months){final raw=d.month-1+months;final y=d.year+raw~/12;final m=raw%12+1;final last=DateTime(y,m+1,0).day;return DateTime(y,m,d.day>last?last:d.day);}
+  List<TransactionItem> transactionsForMonth(DateTime month) {
+    final items = data.transactions.where((e) => sameMonth(e.date, month)).toList();
+    items.sort((a, b) => b.date.compareTo(a.date));
+    return items;
+  }
 
-  static FinanceData emptyData()=>FinanceData(darkMode:true,privacyMode:false,onboardingCompleted:false,primaryGoal:'Controlar gastos',accounts:[],cards:[],transactions:[],planned:[],budgets:[],goals:[],reserves:[],investments:[],recurringRules:[],installmentPlans:[]);
-  static FinanceData demoData(){final n=DateTime.now();return FinanceData(darkMode:true,privacyMode:false,onboardingCompleted:true,primaryGoal:'Planejar melhor',accounts:[AccountItem(id:'a1',name:'Conta principal',type:'Conta',balance:2400)],cards:[CardItem(id:'c1',name:'Cartão principal',limit:3000,used:620,closeDay:25,dueDay:5)],transactions:[TransactionItem(id:'t1',type:TransactionType.income,title:'Salário',category:'Renda',amount:1850,date:DateTime(n.year,n.month,5),account:'Conta principal'),TransactionItem(id:'t2',type:TransactionType.expense,title:'Mercado',category:'Alimentação',amount:176.40,date:DateTime(n.year,n.month,7),account:'Conta principal')],planned:[PlannedItem(id:'p1',type:TransactionType.expense,title:'Fatura do cartão',category:'Cartão',amount:620,date:DateTime(n.year,n.month+1,5))],budgets:[BudgetItem(id:'b1',category:'Alimentação',limit:500),BudgetItem(id:'b2',category:'Transporte',limit:300)],goals:[GoalItem(id:'g1',name:'Objetivo',target:2500,saved:600,deadline:n.add(const Duration(days:180)))],reserves:[ReserveItem(id:'r1',name:'Reserva de emergência',target:6000,saved:1400,months:4)],investments:[InvestmentItem(id:'i1',name:'Tesouro Selic',assetClass:'Renda fixa',amount:900,estimatedReturn:8.2)],recurringRules:[],installmentPlans:[]);}
+  List<TransactionItem> get monthTransactions => transactionsForMonth(selectedMonth);
+
+  double incomeForMonth(DateTime month) => transactionsForMonth(month)
+      .where((e) => e.type == TransactionType.income)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+
+  double expenseForMonth(DateTime month) => transactionsForMonth(month)
+      .where((e) => e.type == TransactionType.expense)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+
+  double get monthIncome => incomeForMonth(selectedMonth);
+  double get monthExpense => expenseForMonth(selectedMonth);
+  double get monthBalance => monthIncome - monthExpense;
+  DateTime get previousSelectedMonth => DateTime(selectedMonth.year, selectedMonth.month - 1);
+  double get previousMonthExpense => expenseForMonth(previousSelectedMonth);
+
+  List<PlannedItem> plannedForMonth(DateTime month) {
+    final items = data.planned.where((e) => sameMonth(e.date, month)).toList();
+    items.sort((a, b) => a.date.compareTo(b.date));
+    return items;
+  }
+
+  List<PlannedItem> get selectedPlanned => plannedForMonth(selectedMonth);
+  double get plannedReceivable => selectedPlanned
+      .where((e) => e.type == TransactionType.income)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+  double get plannedPayable => selectedPlanned
+      .where((e) => e.type == TransactionType.expense)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+
+  double get suggestedGoalContribution => data.goals.fold<double>(
+        0,
+        (sum, goal) => sum +
+            (goal.target - goal.saved).clamp(0.0, 200.0).toDouble(),
+      );
+
+  double get availableToSpend =>
+      (cashBalance + plannedReceivable - plannedPayable - suggestedGoalContribution)
+          .clamp(0.0, double.infinity)
+          .toDouble();
+
+  Map<String, double> get expensesByCategory {
+    final map = <String, double>{};
+    for (final tx in monthTransactions) {
+      if (tx.type == TransactionType.expense) {
+        map[tx.category] = (map[tx.category] ?? 0) + tx.amount;
+      }
+    }
+    return map;
+  }
+
+  List<double> get lastSixMonthExpenses {
+    final values = <double>[];
+    for (var i = 5; i >= 0; i--) {
+      values.add(expenseForMonth(DateTime(selectedMonth.year, selectedMonth.month - i)));
+    }
+    return values;
+  }
+
+  void _applyTransactionEffect(TransactionItem item, {required bool reverse}) {
+    final sign = reverse ? -1.0 : 1.0;
+    if (item.type == TransactionType.transfer) return;
+    if (item.paymentKind == PaymentKind.card &&
+        item.type == TransactionType.expense) {
+      final card = findCard(item.cardId);
+      if (card != null) {
+        card.used += item.amount * sign;
+        if (card.used < 0) card.used = 0;
+      }
+      return;
+    }
+    final account = findAccount(item.account);
+    if (account == null) return;
+    if (item.type == TransactionType.income) {
+      account.balance += item.amount * sign;
+    } else if (item.type == TransactionType.expense) {
+      account.balance -= item.amount * sign;
+    }
+  }
+
+  static DateTime nextOccurrence(DateTime date, RecurrenceFrequency frequency) {
+    if (frequency == RecurrenceFrequency.weekly) {
+      return date.add(const Duration(days: 7));
+    }
+    if (frequency == RecurrenceFrequency.yearly) {
+      return DateTime(date.year + 1, date.month, date.day);
+    }
+    return addMonths(date, 1);
+  }
+
+  static DateTime addMonths(DateTime date, int months) {
+    final raw = date.month - 1 + months;
+    final year = date.year + raw ~/ 12;
+    final month = raw % 12 + 1;
+    final lastDay = DateTime(year, month + 1, 0).day;
+    return DateTime(year, month, date.day > lastDay ? lastDay : date.day);
+  }
+
+  static FinanceData emptyData() => FinanceData(
+        darkMode: true,
+        privacyMode: false,
+        onboardingCompleted: false,
+        primaryGoal: 'Controlar gastos',
+        accounts: [], cards: [], transactions: [], planned: [], budgets: [],
+        goals: [], reserves: [], investments: [], recurringRules: [],
+        installmentPlans: [], categories: [],
+      );
+
+  static FinanceData demoData() {
+    final now = DateTime.now();
+    return FinanceData(
+      darkMode: true,
+      privacyMode: false,
+      onboardingCompleted: true,
+      primaryGoal: 'Planejar melhor',
+      accounts: [AccountItem(id: 'a1', name: 'Conta principal', type: 'Conta', balance: 2400)],
+      cards: [CardItem(id: 'c1', name: 'Cartão principal', limit: 3000, used: 620, closeDay: 25, dueDay: 5)],
+      transactions: [
+        TransactionItem(id: 't1', type: TransactionType.income, title: 'Salário', category: 'Renda', amount: 1850, date: DateTime(now.year, now.month, 5), account: 'Conta principal'),
+        TransactionItem(id: 't2', type: TransactionType.expense, title: 'Mercado', category: 'Alimentação', amount: 176.40, date: DateTime(now.year, now.month, 7), account: 'Conta principal'),
+        TransactionItem(id: 't3', type: TransactionType.expense, title: 'Streaming', category: 'Lazer', amount: 39.90, date: DateTime(now.year, now.month, 8), account: 'Cartão principal', paymentKind: PaymentKind.card, cardId: 'c1'),
+      ],
+      planned: [PlannedItem(id: 'p1', type: TransactionType.expense, title: 'Internet', category: 'Serviços', amount: 99, date: DateTime(now.year, now.month, 20), sourceName: 'Conta principal')],
+      budgets: [BudgetItem(id: 'b1', category: 'Alimentação', limit: 500), BudgetItem(id: 'b2', category: 'Transporte', limit: 300)],
+      goals: [GoalItem(id: 'g1', name: 'Objetivo', target: 2500, saved: 600, deadline: now.add(const Duration(days: 180)))],
+      reserves: [ReserveItem(id: 'r1', name: 'Reserva de emergência', target: 6000, saved: 1400, months: 4)],
+      investments: [InvestmentItem(id: 'i1', name: 'Tesouro Selic', assetClass: 'Renda fixa', amount: 900, estimatedReturn: 8.2)],
+      recurringRules: [], installmentPlans: [], categories: [],
+    );
+  }
 }

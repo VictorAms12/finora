@@ -1,33 +1,16 @@
-# Finora Mobile v0.2
+# Finora Mobile v0.3
 
-Versão focada em uso real e polimento da experiência mobile.
+Versão focada em uso real: mês selecionável, datas, cartão/fatura, categorias, recorrências e parcelamentos gerenciáveis, relatórios melhores e Dashboard premium.
 
-## Novidades
-- onboarding de 3 etapas;
-- primeiro uso com dados limpos;
-- primeira conta configurada no onboarding;
-- Dashboard compacto e premium;
-- tema OLED preto absoluto e tema claro branco;
-- boxes reorganizados e estados vazios próprios;
-- transições suaves na navegação e nas telas secundárias;
-- entradas, saídas e transferências;
-- pesquisa e filtros de movimentações;
-- detalhes, edição e exclusão de lançamentos;
-- recorrências semanais, mensais e anuais;
-- parcelamentos com parcelas futuras no planejamento;
-- orçamento por categoria;
-- calendário financeiro;
-- metas e aportes;
-- reservas e aportes;
-- investimentos;
-- relatórios;
-- contas e cartões;
-- conselhos/insights;
-- privacidade para ocultar valores;
-- dados de demonstração apenas como opção nas Configurações;
-- botão para limpar tudo e começar/continuar com dados reais.
+## Destaques
+- Card Disponível para gastar agora é clicável e explica o cálculo.
+- Seletor de mês no Dashboard, Planejamento, Movimentações, Relatórios e Fatura.
+- Lançamentos com data e forma de pagamento.
+- Compras no cartão entram na fatura sem reduzir a conta imediatamente.
+- Pagamento de fatura desconta da conta escolhida.
+- Recorrências podem ser pausadas/reativadas/excluídas.
+- Parcelamentos mostram progresso e permitem cancelar parcelas futuras.
+- Relatórios com comparação mensal e histórico de 6 meses.
+- Dados de primeiro uso continuam limpos com onboarding.
 
-## GitHub Actions
-O workflow `.github/workflows/build-android.yml` gera APK e AAB ao fazer push para `main`.
-
-Artifact: `Finora-Android-v0.2`
+Artifacts: `Finora-APK-v0.3` e `Finora-AAB-v0.3`.
