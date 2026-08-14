@@ -12,7 +12,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Criar commit final
+      - name: Criar commit final e referência temporária
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -38,4 +38,12 @@ jobs:
           new_sha=$(printf '%s' "$response" | jq -r '.sha')
           test -n "$new_sha"
           test "$new_sha" != "null"
-          echo "FINAL_V03_SHA=$new_sha"
+
+          ref_payload=$(jq -n --arg ref "refs/heads/agent/finora-v0.3-publish" --arg sha "$new_sha" '{ref:$ref, sha:$sha}')
+          curl --fail-with-body -sS \
+            -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO/git/refs" \
+            -d "$ref_payload"
