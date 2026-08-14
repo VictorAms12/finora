@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
-import 'forms.dart';
 
 class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
@@ -106,8 +104,7 @@ class ReportsScreen extends StatelessWidget {
                             : '${change.abs().toStringAsFixed(1)}% ${change > 0 ? 'a mais' : 'a menos'} em despesas.',
                         style: TextStyle(
                           fontSize: 9,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -168,8 +165,7 @@ class ReportsScreen extends StatelessWidget {
                                     Expanded(
                                       child: Text(
                                         entry.key,
-                                        style:
-                                            const TextStyle(fontSize: 10.8),
+                                        style: const TextStyle(fontSize: 10.8),
                                       ),
                                     ),
                                     Text(
@@ -188,8 +184,7 @@ class ReportsScreen extends StatelessWidget {
                                   minHeight: 4,
                                   borderRadius: BorderRadius.circular(20),
                                   color: FinoraColors.expense,
-                                  backgroundColor:
-                                      Theme.of(context).dividerColor,
+                                  backgroundColor: Theme.of(context).dividerColor,
                                 ),
                               ],
                             ),
@@ -233,4 +228,3 @@ class ReportsScreen extends StatelessWidget {
         ],
       );
 }
-
