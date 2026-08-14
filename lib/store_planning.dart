@@ -1,6 +1,103 @@
 part of 'store.dart';
 
 extension FinanceStorePlanning on FinanceStore {
+  double cashPlannedReceivableForMonth(DateTime month) => data.planned
+      .where((e) =>
+          e.status == PlannedStatus.planned &&
+          e.type == TransactionType.income &&
+          sameMonth(e.date, month))
+      .fold<double>(0, (sum, item) => sum + item.amount);
+
+  double cashPlannedPayableForMonth(DateTime month) {
+    var total = 0.0;
+
+    for (final item in data.planned) {
+      if (item.status != PlannedStatus.planned ||
+          item.type != TransactionType.expense) {
+        continue;
+      }
+      if (item.paymentKind == PaymentKind.account && sameMonth(item.date, month)) {
+        total += item.amount;
+      } else if (item.paymentKind == PaymentKind.card) {
+        final invoice = item.invoiceMonth ??
+            _plannedInvoiceMonth(item.paymentKind, item.cardId, item.date);
+        if (invoice != null && sameMonth(invoice, month)) {
+          total += item.amount;
+        }
+      }
+    }
+
+    for (final card in data.cards) {
+      total += invoiceOutstandingForMonth(card.id, month);
+    }
+
+    final now = DateTime.now();
+    if (sameMonth(month, now)) {
+      for (final card in data.cards) {
+        final trackedCardPurchases = data.transactions
+            .where((e) =>
+                e.paymentKind == PaymentKind.card &&
+                e.cardId == card.id &&
+                e.type == TransactionType.expense)
+            .fold<double>(0, (sum, item) => sum + item.amount);
+        final paid = data.transactions
+            .where((e) =>
+                e.type == TransactionType.transfer &&
+                e.cardId == card.id &&
+                e.title.startsWith('Pagamento fatura'))
+            .fold<double>(0, (sum, item) => sum + item.amount);
+        final trackedOutstanding =
+            (trackedCardPurchases - paid).clamp(0.0, double.infinity).toDouble();
+        final manualOutstanding = (card.used - trackedOutstanding)
+            .clamp(0.0, double.infinity)
+            .toDouble();
+        total += manualOutstanding;
+      }
+    }
+
+    return total;
+  }
+
+  double cashProjectedClosingForMonth(DateTime month) {
+    final target = DateTime(month.year, month.month);
+    final current = DateTime(DateTime.now().year, DateTime.now().month);
+
+    if (target.isBefore(current)) {
+      final snapshot = snapshotForMonth(target);
+      if (snapshot != null) return snapshot.closingBalance;
+      return incomeForMonth(target) - expenseForMonth(target);
+    }
+
+    var balance = cashBalance;
+    var cursor = current;
+    while (!cursor.isAfter(target)) {
+      balance += cashPlannedReceivableForMonth(cursor);
+      balance -= cashPlannedPayableForMonth(cursor);
+      cursor = DateTime(cursor.year, cursor.month + 1);
+    }
+    return balance;
+  }
+
+  double cashProjectedOpeningForMonth(DateTime month) {
+    final target = DateTime(month.year, month.month);
+    final current = DateTime(DateTime.now().year, DateTime.now().month);
+
+    if (target.isBefore(current)) {
+      return snapshotForMonth(target)?.openingBalance ?? 0;
+    }
+    if (sameMonth(target, current)) return cashBalance;
+    return cashProjectedClosingForMonth(DateTime(target.year, target.month - 1));
+  }
+
+  double get selectedCashProjectedOpening =>
+      cashProjectedOpeningForMonth(selectedMonth);
+  double get selectedCashProjectedClosing =>
+      cashProjectedClosingForMonth(selectedMonth);
+  double get selectedCashPlannedPayable =>
+      cashPlannedPayableForMonth(selectedMonth);
+  double get selectedCashPlannedReceivable =>
+      cashPlannedReceivableForMonth(selectedMonth);
+
   DateTime? _plannedInvoiceMonth(
     PaymentKind paymentKind,
     String? cardId,
