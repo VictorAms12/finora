@@ -243,13 +243,23 @@ class FinanceStore extends ChangeNotifier {
             sum + (goal.target - goal.saved).clamp(0.0, 200.0).toDouble(),
       );
 
-  double get availableToSpend =>
-      (cashBalance +
-              plannedReceivableForMonth(DateTime.now()) -
-              plannedPayableForMonth(DateTime.now()) -
-              suggestedGoalContribution)
-          .clamp(0.0, double.infinity)
-          .toDouble();
+  double get availableToSpend {
+    final now = DateTime.now();
+    final planning = FinanceStorePlanning(this);
+    return (cashBalance +
+            planning.cashPlannedReceivableForMonth(now) -
+            planning.cashPlannedPayableForMonth(now) -
+            suggestedGoalContribution)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+  }
+
+  double get availablePerDay {
+    final now = DateTime.now();
+    final lastDay = DateTime(now.year, now.month + 1, 0).day;
+    final remainingDays = (lastDay - now.day + 1).clamp(1, 31);
+    return availableToSpend / remainingDays;
+  }
 
   Map<String, double> get expensesByCategory {
     final map = <String, double>{};
@@ -299,7 +309,7 @@ class FinanceStore extends ChangeNotifier {
     final now = DateTime(DateTime.now().year, DateTime.now().month);
     if (data.trackingMonth == null) {
       data.trackingMonth = now;
-      data.trackingOpeningCash = cashBalance;
+      data.trackingOpeningCash = cashBalance - cashMovementForMonth(now);
       return;
     }
 
@@ -352,11 +362,12 @@ class FinanceStore extends ChangeNotifier {
       return incomeForMonth(target) - expenseForMonth(target);
     }
 
+    final planning = FinanceStorePlanning(this);
     var balance = cashBalance;
     var cursor = now;
     while (!cursor.isAfter(target)) {
-      balance += plannedReceivableForMonth(cursor);
-      balance -= plannedPayableForMonth(cursor);
+      balance += planning.cashPlannedReceivableForMonth(cursor);
+      balance -= planning.cashPlannedPayableForMonth(cursor);
       cursor = DateTime(cursor.year, cursor.month + 1);
     }
     return balance;
