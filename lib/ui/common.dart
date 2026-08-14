@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
+
+export 'tiles.dart';
 
 const monthShort = [
   'JAN',
@@ -40,8 +41,7 @@ String shortDate(DateTime date) =>
 String fullDate(DateTime date) =>
     '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
 
-String monthLabel(DateTime date) =>
-    '${monthLong[date.month - 1]} ${date.year}';
+String monthLabel(DateTime date) => '${monthLong[date.month - 1]} ${date.year}';
 
 String formatMoney(double value) {
   final negative = value < 0;
@@ -313,5 +313,3 @@ Widget sectionTitle(
         ],
       ),
     );
-
-export 'tiles.dart';
