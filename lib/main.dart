@@ -10,9 +10,14 @@ import 'theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await NotificationService.initialize();
+
+  final store = FinanceStore();
+  await store.load();
+  store.repairTrackingBaseline();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => FinanceStore()..load(),
+    ChangeNotifierProvider.value(
+      value: store,
       child: const FinoraApp(),
     ),
   );
