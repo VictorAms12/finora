@@ -6,33 +6,13 @@ import '../theme.dart';
 export 'tiles.dart';
 
 const monthShort = [
-  'JAN',
-  'FEV',
-  'MAR',
-  'ABR',
-  'MAI',
-  'JUN',
-  'JUL',
-  'AGO',
-  'SET',
-  'OUT',
-  'NOV',
-  'DEZ',
+  'JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN',
+  'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ',
 ];
 
 const monthLong = [
-  'Janeiro',
-  'Fevereiro',
-  'Março',
-  'Abril',
-  'Maio',
-  'Junho',
-  'Julho',
-  'Agosto',
-  'Setembro',
-  'Outubro',
-  'Novembro',
-  'Dezembro',
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 
 String shortDate(DateTime date) =>
@@ -48,13 +28,11 @@ String formatMoney(double value) {
   final parts = value.abs().toStringAsFixed(2).split('.');
   final raw = parts[0];
   final buffer = StringBuffer();
-
   for (var i = 0; i < raw.length; i++) {
     buffer.write(raw[i]);
     final remaining = raw.length - i - 1;
     if (remaining > 0 && remaining % 3 == 0) buffer.write('.');
   }
-
   final result = 'R\$ ${buffer.toString()},${parts[1]}';
   return negative ? '-$result' : result;
 }
@@ -74,13 +52,9 @@ TextStyle eyebrowStyle(BuildContext context) => TextStyle(
 IconData categoryIcon(String category) {
   final value = category.toLowerCase();
   if (value.contains('aliment')) return Icons.restaurant_rounded;
-  if (value.contains('transporte') || value.contains('combust')) {
-    return Icons.directions_car_rounded;
-  }
+  if (value.contains('transporte') || value.contains('combust')) return Icons.directions_car_rounded;
   if (value.contains('moradia')) return Icons.home_rounded;
-  if (value.contains('saúde') || value.contains('farm')) {
-    return Icons.health_and_safety_rounded;
-  }
+  if (value.contains('saúde') || value.contains('farm')) return Icons.health_and_safety_rounded;
   if (value.contains('lazer')) return Icons.sports_esports_rounded;
   if (value.contains('tecnologia')) return Icons.devices_rounded;
   if (value.contains('pet')) return Icons.pets_rounded;
@@ -108,37 +82,29 @@ class PageScaffold extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          floating: true,
-          snap: true,
-          toolbarHeight: 68,
-          titleSpacing: 18,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(eyebrow, style: eyebrowStyle(context)),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ],
+  Widget build(BuildContext context) => CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            floating: true,
+            snap: true,
+            toolbarHeight: 68,
+            titleSpacing: 18,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(eyebrow, style: eyebrowStyle(context)),
+                const SizedBox(height: 2),
+                Text(title, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
+              ],
+            ),
+            actions: actions,
           ),
-          actions: actions,
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(14, 4, 14, 108),
-          sliver: SliverToBoxAdapter(child: child),
-        ),
-      ],
-    );
-  }
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 108),
+            sliver: SliverToBoxAdapter(child: child),
+          ),
+        ],
+      );
 }
 
 class SurfaceCard extends StatelessWidget {
@@ -162,22 +128,14 @@ class SurfaceCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(19),
-        border: Border.all(
-          color: borderColor ?? Theme.of(context).dividerColor,
-        ),
+        border: Border.all(color: borderColor ?? Theme.of(context).dividerColor),
       ),
       child: child,
     );
-
     if (onTap == null) return content;
-
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(19),
-        child: content,
-      ),
+      child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(19), child: content),
     );
   }
 }
@@ -199,50 +157,30 @@ class EmptyState extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 10),
-      child: Column(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: FinoraColors.gold.withValues(alpha: .10),
-              borderRadius: BorderRadius.circular(16),
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 10),
+        child: Column(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: FinoraColors.gold.withValues(alpha: .10),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: FinoraColors.goldBright),
             ),
-            child: Icon(icon, color: FinoraColors.goldBright),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 10.3,
-              height: 1.45,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 12),
-            FilledButton.tonal(
-              onPressed: onAction,
-              child: Text(actionLabel!),
-            ),
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+            const SizedBox(height: 5),
+            Text(subtitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 10.3, height: 1.45, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 12),
+              FilledButton.tonal(onPressed: onAction, child: Text(actionLabel!)),
+            ],
           ],
-        ],
-      ),
-    );
-  }
+        ),
+      );
 }
 
 class MonthSwitcher extends StatelessWidget {
@@ -253,63 +191,142 @@ class MonthSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<FinanceStore>();
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          tooltip: 'Mês anterior',
-          visualDensity: VisualDensity.compact,
-          onPressed: store.previousMonth,
-          icon: const Icon(Icons.chevron_left_rounded),
-        ),
-        InkWell(
-          onTap: store.currentMonth,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 5 : 9,
-              vertical: 7,
-            ),
-            child: Text(
-              monthLabel(store.selectedMonth),
-              style: TextStyle(
-                fontSize: compact ? 11 : 12,
-                fontWeight: FontWeight.w900,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Theme.of(context).dividerColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: 'Mês anterior',
+            visualDensity: VisualDensity.compact,
+            onPressed: store.previousMonth,
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          InkWell(
+            onTap: () => showMonthPicker(context),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: compact ? 5 : 10, vertical: 8),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(begin: const Offset(0, .12), end: Offset.zero).animate(animation),
+                    child: child,
+                  ),
+                ),
+                child: Text(
+                  monthLabel(store.selectedMonth),
+                  key: ValueKey('${store.selectedMonth.year}-${store.selectedMonth.month}'),
+                  style: TextStyle(fontSize: compact ? 11 : 12, fontWeight: FontWeight.w900),
+                ),
               ),
             ),
           ),
-        ),
-        IconButton(
-          tooltip: 'Próximo mês',
-          visualDensity: VisualDensity.compact,
-          onPressed: store.nextMonth,
-          icon: const Icon(Icons.chevron_right_rounded),
-        ),
-      ],
+          IconButton(
+            tooltip: 'Próximo mês',
+            visualDensity: VisualDensity.compact,
+            onPressed: store.nextMonth,
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
     );
   }
 }
 
-Widget sectionTitle(
-  BuildContext context,
-  String eyebrow,
-  String title,
-) =>
-    Align(
+Future<void> showMonthPicker(BuildContext context) async {
+  final store = context.read<FinanceStore>();
+  var year = store.selectedMonth.year;
+
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (_, setLocal) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  IconButton(onPressed: () => setLocal(() => year--), icon: const Icon(Icons.chevron_left_rounded)),
+                  Expanded(child: Text('$year', textAlign: TextAlign.center, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+                  IconButton(onPressed: () => setLocal(() => year++), icon: const Icon(Icons.chevron_right_rounded)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 2.0, mainAxisSpacing: 8, crossAxisSpacing: 8),
+                itemCount: 12,
+                itemBuilder: (_, index) {
+                  final month = index + 1;
+                  final active = store.selectedMonth.year == year && store.selectedMonth.month == month;
+                  return InkWell(
+                    onTap: () {
+                      _moveStoreToMonth(store, DateTime(year, month));
+                      Navigator.pop(sheetContext);
+                    },
+                    borderRadius: BorderRadius.circular(13),
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: active ? FinoraColors.gold.withValues(alpha: .14) : null,
+                        border: Border.all(color: active ? FinoraColors.goldBright : Theme.of(context).dividerColor),
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Text(monthShort[index], style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: active ? FinoraColors.goldBright : null)),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: () {
+                    store.currentMonth();
+                    Navigator.pop(sheetContext);
+                  },
+                  icon: const Icon(Icons.today_rounded),
+                  label: const Text('Ir para o mês atual'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+void _moveStoreToMonth(FinanceStore store, DateTime target) {
+  final diff = (target.year - store.selectedMonth.year) * 12 +
+      target.month - store.selectedMonth.month;
+  if (diff > 0) {
+    for (var i = 0; i < diff; i++) store.nextMonth();
+  } else if (diff < 0) {
+    for (var i = 0; i < -diff; i++) store.previousMonth();
+  }
+}
+
+Widget sectionTitle(BuildContext context, String eyebrow, String title) => Align(
       alignment: Alignment.centerLeft,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(eyebrow, style: eyebrowStyle(context)),
           const SizedBox(height: 2),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+          Text(title, style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900)),
         ],
       ),
     );

@@ -9,14 +9,11 @@ class TransactionTile extends StatelessWidget {
   final TransactionItem item;
   final VoidCallback? onTap;
 
-  const TransactionTile({
-    super.key,
-    required this.item,
-    this.onTap,
-  });
+  const TransactionTile({super.key, required this.item, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final store = context.watch<FinanceStore>();
     final income = item.type == TransactionType.income;
     final expense = item.type == TransactionType.expense;
     final color = income
@@ -36,6 +33,9 @@ class TransactionTile extends StatelessWidget {
         : expense
             ? '− '
             : '';
+    final extra = item.paymentKind == PaymentKind.card && expense
+        ? ' · fatura ${monthShort[store.transactionInvoiceMonth(item).month - 1]}'
+        : '';
 
     return InkWell(
       onTap: onTap,
@@ -66,7 +66,7 @@ class TransactionTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${item.category} · ${shortDate(item.date)} · ${item.account}',
+                    '${item.category} · ${shortDate(item.date)}$extra',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -96,16 +96,32 @@ class PlannedTile extends StatelessWidget {
   final PlannedItem item;
   final VoidCallback? onTap;
 
-  const PlannedTile({
-    super.key,
-    required this.item,
-    this.onTap,
-  });
+  const PlannedTile({super.key, required this.item, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final income = item.type == TransactionType.income;
-    final color = income ? FinoraColors.income : FinoraColors.expense;
+    Color color;
+    IconData icon;
+    String state;
+
+    if (item.status == PlannedStatus.settled) {
+      color = FinoraColors.income;
+      icon = Icons.check_rounded;
+      state = 'realizado';
+    } else if (item.status == PlannedStatus.skipped) {
+      color = Colors.grey;
+      icon = Icons.skip_next_rounded;
+      state = 'ignorado';
+    } else if (item.isOverdue) {
+      color = FinoraColors.expense;
+      icon = Icons.error_outline_rounded;
+      state = 'atrasado';
+    } else {
+      color = income ? FinoraColors.income : FinoraColors.warning;
+      icon = Icons.schedule_rounded;
+      state = 'previsto';
+    }
 
     return InkWell(
       onTap: onTap,
@@ -122,13 +138,7 @@ class PlannedTile extends StatelessWidget {
                 color: color.withValues(alpha: .09),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                item.date.day.toString().padLeft(2, '0'),
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+              child: Icon(icon, size: 17, color: color),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -143,7 +153,7 @@ class PlannedTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${item.category} · ${shortDate(item.date)}',
+                    '${item.category} · ${shortDate(item.date)} · $state',
                     style: TextStyle(
                       fontSize: 8.5,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -170,19 +180,12 @@ class PlannedTile extends StatelessWidget {
 class ExpenseBars extends StatelessWidget {
   final List<double> values;
 
-  const ExpenseBars({
-    super.key,
-    required this.values,
-  });
+  const ExpenseBars({super.key, required this.values});
 
   @override
   Widget build(BuildContext context) {
+    final max = values.fold<double>(1, (m, v) => v > m ? v : m);
     final store = context.watch<FinanceStore>();
-    final maxValue = values.fold<double>(
-      1,
-      (current, value) => value > current ? value : current,
-    );
-
     return SizedBox(
       height: 90,
       child: Row(
@@ -192,8 +195,7 @@ class ExpenseBars extends StatelessWidget {
             store.selectedMonth.year,
             store.selectedMonth.month - (values.length - 1 - index),
           );
-          final height = 18 + (values[index] / maxValue) * 48;
-
+          final height = 18 + (values[index] / max) * 48;
           return Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -229,10 +231,7 @@ class ExpenseBars extends StatelessWidget {
 class BudgetProgress extends StatelessWidget {
   final BudgetItem item;
 
-  const BudgetProgress({
-    super.key,
-    required this.item,
-  });
+  const BudgetProgress({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
@@ -240,7 +239,6 @@ class BudgetProgress extends StatelessWidget {
     final used = store.expensesByCategory[item.category] ?? 0;
     final ratio = item.limit <= 0 ? 0.0 : used / item.limit;
     final over = ratio > 1;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
