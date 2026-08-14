@@ -1,6 +1,16 @@
 part of 'store.dart';
 
 extension FinanceStorePlanning on FinanceStore {
+  void repairTrackingBaseline() {
+    final now = DateTime(DateTime.now().year, DateTime.now().month);
+    if (data.snapshots.isEmpty &&
+        data.trackingMonth != null &&
+        sameMonth(data.trackingMonth!, now)) {
+      data.trackingOpeningCash = cashBalance - cashMovementForMonth(now);
+      commit();
+    }
+  }
+
   double cashPlannedReceivableForMonth(DateTime month) => data.planned
       .where((e) =>
           e.status == PlannedStatus.planned &&
@@ -56,6 +66,23 @@ extension FinanceStorePlanning on FinanceStore {
     }
 
     return total;
+  }
+
+  double get currentAvailableToSpend {
+    final now = DateTime.now();
+    return (cashBalance +
+            cashPlannedReceivableForMonth(now) -
+            cashPlannedPayableForMonth(now) -
+            suggestedGoalContribution)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+  }
+
+  double get currentAvailablePerDay {
+    final now = DateTime.now();
+    final lastDay = DateTime(now.year, now.month + 1, 0).day;
+    final remainingDays = (lastDay - now.day + 1).clamp(1, 31);
+    return currentAvailableToSpend / remainingDays;
   }
 
   double cashProjectedClosingForMonth(DateTime month) {
