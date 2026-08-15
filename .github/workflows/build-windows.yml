@@ -1,0 +1,84 @@
+name: Compilar Finora Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finora-windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-windows:
+    name: Verificar e compilar Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v5
+
+      - name: Instalar Flutter Stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Habilitar Windows Desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Gerar estrutura Windows
+        run: flutter create . --platforms=windows --project-name=finora --org=com.finora
+
+      - name: Ajustar identidade visual do executável
+        shell: pwsh
+        run: |
+          $cmake = 'windows/CMakeLists.txt'
+          if (Test-Path $cmake) {
+            (Get-Content $cmake -Raw).Replace('set(BINARY_NAME "finora")', 'set(BINARY_NAME "Finora")') | Set-Content $cmake
+          }
+          $runner = 'windows/runner/main.cpp'
+          if (Test-Path $runner) {
+            $text = Get-Content $runner -Raw
+            $text = $text.Replace('L"finora"', 'L"Finora"')
+            Set-Content $runner $text
+          }
+
+      - name: Baixar dependências
+        run: flutter pub get
+
+      - name: Verificar código
+        run: flutter analyze --no-fatal-infos
+
+      - name: Compilar Windows Release
+        run: flutter build windows --release
+
+      - name: Empacotar versão portátil
+        shell: pwsh
+        run: |
+          $release = 'build/windows/x64/runner/Release'
+          if (!(Test-Path $release)) { throw 'Pasta Release do Windows não encontrada.' }
+          New-Item -ItemType Directory -Force -Path 'dist/Finora-Windows-v0.3.6' | Out-Null
+          Copy-Item "$release/*" 'dist/Finora-Windows-v0.3.6' -Recurse -Force
+          @'
+          FINORA WINDOWS v0.3.6
+
+          1. Extraia toda a pasta antes de executar.
+          2. Abra Finora.exe.
+          3. Mantenha DLLs e a pasta data ao lado do executável.
+          4. Os dados desta instalação ficam armazenados localmente no Windows.
+          '@ | Set-Content 'dist/Finora-Windows-v0.3.6/LEIA-ME.txt'
+          Compress-Archive -Path 'dist/Finora-Windows-v0.3.6/*' -DestinationPath 'dist/Finora-Windows-v0.3.6.zip' -Force
+
+      - name: Publicar Finora Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finora-Windows-v0.3.6
+          if-no-files-found: error
+          retention-days: 14
+          path: dist/Finora-Windows-v0.3.6.zip
