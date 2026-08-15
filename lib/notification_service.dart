@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
@@ -25,10 +26,16 @@ class NotificationService {
     presentSound: true,
   );
 
+  static const WindowsNotificationDetails _windowsDetails =
+      WindowsNotificationDetails(
+    subtitle: 'Finora · Gestão financeira',
+  );
+
   static const NotificationDetails _details = NotificationDetails(
     android: _androidDetails,
     iOS: _darwinDetails,
     macOS: _darwinDetails,
+    windows: _windowsDetails,
   );
 
   static Future<void> initialize() async {
@@ -38,10 +45,16 @@ class NotificationService {
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
+    const windows = WindowsInitializationSettings(
+      appName: 'Finora',
+      appUserModelId: 'VictorAms12.Finora.Desktop.0.3.6',
+      guid: '8f4ec9d1-82ab-4fb3-bcb5-5e3d76c5f036',
+    );
     const settings = InitializationSettings(
       android: android,
       iOS: darwin,
       macOS: darwin,
+      windows: windows,
     );
     await plugin.initialize(settings: settings);
   }
@@ -70,8 +83,19 @@ class NotificationService {
   }
 
   static Future<void> setDailyReminder(bool enabled) async {
-    await plugin.cancel(id: dailyReminderId);
+    try {
+      await plugin.cancel(id: dailyReminderId);
+    } catch (_) {
+      // Em builds portáteis do Windows, cancelar notificações exige identidade
+      // de pacote. O app continua funcional mesmo sem essa operação.
+    }
     if (!enabled) return;
+
+    if (Platform.isWindows) {
+      // O backend Windows do plugin não oferece notificações periódicas.
+      // A central interna do Finora continua exibindo contas e atrasos.
+      return;
+    }
 
     await plugin.periodicallyShow(
       id: dailyReminderId,
