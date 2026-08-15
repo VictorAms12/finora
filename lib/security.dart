@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:provider/provider.dart';
@@ -12,8 +13,10 @@ class BiometricService {
   static Future<bool> isAvailable() async {
     try {
       final supported = await _auth.isDeviceSupported();
+      if (!supported) return false;
+      if (Platform.isWindows) return true;
       final biometrics = await _auth.getAvailableBiometrics();
-      return supported && biometrics.isNotEmpty;
+      return biometrics.isNotEmpty;
     } catch (_) {
       return false;
     }
@@ -25,7 +28,7 @@ class BiometricService {
     try {
       return await _auth.authenticate(
         localizedReason: reason,
-        biometricOnly: true,
+        biometricOnly: !Platform.isWindows,
         persistAcrossBackgrounding: true,
       );
     } on LocalAuthException {
@@ -126,8 +129,10 @@ class _SecurityGateState extends State<SecurityGate>
                     color: FinoraColors.gold.withValues(alpha: .12),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: const Icon(
-                    Icons.fingerprint_rounded,
+                  child: Icon(
+                    Platform.isWindows
+                        ? Icons.verified_user_rounded
+                        : Icons.fingerprint_rounded,
                     color: FinoraColors.goldBright,
                     size: 38,
                   ),
@@ -139,7 +144,9 @@ class _SecurityGateState extends State<SecurityGate>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Use a biometria cadastrada no aparelho para acessar seus dados financeiros.',
+                  Platform.isWindows
+                      ? 'Use o Windows Hello configurado neste computador para acessar seus dados financeiros.'
+                      : 'Use a biometria cadastrada no aparelho para acessar seus dados financeiros.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 11,
