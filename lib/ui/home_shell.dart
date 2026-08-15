@@ -79,7 +79,14 @@ class _HomeShellState extends State<HomeShell> {
                           thickness: 1,
                           color: Theme.of(context).dividerColor,
                         ),
-                        Expanded(child: pageView),
+                        Expanded(
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 1320),
+                              child: pageView,
+                            ),
+                          ),
+                        ),
                       ],
                     )
                   : pageView,
@@ -276,7 +283,7 @@ class _DesktopSidebar extends StatelessWidget {
                     style: TextStyle(
                       color: foreground,
                       fontSize: 11,
-                      fontWeight: active ? FontWeight.w900 : FontWeight.w650,
+                      fontWeight: active ? FontWeight.w900 : FontWeight.w600,
                     ),
                   ),
                 ),
