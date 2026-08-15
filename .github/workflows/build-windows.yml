@@ -29,9 +29,6 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Habilitar Windows Desktop
-        run: flutter config --enable-windows-desktop
-
       - name: Gerar estrutura Windows
         run: flutter create . --platforms=windows --project-name=finora --org=com.finora
 
