@@ -32,6 +32,13 @@ jobs:
       - name: Gerar estrutura Windows
         run: flutter create . --platforms=windows --project-name=finora --org=com.finora
 
+      - name: Remover teste padrão
+        shell: pwsh
+        run: |
+          if (Test-Path 'test/widget_test.dart') {
+            Remove-Item 'test/widget_test.dart' -Force
+          }
+
       - name: Ajustar identidade visual do executável
         shell: pwsh
         run: |
