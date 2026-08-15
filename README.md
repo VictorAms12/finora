@@ -1,256 +1,346 @@
 <div align="center">
 
-# FINORA
+# 💰 Finora
 
-### Gestão financeira pessoal, clara e multiplataforma.
+### Seu Financial OS para organizar gastos, receitas, cartões, metas e planejamento financeiro em um só lugar.
 
-Organize receitas, despesas, cartões, planejamento, metas, reservas e investimentos em uma única aplicação, com foco em controle financeiro diário e visão de futuro.
-
-[![Flutter](https://img.shields.io/badge/Flutter-multiplataforma-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
-[![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)](https://dart.dev/)
-[![Android](https://img.shields.io/badge/Android-suportado-3DDC84?logo=android&logoColor=white)](#android)
-[![Windows](https://img.shields.io/badge/Windows-suportado-0078D4?logo=windows11&logoColor=white)](#windows)
-[![Versão](https://img.shields.io/badge/versão-0.3.6-D4AF37)](#versão-atual)
+![Flutter](https://img.shields.io/badge/Flutter-Stable-02569B?logo=flutter&logoColor=white)
+![Dart](https://img.shields.io/badge/Dart-3.10%2B-0175C2?logo=dart&logoColor=white)
+![Android](https://img.shields.io/badge/Android-Release-3DDC84?logo=android&logoColor=white)
+![Windows](https://img.shields.io/badge/Windows-x64-0078D4?logo=windows11&logoColor=white)
+![Version](https://img.shields.io/badge/versão-0.3.6-D4AF37)
 
 [![Build Android](https://github.com/VictorAms12/finora/actions/workflows/build-android.yml/badge.svg)](https://github.com/VictorAms12/finora/actions/workflows/build-android.yml)
 [![Build Windows](https://github.com/VictorAms12/finora/actions/workflows/build-windows.yml/badge.svg)](https://github.com/VictorAms12/finora/actions/workflows/build-windows.yml)
+
+**Offline-first • Multiplataforma • Focado em planejamento financeiro pessoal**
 
 </div>
 
 ---
 
-## Sobre o projeto
+## 📖 Sobre o projeto
 
-**Finora** é uma aplicação de gestão financeira pessoal desenvolvida em **Flutter**, atualmente disponível para **Android e Windows** a partir da mesma base de código.
+**Finora** é um aplicativo de gestão financeira pessoal desenvolvido em Flutter para centralizar a vida financeira sem exigir conta online ou conexão permanente com a internet.
 
-O projeto foi pensado para ir além de um simples registro de gastos. O objetivo é reunir o ciclo financeiro pessoal completo:
+O projeto nasceu como um organizador de entradas e saídas e evoluiu para um **Financial OS**: além de registrar movimentações, o app acompanha contas, cartões, faturas, metas, reservas, investimentos, orçamentos e projeções mensais.
+
+A proposta é organizar o ciclo financeiro pessoal completo:
 
 **registrar → planejar → acompanhar → projetar → melhorar**.
 
-A aplicação funciona localmente, sem exigir conta online ou conexão permanente com a internet. Cada instalação mantém seus próprios dados no dispositivo.
+Os dados permanecem armazenados localmente no dispositivo, permitindo que o Finora continue funcional mesmo offline.
 
-> **Importante:** na versão atual, Android e Windows ainda não sincronizam automaticamente entre si.
+> Versão atual: **0.3.6 — Android + Windows**
 
 ---
 
-## Principais recursos
+## ✨ Destaques
 
-### Dashboard financeiro
+| Área | O que o Finora entrega |
+|---|---|
+| 🏠 **Início** | Saldo, disponível para gastar, projeções, metas, compromissos e resumo do mês |
+| 💸 **Movimentações** | Receitas, despesas, transferências, filtros, pesquisa, recorrências e parcelamentos |
+| 🗓️ **Planejamento** | Orçamentos, lançamentos previstos, atrasos, projeções e navegação entre meses |
+| 💳 **Cartões** | Limite, fechamento, vencimento, faturas, parcelas futuras e pagamento por conta |
+| 🎯 **Metas** | Valor-alvo, progresso, prazo e estimativa mensal necessária |
+| 🛟 **Reservas** | Reserva financeira com estimativa de cobertura em meses |
+| 📈 **Investimentos** | Cadastro e acompanhamento de patrimônio investido |
+| 📊 **Relatórios** | Comparações mensais, histórico e distribuição de gastos |
+| 🔐 **Segurança** | Biometria no Android e Windows Hello quando disponível |
+| 🎨 **Experiência** | Light/Dark Mode, OLED, layout responsivo e interface mobile/desktop |
 
-- visão consolidada do mês selecionado;
-- entradas, saídas, saldo e saldo projetado;
-- acompanhamento do patrimônio;
-- visão de contas, reservas e investimentos;
-- compromissos financeiros próximos;
-- acompanhamento de metas e orçamentos;
-- navegação entre meses passados, atual e futuros;
-- projeções encadeadas entre competências.
+---
 
-### Receitas e despesas
+## 🧠 Dashboard e projeções mensais
 
-- cadastro de receitas e despesas;
-- associação com conta ou cartão;
-- data, categoria e observação;
-- edição e exclusão de lançamentos;
-- filtros e pesquisa;
-- lançamentos recorrentes;
-- parcelamentos;
-- lançamentos previstos e realizados.
+O Dashboard muda de contexto de acordo com o período selecionado.
 
-Os lançamentos planejados podem assumir estados como:
+No mês atual, o foco é mostrar quanto ainda está disponível para gastar. Em meses futuros, o Finora prioriza o saldo projetado. Em meses anteriores, o foco passa a ser o resultado e o fechamento do período.
 
-- **previsto**;
-- **atrasado**;
-- **realizado**;
-- **ignorado**.
+O seletor de mês afeta as principais áreas financeiras do aplicativo, permitindo analisar:
 
-Também é possível realizar, adiar ou ignorar compromissos previstos.
-
-### Planejamento mensal
-
+- entradas e saídas do período;
+- lançamentos previstos;
+- parcelas;
+- recorrências;
+- faturas de cartão;
 - orçamento por categoria;
-- previsão de receitas e despesas;
-- saldo projetado;
-- recorrências semanais, mensais e anuais;
-- recorrência infinita, por quantidade ou até uma data;
-- parcelamentos com acompanhamento das parcelas futuras;
-- fechamento mensal com saldo inicial, movimentações e saldo final.
+- resultado mensal;
+- projeções futuras.
 
-### Cartões de crédito
+```mermaid
+flowchart LR
+    A[Saldo atual] --> B[Receitas previstas]
+    B --> C[Despesas previstas]
+    C --> D[Faturas e parcelas]
+    D --> E[Metas e compromissos]
+    E --> F[Saldo projetado]
+    F --> G[Próximo mês]
+```
 
-- cadastro e gerenciamento de cartões;
-- limite do cartão;
-- data de fechamento;
-- data de vencimento;
-- conta padrão para pagamento;
-- organização de compras por fatura/competência;
-- visualização da fatura selecionada;
+A projeção é encadeada para que meses futuros possam utilizar o fechamento projetado do mês anterior como referência.
+
+---
+
+## ➕ Central de lançamentos
+
+O botão central **+** funciona como uma central para registrar e organizar a vida financeira.
+
+As principais ações são **Despesa** e **Receita**, acompanhadas por atalhos para:
+
+- transferência;
+- lançamento previsto;
+- orçamento;
+- meta;
+- reserva;
+- investimento;
+- conta;
+- cartão;
+- categoria.
+
+No Windows, a central possui apresentação adaptada para desktop e também pode ser aberta pelo atalho:
+
+```text
+Ctrl + N
+```
+
+---
+
+## 💸 Movimentações, recorrências e parcelamentos
+
+Cada movimentação pode conter informações como:
+
+- tipo: receita ou despesa;
+- valor;
+- conta ou cartão;
+- categoria;
+- data;
+- observação;
+- recorrência;
+- parcelamento.
+
+O Finora diferencia lançamentos efetivos de compromissos planejados.
+
+```mermaid
+flowchart TD
+    A[Novo lançamento] --> B{Tipo}
+    B -->|Realizado| C[Afeta o histórico financeiro]
+    B -->|Previsto| D[Entra no planejamento]
+    D --> E{Situação}
+    E -->|No prazo| F[Previsto]
+    E -->|Vencido| G[Atrasado]
+    D --> H[Realizar]
+    D --> I[Adiar]
+    D --> J[Ignorar]
+```
+
+Os lançamentos previstos podem assumir os estados:
+
+- **Previsto**;
+- **Atrasado**;
+- **Realizado**;
+- **Ignorado**.
+
+As recorrências podem ser semanais, mensais ou anuais, com duração indefinida, por quantidade ou até uma data definida.
+
+Parcelamentos mantêm acompanhamento das parcelas atuais e futuras.
+
+---
+
+## 💳 Cartões e faturas
+
+Os cartões possuem lógica própria para evitar que uma compra no crédito reduza imediatamente o saldo da conta bancária.
+
+Cada cartão pode armazenar:
+
+- nome;
+- limite;
+- dia de fechamento;
+- dia de vencimento;
+- conta padrão para pagamento.
+
+As compras são direcionadas para a competência correta da fatura conforme a data da compra e o fechamento do cartão.
+
+A tela de fatura permite acompanhar:
+
+- fatura do mês selecionado;
 - próxima fatura;
 - limite disponível;
-- acompanhamento de parcelas futuras.
+- parcelas futuras;
+- compras que compõem a fatura;
+- pagamento da fatura por uma conta.
 
-### Metas e reservas
+```mermaid
+flowchart LR
+    A[Compra no cartão] --> B{Antes do fechamento?}
+    B -->|Sim| C[Fatura atual]
+    B -->|Não| D[Próxima fatura]
+    C --> E[Pagamento]
+    D --> E
+    E --> F[Débito na conta escolhida]
+```
 
-- criação e edição de metas financeiras;
-- valor-alvo e prazo;
-- acompanhamento do progresso;
-- estimativa de contribuição mensal necessária;
-- reservas financeiras separadas do saldo cotidiano;
-- estimativa de meses de cobertura da reserva.
+---
+
+## 🎯 Metas, reservas e investimentos
+
+### Metas
+
+As metas acompanham:
+
+- valor desejado;
+- valor acumulado;
+- percentual concluído;
+- prazo;
+- valor restante;
+- estimativa de contribuição mensal necessária.
+
+### Reservas
+
+As reservas ajudam a visualizar quanto tempo determinado valor conseguiria cobrir despesas mensais cadastradas.
 
 ### Investimentos
 
-- cadastro de investimentos;
-- acompanhamento do valor investido;
-- composição do patrimônio junto às demais posições financeiras.
+O Finora possui cadastro básico de investimentos para que o patrimônio financeiro possa ser acompanhado junto das demais contas e reservas.
 
-### Relatórios
-
-- visão histórica das movimentações;
-- comparação entre períodos;
-- análise por categorias;
-- acompanhamento de receitas e despesas;
-- projeções financeiras contextuais.
-
-### Organização
-
-CRUD disponível para as principais entidades do aplicativo:
-
-- contas;
-- cartões;
-- categorias;
-- orçamentos;
-- metas;
-- reservas;
-- investimentos.
+A camada de investimentos ainda será ampliada nas próximas versões.
 
 ---
 
-## Experiência e interface
+## 📊 Relatórios
 
-O Finora utiliza uma identidade visual própria com foco em legibilidade e baixa poluição visual.
+Os relatórios utilizam o mês selecionado como referência e reúnem informações como:
 
-- tema claro;
-- tema escuro **OLED** com preto absoluto;
-- detalhes em dourado;
-- cores semânticas para receitas, despesas e indicadores;
-- animações e transições suaves;
-- onboarding inicial;
-- opção para ocultar valores financeiros;
-- layout responsivo entre celular e desktop.
+- receitas;
+- despesas;
+- saldo;
+- comparação com mês anterior;
+- distribuição por categoria;
+- histórico recente;
+- projeções.
 
-No Android, a navegação principal utiliza barra inferior e ação central de novo lançamento. No Windows, a aplicação muda automaticamente para uma interface de desktop com barra lateral e conteúdo limitado para melhor aproveitamento de monitores maiores.
-
----
-
-## Segurança e privacidade
-
-O Finora possui bloqueio opcional de acesso por autenticação do próprio dispositivo:
-
-- **Android:** biometria compatível com o aparelho;
-- **Windows:** Windows Hello.
-
-A aplicação também volta a exigir autenticação quando retorna de determinados estados de segundo plano, caso a proteção esteja ativada.
-
-### Como os dados são armazenados?
-
-Atualmente, os dados financeiros são persistidos **localmente** usando `shared_preferences`.
-
-Isso significa que:
-
-- não existe backend obrigatório;
-- os dados não são enviados automaticamente para um servidor;
-- Android e Windows possuem bases locais independentes;
-- o bloqueio biométrico protege o acesso pela interface, mas **não deve ser interpretado como criptografia completa do banco de dados em repouso**.
-
-Criptografia local e sincronização segura fazem parte da evolução planejada do projeto.
+A proposta é transformar os próprios dados cadastrados em informação útil, sem depender de serviços externos.
 
 ---
 
-## Notificações
+## 🔔 Notificações
 
-O Finora possui uma central interna de avisos e integração com notificações locais para situações como:
+O Finora possui uma central interna para destacar acontecimentos financeiros relevantes, como:
 
 - lançamentos atrasados;
 - compromissos próximos;
-- lembretes financeiros;
-- vencimentos e informações relacionadas a faturas.
+- faturas;
+- lembretes locais configurados no aparelho.
 
-A implementação respeita as diferenças de suporte entre Android e Windows.
+No Android, o projeto possui configuração nativa para notificações locais e permissões necessárias.
+
+No Windows, notificações compatíveis podem ser utilizadas, mas alguns comportamentos dependem das limitações da versão portátil e da identidade do aplicativo no sistema.
 
 ---
 
-## Windows
+## 🔐 Segurança
 
-A partir da **v0.3.6**, o Finora possui suporte nativo para Windows através do Flutter Desktop.
+O aplicativo oferece bloqueio opcional de acesso:
 
-### Recursos específicos do desktop
+- **Android:** biometria disponível no aparelho;
+- **Windows:** Windows Hello quando suportado e configurado.
 
-- navegação lateral;
-- layout responsivo para janelas maiores;
-- central de lançamentos adaptada para mouse e teclado;
-- Windows Hello;
-- notificações compatíveis com Windows;
-- build `Release` nativo;
-- distribuição em pacote portátil `.zip`.
+Ao sair do aplicativo ou retornar depois de ele ficar inativo, o Finora pode solicitar autenticação novamente.
 
-### Atalhos de teclado
+> O bloqueio biométrico protege o acesso pela interface do aplicativo. Na versão atual, a persistência utiliza armazenamento local baseado em `SharedPreferences`; portanto, isso não deve ser interpretado como criptografia completa do banco financeiro em repouso.
+
+---
+
+## 🖥️ Android e Windows
+
+A partir da v0.3.6, Android e Windows compartilham a mesma base Flutter.
+
+### Android
+
+A versão Android utiliza navegação inferior com botão central para novos lançamentos.
+
+O pipeline gera automaticamente:
+
+- APK para instalação direta;
+- AAB para distribuição futura pela Play Store.
+
+### Windows
+
+Em telas largas, a interface utiliza navegação lateral e conteúdo centralizado.
+
+Atalhos disponíveis:
 
 | Atalho | Ação |
 |---|---|
-| `Ctrl + N` | Novo lançamento |
+| `Ctrl + N` | Abrir central de lançamentos |
 | `Ctrl + 1` | Início |
 | `Ctrl + 2` | Planejamento |
 | `Ctrl + 3` | Movimentações |
 | `Ctrl + 4` | Mais |
 
-### Executando a versão portátil
-
-Baixe o artifact **Finora-Windows-v0.3.6** na execução mais recente do workflow **Compilar Finora Windows**.
-
-Depois:
-
-1. extraia todo o conteúdo do ZIP;
-2. mantenha o executável, DLLs e a pasta `data` juntos;
-3. execute `Finora.exe`.
-
-Não mova apenas o `.exe`, pois o aplicativo depende dos arquivos que acompanham o build Flutter para Windows.
+O build Windows é distribuído atualmente como pacote portátil ZIP contendo o executável e suas dependências.
 
 ---
 
-## Android
+## 🎨 Interface e experiência
 
-O workflow **Compilar Finora Android** valida o código e produz builds de distribuição em cada push ou pull request direcionado à `main`.
+O Finora utiliza uma identidade visual baseada em superfícies neutras, preto OLED no tema escuro e detalhes em dourado.
 
-São gerados:
+A interface possui:
 
-- **APK Release**, indicado para instalação direta e testes;
-- **AAB Release**, destinado a distribuição por lojas compatíveis.
+- tema claro;
+- tema escuro OLED;
+- animações de navegação;
+- feedback visual de interação;
+- cards compactos;
+- layout responsivo;
+- interface adaptada para mobile e desktop;
+- opção de ocultar valores financeiros.
 
-O pipeline também configura automaticamente os requisitos nativos usados por biometria e notificações no Android.
+O objetivo é manter densidade de informação suficiente para um app financeiro sem transformar o Dashboard em um painel excessivamente carregado.
 
 ---
 
-## Tecnologias
+## 🏗️ Arquitetura
 
-| Tecnologia | Uso no projeto |
+O Finora segue atualmente uma abordagem **offline-first**, com estado centralizado e persistência local.
+
+```mermaid
+flowchart LR
+    UI[Interface Flutter] --> STORE[FinanceStore]
+    STORE --> DATA[Modelos financeiros]
+    STORE --> LOCAL[(SharedPreferences)]
+    STORE --> PLAN[Planejamento e projeções]
+    STORE --> TX[Movimentações]
+    STORE --> ENT[Contas, cartões e metas]
+    UI --> AUTH[Biometria / Windows Hello]
+    UI --> NOTIF[Notificações locais]
+```
+
+O `FinanceStore` concentra o estado global e utiliza extensões especializadas para separar regras de movimentações, planejamento e entidades financeiras.
+
+A arquitetura atual mantém os dados disponíveis imediatamente no dispositivo e prepara o projeto para uma futura camada de sincronização sem tornar a conexão obrigatória.
+
+---
+
+## 🧰 Tecnologias
+
+| Tecnologia | Uso |
 |---|---|
 | **Flutter** | Interface e aplicação multiplataforma |
 | **Dart** | Linguagem principal |
 | **Provider** | Gerenciamento de estado |
-| **ChangeNotifier** | Atualização reativa do estado financeiro |
-| **SharedPreferences** | Persistência local dos dados |
+| **SharedPreferences** | Persistência local atual |
 | **local_auth** | Biometria e Windows Hello |
-| **flutter_local_notifications** | Notificações locais |
-| **GitHub Actions** | Análise, build e geração de artifacts |
+| **flutter_local_notifications** | Notificações e lembretes locais |
+| **GitHub Actions** | CI e geração automática de builds |
 
-A versão atual declarada no `pubspec.yaml` é **0.3.6+8**.
+Versão mínima do SDK Dart definida pelo projeto: **3.10.0**.
 
 ---
 
-## Arquitetura do projeto
-
-A aplicação mantém a lógica de domínio e a interface separadas em arquivos especializados.
+## 📁 Estrutura principal
 
 ```text
 finora/
@@ -258,236 +348,191 @@ finora/
 │   └── workflows/
 │       ├── build-android.yml
 │       └── build-windows.yml
-│
 ├── lib/
-│   ├── main.dart
-│   ├── models.dart
-│   ├── store.dart
-│   ├── store_entities.dart
-│   ├── store_planning.dart
-│   ├── store_transactions.dart
+│   ├── ui/                    # Telas, formulários e componentes
+│   ├── main.dart              # Inicialização da aplicação
+│   ├── models.dart            # Modelos financeiros
+│   ├── store.dart             # Estado principal
+│   ├── store_transactions.dart# Regras de movimentações
+│   ├── store_planning.dart    # Planejamento e projeções
+│   ├── store_entities.dart    # Contas, cartões, metas e entidades
 │   ├── notification_service.dart
-│   ├── security.dart
+│   ├── security.dart          # Biometria e bloqueio
 │   ├── onboarding.dart
-│   ├── theme.dart
-│   └── ui/
-│       ├── accounts.dart
-│       ├── common.dart
-│       ├── dashboard.dart
-│       ├── desktop_actions.dart
-│       ├── forms.dart
-│       ├── goals_reserves.dart
-│       ├── home_shell.dart
-│       ├── more.dart
-│       ├── planning.dart
-│       ├── reports.dart
-│       └── ...
-│
-├── analysis_options.yaml
+│   └── theme.dart
 ├── pubspec.yaml
+├── analysis_options.yaml
 └── README.md
 ```
 
-### Responsabilidades principais
-
-- `main.dart` — inicialização da aplicação, estado global e escolha entre onboarding e área principal;
-- `models.dart` — entidades e modelos financeiros;
-- `store.dart` — estado central, persistência e regras compartilhadas;
-- `store_entities.dart` — operações relacionadas às entidades financeiras;
-- `store_planning.dart` — regras de planejamento e projeção;
-- `store_transactions.dart` — operações de movimentações;
-- `notification_service.dart` — notificações locais;
-- `security.dart` — autenticação biométrica/Windows Hello e bloqueio da aplicação;
-- `theme.dart` — temas e identidade visual;
-- `ui/` — telas, formulários e componentes visuais.
-
 ---
 
-## Ambiente de desenvolvimento
+## 🚀 Executando o projeto
 
 ### Pré-requisitos
 
 - Flutter Stable;
-- Dart compatível com `>=3.10.0 <4.0.0`;
-- Git;
-- Android Studio/Android SDK para builds Android;
-- Windows com Visual Studio e ferramentas de C++ Desktop para builds Windows.
+- Dart compatível com o `pubspec.yaml`;
+- Android SDK para Android;
+- Visual Studio com **Desktop development with C++** para build Windows.
 
-### Clonando o projeto
+### Clonar
 
 ```bash
 git clone https://github.com/VictorAms12/finora.git
 cd finora
-flutter pub get
 ```
 
-Como o repositório mantém o foco na base compartilhada e os workflows geram a estrutura nativa das plataformas, você pode recriar os targets localmente quando necessário.
-
-### Gerar suporte Android
+### Instalar dependências
 
 ```bash
-flutter create . --platforms=android --project-name=finora --org=com.finora
 flutter pub get
 ```
-
-### Gerar suporte Windows
-
-Em um ambiente Windows preparado para Flutter Desktop:
-
-```bash
-flutter create . --platforms=windows --project-name=finora --org=com.finora
-flutter pub get
-```
-
-> O workflow do Windows também aplica uma configuração de compatibilidade necessária ao `local_auth_windows` no toolchain utilizado atualmente pelo GitHub Actions. Para uma reprodução idêntica do build de CI, consulte `.github/workflows/build-windows.yml`.
 
 ### Executar
+
+Android ou dispositivo conectado:
 
 ```bash
 flutter run
 ```
 
-### Análise estática
+Windows:
 
 ```bash
-flutter analyze
+flutter run -d windows
 ```
 
-### Build Android
+---
+
+## 📦 Builds de release
+
+### Android
 
 ```bash
 flutter build apk --release
 flutter build appbundle --release
 ```
 
-### Build Windows
+Saídas padrão:
+
+```text
+build/app/outputs/flutter-apk/app-release.apk
+build/app/outputs/bundle/release/app-release.aab
+```
+
+### Windows
 
 ```bash
 flutter build windows --release
 ```
 
----
-
-## CI/CD
-
-O projeto possui pipelines independentes para Android e Windows.
-
-### Android
-
-O workflow realiza, entre outras etapas:
-
-1. configuração do Java e Flutter;
-2. geração do target Android;
-3. configuração de biometria e notificações;
-4. instalação das dependências;
-5. análise estática;
-6. build do APK;
-7. build do AAB;
-8. publicação dos artifacts.
-
-### Windows
-
-O workflow realiza:
-
-1. configuração do Flutter;
-2. geração do target Windows;
-3. ajustes de identidade e compatibilidade C++;
-4. instalação das dependências;
-5. análise estática;
-6. build Windows Release;
-7. empacotamento portátil;
-8. publicação do ZIP como artifact.
-
-Os workflows são executados em pushes e pull requests para a branch `main` e também podem ser iniciados manualmente.
+O executável depende das DLLs e dos arquivos presentes na pasta `Release`. Para distribuição portátil, mantenha todo o conteúdo da pasta junto.
 
 ---
 
-## Versão atual
+## ⚙️ CI com GitHub Actions
 
-### Finora v0.3.6
+Pushes e pull requests direcionados à `main` executam pipelines independentes para **Android** e **Windows**.
 
-A v0.3.6 marca a expansão do Finora de um aplicativo exclusivamente mobile para uma aplicação **Android + Windows**.
+Fluxo geral:
 
-Principais destaques:
-
-- porte nativo para Windows;
-- mesma base de código para mobile e desktop;
-- sidebar responsiva no desktop;
-- atalhos de teclado;
-- central de lançamentos para PC;
-- Windows Hello;
-- build portátil automatizado;
-- manutenção dos recursos financeiros introduzidos na linha v0.3.x.
-
----
-
-## Roadmap
-
-O projeto continua em desenvolvimento. Entre as evoluções planejadas estão:
-
-- [ ] sincronização segura entre Android e Windows;
-- [ ] pareamento de dispositivos por código ou QR Code;
-- [ ] sincronização fora da rede local;
-- [ ] backup e restauração;
-- [ ] exportação e importação de dados;
-- [ ] armazenamento local com criptografia dedicada;
-- [ ] instalador próprio para Windows, como MSIX/Setup;
-- [ ] melhorias nas notificações do desktop;
-- [ ] ampliação dos relatórios e indicadores;
-- [ ] testes automatizados de regras financeiras;
-- [ ] testes de interface e regressão;
-- [ ] evolução contínua de desempenho, animações e experiência de uso.
-
----
-
-## Estado atual do projeto
-
-O Finora já é funcional para uso pessoal e possui builds automatizados para Android e Windows. Entretanto, continua sendo um projeto em evolução e ainda não deve ser tratado como software bancário, contábil ou como substituto de serviços financeiros profissionais.
-
-### Limitações conhecidas
-
-- não há sincronização entre dispositivos na versão atual;
-- não há integração com bancos ou Open Finance;
-- não há cotações financeiras em tempo real;
-- os dados são armazenados localmente e separadamente em cada instalação;
-- ainda não existe um backend central do Finora.
-
----
-
-## Contribuindo
-
-Sugestões, correções e melhorias podem ser desenvolvidas por branches e integradas através de pull requests.
-
-Fluxo recomendado:
-
-```bash
-git checkout -b feature/minha-melhoria
-# faça as alterações
-git add .
-git commit -m "feat: descreva a melhoria"
-git push -u origin feature/minha-melhoria
+```text
+Checkout
+↓
+Setup Flutter
+↓
+Geração da estrutura de plataforma
+↓
+flutter pub get
+↓
+flutter analyze
+↓
+Build Release
+↓
+Upload do artifact
 ```
 
-Antes de enviar alterações, procure manter:
+O workflow Android gera APK e AAB. O workflow Windows compila a aplicação e empacota a distribuição portátil em ZIP.
 
-- código analisável pelo `flutter analyze`;
-- compatibilidade entre Android e Windows;
-- regras financeiras independentes da camada visual;
-- componentes reutilizáveis quando possível;
-- consistência com a identidade visual do Finora.
+Os resultados ficam disponíveis em:
+
+**Actions → execução do workflow → Artifacts**.
 
 ---
 
-## Licenciamento
+## 🔐 Dados e privacidade
 
-Este repositório ainda não possui uma licença de código aberto definida. Enquanto não houver um arquivo `LICENSE`, não presuma permissão automática para redistribuição ou relicenciamento do código.
+Na v0.3.6, os dados financeiros são armazenados localmente no dispositivo.
+
+Isso significa que:
+
+- o aplicativo funciona offline;
+- não existe conta obrigatória;
+- não existe envio automático de dados financeiros para um servidor;
+- Android e Windows mantêm bases locais independentes;
+- limpar os dados do aplicativo pode apagar as informações armazenadas;
+- sincronização e backup em nuvem ainda não fazem parte desta versão.
+
+---
+
+## ⚠️ Limitações atuais
+
+- sincronização Android ↔ Windows ainda não está disponível;
+- não há backup automático em nuvem;
+- a persistência ainda utiliza `SharedPreferences` em vez de um banco local transacional dedicado;
+- investimentos possuem acompanhamento básico;
+- não existe integração bancária/Open Finance;
+- não existe importação OFX/CSV nesta versão;
+- notificações no Windows portátil possuem limitações de integração com o sistema;
+- ainda não há instalador MSIX/Setup oficial para Windows.
+
+---
+
+## 🛣️ Roadmap
+
+### Próximos passos planejados
+
+- [ ] migrar a persistência para banco local robusto;
+- [ ] backup e restauração;
+- [ ] exportação CSV/JSON;
+- [ ] sincronização segura Android ↔ Windows;
+- [ ] pareamento entre dispositivos por QR Code ou código;
+- [ ] faturas de cartão com estados aberta, fechada, paga e atrasada;
+- [ ] recorrências permanentes baseadas em regras;
+- [ ] relatórios e gráficos avançados;
+- [ ] histórico detalhado de aportes em metas e reservas;
+- [ ] investimentos com rendimento, preço médio e eventos;
+- [ ] busca global e filtros avançados;
+- [ ] importação OFX/CSV;
+- [ ] notificações financeiras mais inteligentes;
+- [ ] instalador MSIX/Setup para Windows;
+- [ ] melhorias contínuas de desempenho, acessibilidade e UX.
+
+---
+
+## 🧪 Qualidade
+
+Antes dos builds de release, os workflows executam análise estática do projeto:
+
+```bash
+flutter analyze --no-fatal-infos
+```
+
+A versão 0.3.6 possui pipelines separados de Android e Windows através do GitHub Actions, permitindo validar as duas plataformas sem depender de compilação manual no ambiente de desenvolvimento.
+
+---
+
+## 👨‍💻 Autor
+
+Desenvolvido e mantido por **VictorAms12**.
+
+GitHub: [@VictorAms12](https://github.com/VictorAms12)
 
 ---
 
 <div align="center">
 
-**Finora** — controle hoje, clareza para o próximo mês.
-
-Desenvolvido em Flutter para Android e Windows.
+**Finora** — controle financeiro que acompanha não apenas o que você gastou, mas também o que vem pela frente.
 
 </div>
