@@ -39,12 +39,20 @@ jobs:
             Remove-Item 'test/widget_test.dart' -Force
           }
 
-      - name: Ajustar identidade visual do executável
+      - name: Ajustar Windows e compatibilidade C++
         shell: pwsh
         run: |
           $cmake = 'windows/CMakeLists.txt'
           if (Test-Path $cmake) {
-            (Get-Content $cmake -Raw).Replace('set(BINARY_NAME "finora")', 'set(BINARY_NAME "Finora")') | Set-Content $cmake
+            $text = Get-Content $cmake -Raw
+            $text = $text.Replace('set(BINARY_NAME "finora")', 'set(BINARY_NAME "Finora")')
+            if ($text -notmatch '_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS') {
+              $text = $text.Replace(
+                'project(finora LANGUAGES CXX)',
+                "project(finora LANGUAGES CXX)`r`n`r`n# Compatibilidade com local_auth_windows no MSVC/VS 2026.`r`nadd_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)"
+              )
+            }
+            Set-Content $cmake $text
           }
           $runner = 'windows/runner/main.cpp'
           if (Test-Path $runner) {
