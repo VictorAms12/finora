@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../theme.dart';
 import 'dashboard.dart';
 import 'desktop_actions.dart';
+import 'finora_logo.dart';
 import 'forms.dart';
 import 'more.dart';
 import 'planning.dart';
@@ -213,9 +214,16 @@ class _DesktopSidebar extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               children: [
-                _FinoraMark(),
+                FinoraLogoMark(size: 36),
                 SizedBox(width: 10),
-                Text('FINORA', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+                Text(
+                  'FINORA',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
               ],
             ),
           ),
@@ -239,7 +247,7 @@ class _DesktopSidebar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
-              'Finora Desktop · v0.3.6\nCtrl + N para novo lançamento',
+              'Finora Desktop · v0.3.7\nCtrl + N para novo lançamento',
               style: TextStyle(
                 fontSize: 9,
                 height: 1.5,
@@ -287,7 +295,13 @@ class _DesktopSidebar extends StatelessWidget {
                     ),
                   ),
                 ),
-                Text(shortcut, style: TextStyle(fontSize: 8, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text(
+                  shortcut,
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
@@ -295,20 +309,4 @@ class _DesktopSidebar extends StatelessWidget {
       ),
     );
   }
-}
-
-class _FinoraMark extends StatelessWidget {
-  const _FinoraMark();
-
-  @override
-  Widget build(BuildContext context) => Container(
-        width: 34,
-        height: 34,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: FinoraColors.goldBright,
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: const Text('F', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w900)),
-      );
 }
