@@ -152,7 +152,8 @@ extension FinanceStoreTransactions on FinanceStore {
 
     await _save();
     await prefs.setBool(repairKey, true);
-    notifyListeners();
+    // commit() pertence ao FinanceStore e faz a notificação de forma válida.
+    commit();
   }
 
   void transfer({
