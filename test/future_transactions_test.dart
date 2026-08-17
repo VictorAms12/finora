@@ -77,8 +77,6 @@ void main() {
 
   test('migração v0.3.7 estorna receita futura órfã de recorrência excluída',
       () async {
-    // Simula a situação deixada pelas versões anteriores:
-    // saldo base 1000 + salário futuro 2000 aplicado indevidamente.
     final store = storeWithAccount(balance: 3000);
     final now = DateTime.now();
     final future = DateTime(now.year, now.month + 1, 5);
@@ -99,5 +97,30 @@ void main() {
     expect(store.cashBalance, 1000);
     expect(store.data.transactions, isEmpty);
     expect(store.data.planned, isEmpty);
+  });
+
+  test('backup completo restaura contas e planejamento', () async {
+    final source = storeWithAccount(balance: 2350);
+    source.data.planned.add(PlannedItem(
+      id: 'planned-1',
+      type: TransactionType.expense,
+      title: 'Internet',
+      category: 'Serviços',
+      amount: 99.90,
+      date: DateTime.now().add(const Duration(days: 10)),
+      sourceName: 'Conta principal',
+    ));
+
+    final backup = source.exportBackupText();
+    expect(backup.startsWith('FINORA-BACKUP-1:'), isTrue);
+
+    final restored = FinanceStore();
+    final success = await restored.restoreBackupText(backup);
+
+    expect(success, isTrue);
+    expect(restored.data.accounts, hasLength(1));
+    expect(restored.data.accounts.single.balance, 2350);
+    expect(restored.data.planned, hasLength(1));
+    expect(restored.data.planned.single.title, 'Internet');
   });
 }
