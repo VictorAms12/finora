@@ -6,6 +6,7 @@ import 'models.dart';
 part 'store_transactions.dart';
 part 'store_planning.dart';
 part 'store_entities.dart';
+part 'store_backup.dart';
 
 class FinanceStore extends ChangeNotifier {
   static const _key = 'finora_data_v02';
@@ -245,10 +246,8 @@ class FinanceStore extends ChangeNotifier {
 
   double get availableToSpend {
     final now = DateTime.now();
-    final receivable = FinanceStorePlanning(this)
-        .cashPlannedReceivableForMonth(now);
-    final payable = FinanceStorePlanning(this)
-        .cashPlannedPayableForMonth(now);
+    final receivable = cashPlannedReceivableForMonth(now);
+    final payable = cashPlannedPayableForMonth(now);
     return (cashBalance + receivable - payable - suggestedGoalContribution)
         .clamp(0.0, double.infinity)
         .toDouble();
@@ -365,10 +364,8 @@ class FinanceStore extends ChangeNotifier {
     var balance = cashBalance;
     var cursor = now;
     while (!cursor.isAfter(target)) {
-      balance += FinanceStorePlanning(this)
-          .cashPlannedReceivableForMonth(cursor);
-      balance -= FinanceStorePlanning(this)
-          .cashPlannedPayableForMonth(cursor);
+      balance += cashPlannedReceivableForMonth(cursor);
+      balance -= cashPlannedPayableForMonth(cursor);
       cursor = DateTime(cursor.year, cursor.month + 1);
     }
     return balance;
@@ -465,146 +462,10 @@ class FinanceStore extends ChangeNotifier {
   }
 
   static DateTime addMonths(DateTime date, int months) {
-    final raw = date.month - 1 + months;
-    final year = date.year + raw ~/ 12;
-    final month = raw % 12 + 1;
-    final lastDay = DateTime(year, month + 1, 0).day;
-    return DateTime(year, month, date.day > lastDay ? lastDay : date.day);
-  }
-
-  static FinanceData emptyData() => FinanceData(
-        darkMode: true,
-        privacyMode: false,
-        biometricEnabled: false,
-        notificationsEnabled: false,
-        notificationDaysBefore: 2,
-        onboardingCompleted: false,
-        primaryGoal: 'Controlar gastos',
-        trackingMonth: null,
-        trackingOpeningCash: 0,
-        accounts: [],
-        cards: [],
-        transactions: [],
-        planned: [],
-        budgets: [],
-        goals: [],
-        reserves: [],
-        investments: [],
-        recurringRules: [],
-        installmentPlans: [],
-        categories: [],
-        snapshots: [],
-      );
-
-  static FinanceData demoData() {
-    final now = DateTime.now();
-    return FinanceData(
-      darkMode: true,
-      privacyMode: false,
-      biometricEnabled: false,
-      notificationsEnabled: false,
-      notificationDaysBefore: 2,
-      onboardingCompleted: true,
-      primaryGoal: 'Planejar melhor',
-      trackingMonth: DateTime(now.year, now.month),
-      trackingOpeningCash: 2400,
-      accounts: [
-        AccountItem(
-          id: 'a1',
-          name: 'Conta principal',
-          type: 'Conta digital',
-          balance: 2400,
-        ),
-      ],
-      cards: [
-        CardItem(
-          id: 'c1',
-          name: 'Cartão principal',
-          limit: 3000,
-          used: 620,
-          closeDay: 25,
-          dueDay: 5,
-          defaultAccountName: 'Conta principal',
-        ),
-      ],
-      transactions: [
-        TransactionItem(
-          id: 't1',
-          type: TransactionType.income,
-          title: 'Salário',
-          category: 'Renda',
-          amount: 1850,
-          date: DateTime(now.year, now.month, 5),
-          account: 'Conta principal',
-        ),
-        TransactionItem(
-          id: 't2',
-          type: TransactionType.expense,
-          title: 'Mercado',
-          category: 'Alimentação',
-          amount: 176.40,
-          date: DateTime(now.year, now.month, 7),
-          account: 'Conta principal',
-        ),
-        TransactionItem(
-          id: 't3',
-          type: TransactionType.expense,
-          title: 'Streaming',
-          category: 'Lazer',
-          amount: 39.90,
-          date: DateTime(now.year, now.month, 8),
-          account: 'Cartão principal',
-          paymentKind: PaymentKind.card,
-          cardId: 'c1',
-          invoiceMonth: DateTime(now.year, now.month + 1),
-        ),
-      ],
-      planned: [
-        PlannedItem(
-          id: 'p1',
-          type: TransactionType.expense,
-          title: 'Internet',
-          category: 'Serviços',
-          amount: 99,
-          date: DateTime(now.year, now.month, 20),
-          sourceName: 'Conta principal',
-        ),
-      ],
-      budgets: [
-        BudgetItem(id: 'b1', category: 'Alimentação', limit: 500),
-        BudgetItem(id: 'b2', category: 'Transporte', limit: 300),
-      ],
-      goals: [
-        GoalItem(
-          id: 'g1',
-          name: 'Objetivo',
-          target: 2500,
-          saved: 600,
-          deadline: now.add(const Duration(days: 180)),
-        ),
-      ],
-      reserves: [
-        ReserveItem(
-          id: 'r1',
-          name: 'Reserva de emergência',
-          target: 6000,
-          saved: 1400,
-          months: 4,
-        ),
-      ],
-      investments: [
-        InvestmentItem(
-          id: 'i1',
-          name: 'Tesouro Selic',
-          assetClass: 'Renda fixa',
-          amount: 900,
-          estimatedReturn: 8.2,
-        ),
-      ],
-      recurringRules: [],
-      installmentPlans: [],
-      categories: [],
-      snapshots: [],
-    );
+    final rawMonth = date.month + months;
+    final targetYear = date.year + ((rawMonth - 1) ~/ 12);
+    final targetMonth = ((rawMonth - 1) % 12) + 1;
+    final lastDay = DateTime(targetYear, targetMonth + 1, 0).day;
+    return DateTime(targetYear, targetMonth, date.day.clamp(1, lastDay));
   }
 }
