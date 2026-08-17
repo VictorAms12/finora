@@ -32,19 +32,149 @@ extension FinanceStoreBackup on FinanceStore {
       final rawData = map['format'] == 'finora-backup' ? map['data'] : map;
       if (rawData is! Map) return false;
 
-      final restored = FinanceData.fromJson(
-        Map<String, dynamic>.from(rawData),
-      );
-
-      data = restored;
+      data = FinanceData.fromJson(Map<String, dynamic>.from(rawData));
       final now = DateTime.now();
       selectedMonth = DateTime(now.year, now.month);
-      _ensureMonthlyTracking();
-      await _save();
-      notifyListeners();
+      commit();
       return true;
     } catch (_) {
       return false;
     }
   }
+}
+
+FinanceData emptyData() => FinanceData(
+      darkMode: true,
+      privacyMode: false,
+      biometricEnabled: false,
+      notificationsEnabled: false,
+      notificationDaysBefore: 2,
+      onboardingCompleted: false,
+      primaryGoal: 'Controlar gastos',
+      trackingMonth: null,
+      trackingOpeningCash: 0,
+      accounts: [],
+      cards: [],
+      transactions: [],
+      planned: [],
+      budgets: [],
+      goals: [],
+      reserves: [],
+      investments: [],
+      recurringRules: [],
+      installmentPlans: [],
+      categories: [],
+      snapshots: [],
+    );
+
+FinanceData demoData() {
+  final now = DateTime.now();
+  return FinanceData(
+    darkMode: true,
+    privacyMode: false,
+    biometricEnabled: false,
+    notificationsEnabled: false,
+    notificationDaysBefore: 2,
+    onboardingCompleted: true,
+    primaryGoal: 'Planejar melhor',
+    trackingMonth: DateTime(now.year, now.month),
+    trackingOpeningCash: 2400,
+    accounts: [
+      AccountItem(
+        id: 'a1',
+        name: 'Conta principal',
+        type: 'Conta digital',
+        balance: 2400,
+      ),
+    ],
+    cards: [
+      CardItem(
+        id: 'c1',
+        name: 'Cartão principal',
+        limit: 3000,
+        used: 620,
+        closeDay: 25,
+        dueDay: 5,
+        defaultAccountName: 'Conta principal',
+      ),
+    ],
+    transactions: [
+      TransactionItem(
+        id: 't1',
+        type: TransactionType.income,
+        title: 'Salário',
+        category: 'Renda',
+        amount: 1850,
+        date: DateTime(now.year, now.month, 5),
+        account: 'Conta principal',
+      ),
+      TransactionItem(
+        id: 't2',
+        type: TransactionType.expense,
+        title: 'Mercado',
+        category: 'Alimentação',
+        amount: 176.40,
+        date: DateTime(now.year, now.month, 7),
+        account: 'Conta principal',
+      ),
+      TransactionItem(
+        id: 't3',
+        type: TransactionType.expense,
+        title: 'Streaming',
+        category: 'Lazer',
+        amount: 39.90,
+        date: DateTime(now.year, now.month, 8),
+        account: 'Cartão principal',
+        paymentKind: PaymentKind.card,
+        cardId: 'c1',
+        invoiceMonth: DateTime(now.year, now.month + 1),
+      ),
+    ],
+    planned: [
+      PlannedItem(
+        id: 'p1',
+        type: TransactionType.expense,
+        title: 'Internet',
+        category: 'Serviços',
+        amount: 99,
+        date: DateTime(now.year, now.month, 20),
+        sourceName: 'Conta principal',
+      ),
+    ],
+    budgets: [
+      BudgetItem(id: 'b1', category: 'Alimentação', limit: 500),
+      BudgetItem(id: 'b2', category: 'Transporte', limit: 300),
+    ],
+    goals: [
+      GoalItem(
+        id: 'g1',
+        name: 'Objetivo',
+        target: 2500,
+        saved: 600,
+        deadline: now.add(const Duration(days: 180)),
+      ),
+    ],
+    reserves: [
+      ReserveItem(
+        id: 'r1',
+        name: 'Reserva de emergência',
+        target: 6000,
+        saved: 1400,
+        months: 4,
+      ),
+    ],
+    investments: [
+      InvestmentItem(
+        id: 'i1',
+        name: 'Tesouro Selic',
+        assetClass: 'Renda fixa',
+        amount: 900,
+        estimatedReturn: 8.2,
+      ),
+    ],
+    recurringRules: [],
+    installmentPlans: [],
+    categories: [],
+    snapshots: [],
+  );
 }
