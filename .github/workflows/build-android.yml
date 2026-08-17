@@ -18,6 +18,7 @@ jobs:
   build:
     name: Verificar e compilar Android
     runs-on: ubuntu-latest
+
     steps:
       - name: Baixar repositório
         uses: actions/checkout@v5
@@ -34,144 +35,84 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Resolver versão do app
+        shell: bash
+        run: |
+          FULL_VERSION=$(awk '/^version:/{print $2}' pubspec.yaml)
+          VERSION_NAME=${FULL_VERSION%%+*}
+          echo "FINORA_VERSION=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "Versão detectada: $VERSION_NAME"
+
       - name: Gerar estrutura Android
         run: flutter create . --platforms=android --project-name=finora --org=com.finora
 
-      - name: Configurar Android, backup e assinatura estável
-        shell: python
+      - name: Preparar assinatura
+        id: signing
+        shell: bash
+        env:
+          FINORA_KEYSTORE_BASE64: ${{ secrets.FINORA_KEYSTORE_BASE64 }}
+          FINORA_KEYSTORE_PASSWORD: ${{ secrets.FINORA_KEYSTORE_PASSWORD }}
+          FINORA_KEY_ALIAS: ${{ secrets.FINORA_KEY_ALIAS }}
+          FINORA_KEY_PASSWORD: ${{ secrets.FINORA_KEY_PASSWORD }}
         run: |
-          from pathlib import Path
-          import re
+          set -euo pipefail
+          mkdir -p android/app
 
-          activity = Path('android/app/src/main/kotlin/com/finora/finora/MainActivity.kt')
-          activity.parent.mkdir(parents=True, exist_ok=True)
-          activity.write_text('''package com.finora.finora
+          HAS_ANY_SECRET=false
+          for value in "$FINORA_KEYSTORE_BASE64" "$FINORA_KEYSTORE_PASSWORD" "$FINORA_KEY_ALIAS" "$FINORA_KEY_PASSWORD"; do
+            if [[ -n "$value" ]]; then HAS_ANY_SECRET=true; fi
+          done
 
-          import io.flutter.embedding.android.FlutterFragmentActivity
+          if [[ "$HAS_ANY_SECRET" == "true" ]]; then
+            if [[ -z "$FINORA_KEYSTORE_BASE64" || -z "$FINORA_KEYSTORE_PASSWORD" || -z "$FINORA_KEY_ALIAS" || -z "$FINORA_KEY_PASSWORD" ]]; then
+              echo "Os secrets de assinatura estão incompletos. Configure os quatro secrets FINORA_* descritos em docs/SIGNING.md."
+              exit 1
+            fi
 
-          class MainActivity : FlutterFragmentActivity()
-          ''', encoding='utf-8')
+            printf '%s' "$FINORA_KEYSTORE_BASE64" | base64 --decode > android/app/finora-release.jks
+            cat > android/key.properties <<EOF
+          storePassword=$FINORA_KEYSTORE_PASSWORD
+          keyPassword=$FINORA_KEY_PASSWORD
+          keyAlias=$FINORA_KEY_ALIAS
+          storeFile=finora-release.jks
+          EOF
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+            echo "Assinatura estável carregada por GitHub Secrets."
+          else
+            keytool -genkeypair \
+              -keystore android/app/ci-ephemeral.jks \
+              -storepass 'FinoraCIOnly2026!' \
+              -keypass 'FinoraCIOnly2026!' \
+              -alias finora-ci \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 2 \
+              -dname 'CN=Finora CI, OU=CI, O=Finora, C=BR' \
+              -noprompt
+            cat > android/key.properties <<'EOF'
+          storePassword=FinoraCIOnly2026!
+          keyPassword=FinoraCIOnly2026!
+          keyAlias=finora-ci
+          storeFile=ci-ephemeral.jks
+          EOF
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+            echo "Nenhum secret de assinatura configurado: usando chave efêmera somente para validar a compilação."
+          fi
 
-          manifest = Path('android/app/src/main/AndroidManifest.xml')
-          text = manifest.read_text(encoding='utf-8')
-          permissions = '''
-              <uses-permission android:name="android.permission.USE_BIOMETRIC" />
-              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-          '''
-          if 'android.permission.USE_BIOMETRIC' not in text:
-              text = text.replace('>', '>' + permissions, 1)
-          if 'android:allowBackup=' not in text:
-              text = text.replace('<application', '<application\n        android:allowBackup="true"', 1)
-          receivers = '''
-                  <receiver
-                      android:exported="false"
-                      android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
-                  <receiver
-                      android:exported="false"
-                      android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
-                      <intent-filter>
-                          <action android:name="android.intent.action.BOOT_COMPLETED" />
-                          <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                          <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                          <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
-                      </intent-filter>
-                  </receiver>
-          '''
-          if 'ScheduledNotificationReceiver' not in text:
-              text = text.replace('</application>', receivers + '\n    </application>')
-          manifest.write_text(text, encoding='utf-8')
+      - name: Configurar Android
+        run: python tool/configure_android.py
 
-          for style_path in [
-              Path('android/app/src/main/res/values/styles.xml'),
-              Path('android/app/src/main/res/values-night/styles.xml'),
-          ]:
-              if not style_path.exists():
-                  continue
-              style = style_path.read_text(encoding='utf-8')
-              style = re.sub(
-                  r'(<style name="(?:LaunchTheme|NormalTheme)" parent=")[^"]+("[^>]*>)',
-                  r'\1Theme.AppCompat.DayNight.NoActionBar\2',
-                  style,
-              )
-              style_path.write_text(style, encoding='utf-8')
-
-          gradle = Path('android/app/build.gradle.kts')
-          app = gradle.read_text(encoding='utf-8')
-          app = re.sub(r'compileSdk\s*=\s*flutter\.compileSdkVersion', 'compileSdk = 36', app)
-          app = re.sub(r'minSdk\s*=\s*flutter\.minSdkVersion', 'minSdk = 24', app)
-          if 'isCoreLibraryDesugaringEnabled' not in app:
-              app = app.replace(
-                  'compileOptions {',
-                  'compileOptions {\n        isCoreLibraryDesugaringEnabled = true',
-                  1,
-              )
-          app = re.sub(
-              r'sourceCompatibility\s*=\s*JavaVersion\.VERSION_\d+',
-              'sourceCompatibility = JavaVersion.VERSION_17',
-              app,
-          )
-          app = re.sub(
-              r'targetCompatibility\s*=\s*JavaVersion\.VERSION_\d+',
-              'targetCompatibility = JavaVersion.VERSION_17',
-              app,
-          )
-          app = re.sub(
-              r'jvmTarget\s*=\s*JavaVersion\.VERSION_\d+\.toString\(\)',
-              'jvmTarget = JavaVersion.VERSION_17.toString()',
-              app,
-          )
-          if 'multiDexEnabled = true' not in app:
-              app = app.replace(
-                  'defaultConfig {',
-                  'defaultConfig {\n        multiDexEnabled = true',
-                  1,
-              )
-          if 'create("finoraRelease")' not in app:
-              app = app.replace(
-                  '    buildTypes {',
-                  '''    signingConfigs {
-                      create("finoraRelease") {
-                          storeFile = file("../keystore/finora-dev.jks")
-                          storePassword = "FinoraDev2026!"
-                          keyAlias = "finora"
-                          keyPassword = "FinoraDev2026!"
-                      }
-                  }
-
-                  buildTypes {''',
-                  1,
-              )
-          app = app.replace(
-              'signingConfig = signingConfigs.getByName("debug")',
-              'signingConfig = signingConfigs.getByName("finoraRelease")',
-          )
-          app += '''
-
-          dependencies {
-              coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-              implementation("androidx.appcompat:appcompat:1.7.1")
-          }
-          '''
-          gradle.write_text(app, encoding='utf-8')
-
-          settings = Path('android/settings.gradle.kts')
-          if settings.exists():
-              cfg = settings.read_text(encoding='utf-8')
-              cfg = re.sub(
-                  r'id\("com\.android\.application"\) version "[^"]+" apply false',
-                  'id("com.android.application") version "8.11.1" apply false',
-                  cfg,
-              )
-              settings.write_text(cfg, encoding='utf-8')
-
-      - name: Verificar identidade da assinatura
+      - name: Verificar assinatura estável
+        if: steps.signing.outputs.stable == 'true'
+        shell: bash
+        env:
+          FINORA_KEYSTORE_PASSWORD: ${{ secrets.FINORA_KEYSTORE_PASSWORD }}
+          FINORA_KEY_ALIAS: ${{ secrets.FINORA_KEY_ALIAS }}
         run: |
           keytool -list -v \
-            -keystore android/keystore/finora-dev.jks \
-            -storepass 'FinoraDev2026!' \
-            -alias finora | tee signing.txt
-          grep -q 'SHA256: 3B:9F:57:35:03:3F:60:F9:B5:FB:28:6C:F5:24:0A:3B:FB:8C:91:B2:D8:01:E3:52:BA:8E:8E:AF:EF:DE:5F:34' signing.txt
+            -keystore android/app/finora-release.jks \
+            -storepass "$FINORA_KEYSTORE_PASSWORD" \
+            -alias "$FINORA_KEY_ALIAS" | grep -E 'Alias name:|SHA256:'
 
       - name: Aplicar identidade visual Finora
         run: |
@@ -193,21 +134,34 @@ jobs:
       - name: Compilar APK Release
         run: flutter build apk --release
 
+      - name: Compilar AAB Release
+        run: flutter build appbundle --release
+
+      - name: Avisar sobre build efêmera
+        if: steps.signing.outputs.stable != 'true'
+        shell: bash
+        run: |
+          {
+            echo '### Android compilado com assinatura efêmera de CI'
+            echo ''
+            echo 'A compilação foi validada, mas APK/AAB não foram publicados para evitar que uma chave descartável vire baseline de instalação.'
+            echo 'Configure os secrets descritos em `docs/SIGNING.md` para publicar releases instaláveis e atualizáveis.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publicar APK
+        if: steps.signing.outputs.stable == 'true' && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-APK-v0.3.8
+          name: Finora-APK-v${{ env.FINORA_VERSION }}
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Compilar AAB Release
-        run: flutter build appbundle --release
-
       - name: Publicar AAB
+        if: steps.signing.outputs.stable == 'true' && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-AAB-v0.3.8
+          name: Finora-AAB-v${{ env.FINORA_VERSION }}
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/bundle/release/app-release.aab
