@@ -313,9 +313,13 @@ void _moveStoreToMonth(FinanceStore store, DateTime target) {
   final diff = (target.year - store.selectedMonth.year) * 12 +
       target.month - store.selectedMonth.month;
   if (diff > 0) {
-    for (var i = 0; i < diff; i++) store.nextMonth();
+    for (var i = 0; i < diff; i++) {
+      store.nextMonth();
+    }
   } else if (diff < 0) {
-    for (var i = 0; i < -diff; i++) store.previousMonth();
+    for (var i = 0; i < -diff; i++) {
+      store.previousMonth();
+    }
   }
 }
 
