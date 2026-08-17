@@ -29,8 +29,28 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Resolver versão do app
+        shell: pwsh
+        run: |
+          $line = Select-String -Path 'pubspec.yaml' -Pattern '^version:\s*(.+)$'
+          if (-not $line) { throw 'Versão não encontrada no pubspec.yaml.' }
+          $fullVersion = $line.Matches[0].Groups[1].Value.Trim()
+          $versionName = $fullVersion.Split('+')[0]
+          "FINORA_VERSION=$versionName" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "Versão detectada: $versionName"
+
       - name: Gerar estrutura Windows
         run: flutter create . --platforms=windows --project-name=finora --org=com.finora
+
+      - name: Configurar Windows
+        shell: pwsh
+        run: ./tool/configure_windows.ps1
+
+      - name: Aplicar identidade visual Finora
+        shell: pwsh
+        run: |
+          python -m pip install --quiet pillow
+          python tool/generate_branding.py
 
       - name: Remover teste padrão
         shell: pwsh
@@ -38,34 +58,6 @@ jobs:
           if (Test-Path 'test/widget_test.dart') {
             Remove-Item 'test/widget_test.dart' -Force
           }
-
-      - name: Ajustar Windows e compatibilidade C++
-        shell: pwsh
-        run: |
-          $cmake = 'windows/CMakeLists.txt'
-          if (Test-Path $cmake) {
-            $text = Get-Content $cmake -Raw
-            $text = $text.Replace('set(BINARY_NAME "finora")', 'set(BINARY_NAME "Finora")')
-            if ($text -notmatch '_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS') {
-              $text = $text.Replace(
-                'project(finora LANGUAGES CXX)',
-                "project(finora LANGUAGES CXX)`r`n`r`n# Compatibilidade com local_auth_windows no MSVC/VS 2026.`r`nadd_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)"
-              )
-            }
-            Set-Content $cmake $text
-          }
-          $runner = 'windows/runner/main.cpp'
-          if (Test-Path $runner) {
-            $text = Get-Content $runner -Raw
-            $text = $text.Replace('L"finora"', 'L"Finora"')
-            Set-Content $runner $text
-          }
-
-      - name: Aplicar identidade visual Finora
-        shell: pwsh
-        run: |
-          python -m pip install --quiet pillow
-          python tool/generate_branding.py
 
       - name: Baixar dependências
         run: flutter pub get
@@ -84,23 +76,29 @@ jobs:
         run: |
           $release = 'build/windows/x64/runner/Release'
           if (!(Test-Path $release)) { throw 'Pasta Release do Windows não encontrada.' }
-          New-Item -ItemType Directory -Force -Path 'dist/Finora-Windows-v0.3.8' | Out-Null
-          Copy-Item "$release/*" 'dist/Finora-Windows-v0.3.8' -Recurse -Force
-          @'
-          FINORA WINDOWS v0.3.8
+
+          $folder = "dist/Finora-Windows-v$env:FINORA_VERSION"
+          $zip = "dist/Finora-Windows-v$env:FINORA_VERSION.zip"
+          New-Item -ItemType Directory -Force -Path $folder | Out-Null
+          Copy-Item "$release/*" $folder -Recurse -Force
+
+          @"
+          FINORA WINDOWS v$env:FINORA_VERSION
 
           1. Extraia toda a pasta antes de executar.
           2. Abra Finora.exe.
           3. Mantenha DLLs e a pasta data ao lado do executável.
           4. Os dados desta instalação ficam armazenados localmente no Windows.
           5. Use Configurações > Backup e recuperação para copiar/restaurar seus dados.
-          '@ | Set-Content 'dist/Finora-Windows-v0.3.8/LEIA-ME.txt'
-          Compress-Archive -Path 'dist/Finora-Windows-v0.3.8/*' -DestinationPath 'dist/Finora-Windows-v0.3.8.zip' -Force
+          "@ | Set-Content "$folder/LEIA-ME.txt"
+
+          Compress-Archive -Path "$folder/*" -DestinationPath $zip -Force
 
       - name: Publicar Finora Windows
+        if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-Windows-v0.3.8
+          name: Finora-Windows-v${{ env.FINORA_VERSION }}
           if-no-files-found: error
           retention-days: 14
-          path: dist/Finora-Windows-v0.3.8.zip
+          path: dist/Finora-Windows-v${{ env.FINORA_VERSION }}.zip
