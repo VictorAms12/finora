@@ -6,7 +6,583 @@ import '../theme.dart';
 import 'common.dart';
 import 'forms_v035.dart' as v035;
 
-export 'forms_v035.dart' hide showPlannedDetails;
+export 'forms_v035.dart' hide showPlannedDetails, showQuickActions;
+
+Future<void> showQuickActions(BuildContext context) async {
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Novo lançamento',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Registre o que aconteceu ou programe o que vem pela frente.',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _primaryQuickAction(
+                      sheetContext,
+                      icon: Icons.north_east_rounded,
+                      label: 'Despesa',
+                      subtitle: 'Saiu dinheiro',
+                      color: FinoraColors.expense,
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        v035.showTransactionForm(
+                          context,
+                          TransactionType.expense,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _primaryQuickAction(
+                      sheetContext,
+                      icon: Icons.south_west_rounded,
+                      label: 'Receita',
+                      subtitle: 'Entrou dinheiro',
+                      color: FinoraColors.income,
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        v035.showTransactionForm(
+                          context,
+                          TransactionType.income,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Material(
+                color: FinoraColors.goldBright.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(18),
+                child: InkWell(
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    showSalaryForm(context);
+                  },
+                  borderRadius: BorderRadius.circular(18),
+                  child: Padding(
+                    padding: const EdgeInsets.all(13),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: FinoraColors.goldBright.withValues(alpha: .14),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(
+                            Icons.calendar_month_rounded,
+                            color: FinoraColors.goldBright,
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Programar salário',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Receita recorrente no 5º dia útil de cada mês',
+                                style: TextStyle(fontSize: 8.5),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text('MOVIMENTAR E PLANEJAR', style: eyebrowStyle(context)),
+              const SizedBox(height: 8),
+              GridView.count(
+                crossAxisCount: 3,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.22,
+                children: [
+                  _smallQuickAction(
+                    sheetContext,
+                    Icons.swap_horiz_rounded,
+                    'Transferir',
+                    FinoraColors.balance,
+                    () {
+                      Navigator.pop(sheetContext);
+                      v035.showTransferForm(context);
+                    },
+                  ),
+                  _smallQuickAction(
+                    sheetContext,
+                    Icons.event_note_rounded,
+                    'Previsto',
+                    FinoraColors.warning,
+                    () {
+                      Navigator.pop(sheetContext);
+                      v035.showPlannedForm(context);
+                    },
+                  ),
+                  _smallQuickAction(
+                    sheetContext,
+                    Icons.speed_rounded,
+                    'Orçamento',
+                    FinoraColors.goldBright,
+                    () {
+                      Navigator.pop(sheetContext);
+                      v035.showBudgetForm(context);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text('ORGANIZAR', style: eyebrowStyle(context)),
+              const SizedBox(height: 8),
+              GridView.count(
+                crossAxisCount: 3,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.22,
+                children: [
+                  _smallQuickAction(
+                    sheetContext,
+                    Icons.track_changes_rounded,
+                    'Meta',
+                    FinoraColors.goal,
+                    () {
+                      Navigator.pop(sheetContext);
+                      v035.showGoalForm(context);
+                    },
+                  ),
+                  _smallQuickAction(
+                    sheetContext,
+                    Icons.shield_outlined,
+                    'Reserva',
+                    FinoraColors.warning,
+                    () {
+                      Navigator.pop(sheetContext);
+                      v035.showReserveForm(context);
+                    },
+                  ),
+                  _smallQuickAction(
+                    sheetContext,
+                    Icons.show_chart_rounded,
+                    'Investir',
+                    FinoraColors.investment,
+                    () {
+                      Navigator.pop(sheetContext);
+                      v035.showInvestmentForm(context);
+                    },
+                  ),
+                  _smallQuickAction(
+                    sheetContext,
+                    Icons.account_balance_wallet_outlined,
+                    'Conta',
+                    FinoraColors.goldBright,
+                    () {
+                      Navigator.pop(sheetContext);
+                      v035.showAccountForm(context);
+                    },
+                  ),
+                  _smallQuickAction(
+                    sheetContext,
+                    Icons.credit_card_rounded,
+                    'Cartão',
+                    FinoraColors.investment,
+                    () {
+                      Navigator.pop(sheetContext);
+                      v035.showCardForm(context);
+                    },
+                  ),
+                  _smallQuickAction(
+                    sheetContext,
+                    Icons.category_outlined,
+                    'Categoria',
+                    Colors.grey,
+                    () {
+                      Navigator.pop(sheetContext);
+                      v035.showCategoryForm(context);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _primaryQuickAction(
+  BuildContext context, {
+  required IconData icon,
+  required String label,
+  required String subtitle,
+  required Color color,
+  required VoidCallback onTap,
+}) =>
+    InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(19),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: .08),
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: color.withValues(alpha: .24)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .13),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: 21),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 8.3,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+Widget _smallQuickAction(
+  BuildContext context,
+  IconData icon,
+  String label,
+  Color color,
+  VoidCallback onTap,
+) =>
+    InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).dividerColor),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 21),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 9.3,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+Future<void> showSalaryForm(BuildContext context) async {
+  final store = context.read<FinanceStore>();
+  if (store.data.accounts.isEmpty) {
+    await v035.showAccountForm(context);
+    if (store.data.accounts.isEmpty || !context.mounted) return;
+  }
+
+  final amount = TextEditingController();
+  final title = TextEditingController(text: 'Salário');
+  var accountName = store.data.accounts.first.name;
+  var category = store.incomeCategories.contains('Renda')
+      ? 'Renda'
+      : store.incomeCategories.first;
+  final now = DateTime.now();
+  var startMonth = DateTime(now.year, now.month + 1);
+  var duration = 'indefinida';
+  final count = TextEditingController(text: '12');
+  var endDate = DateTime(now.year + 1, now.month);
+
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (sheetContext) => Padding(
+      padding: EdgeInsets.fromLTRB(
+        14,
+        0,
+        14,
+        MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+      ),
+      child: StatefulBuilder(
+        builder: (_, setLocal) {
+          final calculated = store.fifthBusinessDayOfMonth(startMonth);
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.payments_rounded,
+                      color: FinoraColors.goldBright,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Programar salário',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'O valor só entra no saldo quando você confirmar o recebimento.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: amount,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Valor do salário',
+                    prefixText: 'R\$ ',
+                  ),
+                ),
+                const SizedBox(height: 9),
+                TextField(
+                  controller: title,
+                  decoration: const InputDecoration(
+                    labelText: 'Descrição',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                  ),
+                ),
+                const SizedBox(height: 9),
+                DropdownButtonFormField<String>(
+                  initialValue: accountName,
+                  decoration: const InputDecoration(
+                    labelText: 'Receber em',
+                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                  ),
+                  items: store.data.accounts
+                      .map(
+                        (account) => DropdownMenuItem(
+                          value: account.name,
+                          child: Text(account.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setLocal(() => accountName = value);
+                  },
+                ),
+                const SizedBox(height: 9),
+                DropdownButtonFormField<String>(
+                  initialValue: category,
+                  decoration: const InputDecoration(
+                    labelText: 'Categoria',
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
+                  items: store.incomeCategories
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text(value),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setLocal(() => category = value);
+                  },
+                ),
+                const SizedBox(height: 9),
+                InkWell(
+                  onTap: () async {
+                    final picked =
+                        await v035.pickFinoraDate(sheetContext, startMonth);
+                    if (picked != null) {
+                      setLocal(() => startMonth = DateTime(picked.year, picked.month));
+                    }
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Primeiro mês',
+                      prefixIcon: Icon(Icons.calendar_month_rounded),
+                    ),
+                    child: Text(
+                      '${monthLabel(startMonth)} • 5º dia útil: ${fullDate(calculated)}',
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 9),
+                DropdownButtonFormField<String>(
+                  initialValue: duration,
+                  decoration: const InputDecoration(
+                    labelText: 'Duração',
+                    prefixIcon: Icon(Icons.repeat_rounded),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'indefinida',
+                      child: Text('Indefinidamente'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'quantidade',
+                      child: Text('Por quantidade'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'data',
+                      child: Text('Até uma data'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setLocal(() => duration = value);
+                  },
+                ),
+                if (duration == 'quantidade') ...[
+                  const SizedBox(height: 9),
+                  TextField(
+                    controller: count,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Quantidade de recebimentos',
+                      prefixIcon: Icon(Icons.format_list_numbered_rounded),
+                    ),
+                  ),
+                ],
+                if (duration == 'data') ...[
+                  const SizedBox(height: 9),
+                  InkWell(
+                    onTap: () async {
+                      final picked =
+                          await v035.pickFinoraDate(sheetContext, endDate);
+                      if (picked != null) setLocal(() => endDate = picked);
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(labelText: 'Repetir até'),
+                      child: Text(fullDate(endDate)),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: FinoraColors.goldBright.withValues(alpha: .07),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Text(
+                    '5º dia útil: o cálculo considera segunda a sexta. Feriados não são descontados automaticamente e podem ser ajustados no lançamento previsto.',
+                    style: TextStyle(fontSize: 8.5, height: 1.45),
+                  ),
+                ),
+                const SizedBox(height: 13),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      final value =
+                          double.tryParse(amount.text.replaceAll(',', '.')) ?? 0;
+                      if (value <= 0 || title.text.trim().isEmpty) return;
+                      final maxOccurrences = duration == 'quantidade'
+                          ? int.tryParse(count.text)
+                          : null;
+                      if (duration == 'quantidade' &&
+                          (maxOccurrences == null || maxOccurrences < 1)) {
+                        return;
+                      }
+
+                      store.addSalaryOnFifthBusinessDay(
+                        amount: value,
+                        sourceName: accountName,
+                        startMonth: startMonth,
+                        title: title.text.trim(),
+                        category: category,
+                        endDate: duration == 'data' ? endDate : null,
+                        maxOccurrences: maxOccurrences,
+                      );
+                      Navigator.pop(sheetContext);
+                    },
+                    icon: const Icon(Icons.event_available_rounded),
+                    label: const Text('Programar salário'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
 
 Future<void> showPlannedDetails(
   BuildContext context,

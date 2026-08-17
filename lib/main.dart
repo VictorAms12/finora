@@ -13,6 +13,7 @@ Future<void> main() async {
 
   final store = FinanceStore();
   await store.load();
+  await store.repairLegacyFutureTransactionEffects();
   store.repairTrackingBaseline();
 
   runApp(

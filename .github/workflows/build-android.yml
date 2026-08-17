@@ -144,6 +144,11 @@ jobs:
               )
               settings.write_text(cfg, encoding='utf-8')
 
+      - name: Aplicar identidade visual Finora
+        run: |
+          python -m pip install --quiet pillow
+          python tool/generate_branding.py
+
       - name: Remover teste padrão
         run: rm -f test/widget_test.dart
 
@@ -153,13 +158,16 @@ jobs:
       - name: Verificar código
         run: flutter analyze --no-fatal-infos
 
+      - name: Executar testes
+        run: flutter test
+
       - name: Compilar APK Release
         run: flutter build apk --release
 
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-APK-v0.3.5
+          name: Finora-APK-v0.3.7
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/flutter-apk/app-release.apk
@@ -170,7 +178,7 @@ jobs:
       - name: Publicar AAB
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-AAB-v0.3.5
+          name: Finora-AAB-v0.3.7
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/bundle/release/app-release.aab

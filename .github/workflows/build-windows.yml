@@ -61,11 +61,20 @@ jobs:
             Set-Content $runner $text
           }
 
+      - name: Aplicar identidade visual Finora
+        shell: pwsh
+        run: |
+          python -m pip install --quiet pillow
+          python tool/generate_branding.py
+
       - name: Baixar dependências
         run: flutter pub get
 
       - name: Verificar código
         run: flutter analyze --no-fatal-infos
+
+      - name: Executar testes
+        run: flutter test
 
       - name: Compilar Windows Release
         run: flutter build windows --release
@@ -75,22 +84,22 @@ jobs:
         run: |
           $release = 'build/windows/x64/runner/Release'
           if (!(Test-Path $release)) { throw 'Pasta Release do Windows não encontrada.' }
-          New-Item -ItemType Directory -Force -Path 'dist/Finora-Windows-v0.3.6' | Out-Null
-          Copy-Item "$release/*" 'dist/Finora-Windows-v0.3.6' -Recurse -Force
+          New-Item -ItemType Directory -Force -Path 'dist/Finora-Windows-v0.3.7' | Out-Null
+          Copy-Item "$release/*" 'dist/Finora-Windows-v0.3.7' -Recurse -Force
           @'
-          FINORA WINDOWS v0.3.6
+          FINORA WINDOWS v0.3.7
 
           1. Extraia toda a pasta antes de executar.
           2. Abra Finora.exe.
           3. Mantenha DLLs e a pasta data ao lado do executável.
           4. Os dados desta instalação ficam armazenados localmente no Windows.
-          '@ | Set-Content 'dist/Finora-Windows-v0.3.6/LEIA-ME.txt'
-          Compress-Archive -Path 'dist/Finora-Windows-v0.3.6/*' -DestinationPath 'dist/Finora-Windows-v0.3.6.zip' -Force
+          '@ | Set-Content 'dist/Finora-Windows-v0.3.7/LEIA-ME.txt'
+          Compress-Archive -Path 'dist/Finora-Windows-v0.3.7/*' -DestinationPath 'dist/Finora-Windows-v0.3.7.zip' -Force
 
       - name: Publicar Finora Windows
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-Windows-v0.3.6
+          name: Finora-Windows-v0.3.7
           if-no-files-found: error
           retention-days: 14
-          path: dist/Finora-Windows-v0.3.6.zip
+          path: dist/Finora-Windows-v0.3.7.zip
