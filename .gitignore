@@ -1,18 +1,38 @@
+# Flutter / Dart
 .dart_tool/
 .packages
 .pub/
+.pub-cache/
 build/
+coverage/
 .flutter-plugins
 .flutter-plugins-dependencies
-.pub-cache/
-coverage/
-android/.gradle/
-android/local.properties
-android/key.properties
-*.jks
-*.keystore
+
+# IDEs
 .idea/
 .vscode/
 *.iml
+
+# Plataforma / build local
+android/.gradle/
+android/local.properties
+android/key.properties
+windows/flutter/ephemeral/
+dist/
+
+# Assinatura, certificados e segredos
+android/keystore/
+*.jks
+*.keystore
+*.p12
+*.pem
+*.der
+*.crt
+.env
+.env.*
+!.env.example
+
+# Logs e arquivos do sistema
+*.log
 .DS_Store
 Thumbs.db
