@@ -37,7 +37,7 @@ jobs:
       - name: Gerar estrutura Android
         run: flutter create . --platforms=android --project-name=finora --org=com.finora
 
-      - name: Configurar Android para biometria e notificações
+      - name: Configurar Android, backup e assinatura estável
         shell: python
         run: |
           from pathlib import Path
@@ -61,6 +61,8 @@ jobs:
           '''
           if 'android.permission.USE_BIOMETRIC' not in text:
               text = text.replace('>', '>' + permissions, 1)
+          if 'android:allowBackup=' not in text:
+              text = text.replace('<application', '<application\n        android:allowBackup="true"', 1)
           receivers = '''
                   <receiver
                       android:exported="false"
@@ -125,6 +127,25 @@ jobs:
                   'defaultConfig {\n        multiDexEnabled = true',
                   1,
               )
+          if 'create("finoraRelease")' not in app:
+              app = app.replace(
+                  '    buildTypes {',
+                  '''    signingConfigs {
+                      create("finoraRelease") {
+                          storeFile = file("../keystore/finora-dev.jks")
+                          storePassword = "FinoraDev2026!"
+                          keyAlias = "finora"
+                          keyPassword = "FinoraDev2026!"
+                      }
+                  }
+
+                  buildTypes {''',
+                  1,
+              )
+          app = app.replace(
+              'signingConfig = signingConfigs.getByName("debug")',
+              'signingConfig = signingConfigs.getByName("finoraRelease")',
+          )
           app += '''
 
           dependencies {
@@ -143,6 +164,14 @@ jobs:
                   cfg,
               )
               settings.write_text(cfg, encoding='utf-8')
+
+      - name: Verificar identidade da assinatura
+        run: |
+          keytool -list -v \
+            -keystore android/keystore/finora-dev.jks \
+            -storepass 'FinoraDev2026!' \
+            -alias finora | tee signing.txt
+          grep -q 'SHA256: 3B:9F:57:35:03:3F:60:F9:B5:FB:28:6C:F5:24:0A:3B:FB:8C:91:B2:D8:01:E3:52:BA:8E:8E:AF:EF:DE:5F:34' signing.txt
 
       - name: Aplicar identidade visual Finora
         run: |
@@ -167,7 +196,7 @@ jobs:
       - name: Publicar APK
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-APK-v0.3.7
+          name: Finora-APK-v0.3.8
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/flutter-apk/app-release.apk
@@ -178,7 +207,7 @@ jobs:
       - name: Publicar AAB
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-AAB-v0.3.7
+          name: Finora-AAB-v0.3.8
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/bundle/release/app-release.aab
