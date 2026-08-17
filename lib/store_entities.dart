@@ -285,7 +285,7 @@ extension FinanceStoreEntities on FinanceStore {
     final biometric = data.biometricEnabled;
     final notifications = data.notificationsEnabled;
     final notificationDays = data.notificationDaysBefore;
-    data = FinanceStore.demoData()
+    data = demoData()
       ..darkMode = theme
       ..biometricEnabled = biometric
       ..notificationsEnabled = notifications
@@ -299,7 +299,7 @@ extension FinanceStoreEntities on FinanceStore {
     final biometric = data.biometricEnabled;
     final notifications = data.notificationsEnabled;
     final notificationDays = data.notificationDaysBefore;
-    data = FinanceStore.emptyData()
+    data = emptyData()
       ..darkMode = theme
       ..biometricEnabled = biometric
       ..notificationsEnabled = notifications
