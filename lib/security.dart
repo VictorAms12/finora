@@ -86,7 +86,7 @@ class _SecurityGateState extends State<SecurityGate>
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
-      if (mounted) setState(() => _unlocked = false);
+      if (mounted && _unlocked) setState(() => _unlocked = false);
     } else if (state == AppLifecycleState.resumed && !_unlocked) {
       _unlock();
     }
@@ -96,7 +96,7 @@ class _SecurityGateState extends State<SecurityGate>
     if (_authenticating || !mounted) return;
     final enabled = context.read<FinanceStore>().data.biometricEnabled;
     if (!enabled) {
-      setState(() => _unlocked = true);
+      if (!_unlocked) setState(() => _unlocked = true);
       return;
     }
 
@@ -111,7 +111,9 @@ class _SecurityGateState extends State<SecurityGate>
 
   @override
   Widget build(BuildContext context) {
-    final enabled = context.watch<FinanceStore>().data.biometricEnabled;
+    final enabled = context.select<FinanceStore, bool>(
+      (store) => store.data.biometricEnabled,
+    );
     if (!enabled || _unlocked) return widget.child;
 
     return Scaffold(
