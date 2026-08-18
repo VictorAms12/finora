@@ -15,6 +15,7 @@ Future<void> main() async {
   final store = FinanceStore();
   await store.load();
   await store.repairLegacyFutureTransactionEffects();
+  await store.repairLegacyFutureTransferEffects();
 
   runApp(
     ChangeNotifierProvider.value(
