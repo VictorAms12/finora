@@ -47,7 +47,7 @@ extension FinanceStoreBackup on FinanceStore {
       final now = DateTime.now();
       selectedMonth = DateTime(now.year, now.month);
       commit();
-      await flushPersistence();
+      await _save();
       return true;
     } catch (_) {
       return false;
