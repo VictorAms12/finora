@@ -9,6 +9,7 @@ class NotificationService {
 
   static final FlutterLocalNotificationsPlugin plugin =
       FlutterLocalNotificationsPlugin();
+  static Future<void>? _initialization;
 
   static const AndroidNotificationDetails _androidDetails =
       AndroidNotificationDetails(
@@ -38,7 +39,10 @@ class NotificationService {
     windows: _windowsDetails,
   );
 
-  static Future<void> initialize() async {
+  static Future<void> initialize() =>
+      _initialization ??= _initializePlugin();
+
+  static Future<void> _initializePlugin() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const darwin = DarwinInitializationSettings(
       requestAlertPermission: false,
@@ -47,7 +51,7 @@ class NotificationService {
     );
     const windows = WindowsInitializationSettings(
       appName: 'Finora',
-      appUserModelId: 'VictorAms12.Finora.Desktop.0.3.6',
+      appUserModelId: 'VictorAms12.Finora.Desktop',
       guid: '8f4ec9d1-82ab-4fb3-bcb5-5e3d76c5f036',
     );
     const settings = InitializationSettings(
@@ -60,6 +64,7 @@ class NotificationService {
   }
 
   static Future<bool> requestPermissions() async {
+    await initialize();
     var granted = true;
 
     final android = plugin.resolvePlatformSpecificImplementation<
@@ -83,17 +88,16 @@ class NotificationService {
   }
 
   static Future<void> setDailyReminder(bool enabled) async {
+    await initialize();
     try {
       await plugin.cancel(id: dailyReminderId);
     } catch (_) {
-      // Em builds portáteis do Windows, cancelar notificações exige identidade
-      // de pacote. O app continua funcional mesmo sem essa operação.
+      // Builds portáteis do Windows podem não ter identidade de pacote.
     }
     if (!enabled) return;
 
     if (Platform.isWindows) {
       // O backend Windows do plugin não oferece notificações periódicas.
-      // A central interna do Finora continua exibindo contas e atrasos.
       return;
     }
 
@@ -109,6 +113,7 @@ class NotificationService {
   }
 
   static Future<void> showTest() async {
+    await initialize();
     await plugin.show(
       id: testNotificationId,
       title: 'Finora',
