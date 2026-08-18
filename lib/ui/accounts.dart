@@ -281,9 +281,10 @@ class CardInvoiceScreen extends StatelessWidget {
         store.cardTransactionsForInvoiceMonth(card.id, store.selectedMonth);
     var outstanding =
         store.invoiceOutstandingForMonth(card.id, store.selectedMonth);
-    if (store.selectedIsCurrent && outstanding <= 0 && card.used > 0) {
-      outstanding = card.used;
+    if (store.selectedIsCurrent) {
+      outstanding += store.manualCardOutstanding(card.id);
     }
+
     final nextMonth =
         DateTime(store.selectedMonth.year, store.selectedMonth.month + 1);
     final nextInvoice = store.invoiceOutstandingForMonth(card.id, nextMonth) +
@@ -533,13 +534,15 @@ class CardInvoiceScreen extends StatelessWidget {
         false;
 
     if (ok && context.mounted) {
-      store.payInvoice(
+      final paid = store.payInvoice(
         cardId: card.id,
         accountName: account,
         month: store.selectedMonth,
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fatura paga')),
+        SnackBar(
+          content: Text(paid ? 'Fatura paga' : 'Não há saldo pendente nesta fatura.'),
+        ),
       );
     }
   }
