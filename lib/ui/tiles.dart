@@ -13,7 +13,7 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<FinanceStore>();
+    final store = context.read<FinanceStore>();
     final income = item.type == TransactionType.income;
     final expense = item.type == TransactionType.expense;
     final color = income
@@ -101,6 +101,7 @@ class PlannedTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final income = item.type == TransactionType.income;
+    final transfer = item.type == TransactionType.transfer;
     Color color;
     IconData icon;
     String state;
@@ -118,10 +119,20 @@ class PlannedTile extends StatelessWidget {
       icon = Icons.error_outline_rounded;
       state = 'atrasado';
     } else {
-      color = income ? FinoraColors.income : FinoraColors.warning;
-      icon = Icons.schedule_rounded;
+      color = transfer
+          ? FinoraColors.balance
+          : income
+              ? FinoraColors.income
+              : FinoraColors.warning;
+      icon = transfer ? Icons.swap_horiz_rounded : Icons.schedule_rounded;
       state = 'previsto';
     }
+
+    final prefix = transfer
+        ? ''
+        : income
+            ? '+ '
+            : '− ';
 
     return InkWell(
       onTap: onTap,
@@ -163,7 +174,7 @@ class PlannedTile extends StatelessWidget {
               ),
             ),
             Text(
-              '${income ? '+' : '−'} ${money(context, item.amount)}',
+              '$prefix${money(context, item.amount)}',
               style: TextStyle(
                 color: color,
                 fontSize: 10.3,
@@ -185,15 +196,17 @@ class ExpenseBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final max = values.fold<double>(1, (m, v) => v > m ? v : m);
-    final store = context.watch<FinanceStore>();
+    final selectedMonth = context.select<FinanceStore, DateTime>(
+      (store) => store.selectedMonth,
+    );
     return SizedBox(
       height: 90,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: List.generate(values.length, (index) {
           final date = DateTime(
-            store.selectedMonth.year,
-            store.selectedMonth.month - (values.length - 1 - index),
+            selectedMonth.year,
+            selectedMonth.month - (values.length - 1 - index),
           );
           final height = 18 + (values[index] / max) * 48;
           return Expanded(
@@ -235,8 +248,9 @@ class BudgetProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<FinanceStore>();
-    final used = store.expensesByCategory[item.category] ?? 0;
+    final used = context.select<FinanceStore, double>(
+      (store) => store.expensesByCategory[item.category] ?? 0,
+    );
     final ratio = item.limit <= 0 ? 0.0 : used / item.limit;
     final over = ratio > 1;
     return Padding(

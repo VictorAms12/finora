@@ -8,41 +8,45 @@ extension FinanceStoreTransactions on FinanceStore {
     return value.isAfter(today);
   }
 
-  PlannedItem _plannedFromTransaction(TransactionItem item) => PlannedItem(
-        id: FinanceStore.newId(),
-        type: item.type,
-        title: item.title,
-        category: item.category,
-        amount: item.amount,
-        date: item.date,
-        sourceName: item.account,
-        paymentKind: item.paymentKind,
-        cardId: item.cardId,
-        recurrenceId: item.recurrenceId,
-        installmentId: item.installmentId,
-        installmentNumber: item.installmentNumber,
-        installmentTotal: item.installmentTotal,
-        invoiceMonth: item.invoiceMonth,
-      );
+  PlannedItem _plannedFromTransaction(TransactionItem item) {
+    final transfer = transferAccounts(item);
+    return PlannedItem(
+      id: FinanceStore.newId(),
+      type: item.type,
+      title: item.title,
+      category: item.category,
+      amount: item.amount,
+      date: item.date,
+      sourceName: item.type == TransactionType.transfer && transfer != null
+          ? transfer[0]
+          : item.account,
+      destinationName: item.type == TransactionType.transfer && transfer != null
+          ? transfer[1]
+          : null,
+      paymentKind: item.paymentKind,
+      cardId: item.cardId,
+      recurrenceId: item.recurrenceId,
+      recurrenceDate: item.recurrenceId == null ? null : item.date,
+      installmentId: item.installmentId,
+      installmentNumber: item.installmentNumber,
+      installmentTotal: item.installmentTotal,
+      invoiceMonth: item.invoiceMonth,
+    );
+  }
 
   bool _hasEquivalentPlanned(TransactionItem item) => data.planned.any((planned) {
         if (planned.status != PlannedStatus.planned) return false;
-        if (item.recurrenceId != null && planned.recurrenceId == item.recurrenceId) {
-          return planned.date.year == item.date.year &&
-              planned.date.month == item.date.month &&
-              planned.date.day == item.date.day;
+        if (item.recurrenceId != null &&
+            planned.recurrenceId == item.recurrenceId) {
+          return sameDay(planned.canonicalRecurrenceDate, item.date);
         }
         if (item.installmentId != null &&
             planned.installmentId == item.installmentId &&
             planned.installmentNumber == item.installmentNumber) {
           return true;
         }
-        return planned.title == item.title &&
-            planned.amount == item.amount &&
-            planned.date.year == item.date.year &&
-            planned.date.month == item.date.month &&
-            planned.date.day == item.date.day &&
-            planned.sourceName == item.account;
+        // Lançamentos manuais idênticos continuam sendo lançamentos distintos.
+        return false;
       });
 
   void _prepareCardInvoice(TransactionItem item) {
@@ -56,74 +60,87 @@ extension FinanceStoreTransactions on FinanceStore {
     }
   }
 
-  void addTransaction(TransactionItem item) {
+  bool _addTransactionInternal(TransactionItem item) {
+    if (!isValidAmount(item.amount)) return false;
     _prepareCardInvoice(item);
 
-    // Uma movimentação com data futura ainda não aconteceu. Ela entra no
-    // planejamento e só afeta conta/cartão quando for efetivamente realizada.
-    if (item.type != TransactionType.transfer &&
-        _isFutureTransactionDate(item.date)) {
+    // Toda movimentação futura é um compromisso, inclusive transferências.
+    if (_isFutureTransactionDate(item.date)) {
       if (!_hasEquivalentPlanned(item)) {
         data.planned.add(_plannedFromTransaction(item));
       }
-      commit();
-      return;
+      return true;
     }
 
     data.transactions.add(item);
     _applyTransactionEffect(item, reverse: false);
-    commit();
+    return true;
+  }
+
+  void addTransaction(TransactionItem item) {
+    if (_addTransactionInternal(item)) commit();
+  }
+
+  DateTime? _earliestPastMonth(DateTime a, [DateTime? b]) {
+    final current = DateTime(DateTime.now().year, DateTime.now().month);
+    final first = monthStart(a);
+    final second = b == null ? null : monthStart(b);
+    DateTime? earliest;
+    if (first.isBefore(current)) earliest = first;
+    if (second != null && second.isBefore(current)) {
+      if (earliest == null || second.isBefore(earliest)) earliest = second;
+    }
+    return earliest;
   }
 
   void updateTransaction(TransactionItem before, TransactionItem after) {
     final index = data.transactions.indexWhere((e) => e.id == before.id);
-    if (index == -1) return;
+    if (index == -1 || !isValidAmount(after.amount)) return;
 
     _prepareCardInvoice(after);
     if (!(after.paymentKind == PaymentKind.card &&
         after.type == TransactionType.expense)) {
-      after.invoiceMonth = null;
+      after.invoiceMonth = after.type == TransactionType.transfer
+          ? after.invoiceMonth
+          : null;
     }
 
-    final beforeWasFuture = _isFutureTransactionDate(before.date);
-    if (!beforeWasFuture) {
-      _applyTransactionEffect(before, reverse: true);
-    }
+    _applyTransactionEffect(before, reverse: true);
 
-    if (after.type != TransactionType.transfer &&
-        _isFutureTransactionDate(after.date)) {
+    if (_isFutureTransactionDate(after.date)) {
       data.transactions.removeAt(index);
       if (!_hasEquivalentPlanned(after)) {
         data.planned.add(_plannedFromTransaction(after));
       }
-      commit();
-      return;
+    } else {
+      data.transactions[index] = after;
+      _applyTransactionEffect(after, reverse: false);
     }
 
-    data.transactions[index] = after;
-    _applyTransactionEffect(after, reverse: false);
+    final rebuildFrom = _earliestPastMonth(before.date, after.date);
+    if (rebuildFrom != null) rebuildSnapshotsFrom(rebuildFrom);
     commit();
   }
 
   void deleteTransaction(TransactionItem item) {
-    if (!_isFutureTransactionDate(item.date)) {
-      _applyTransactionEffect(item, reverse: true);
-    }
+    final exists = data.transactions.any((e) => e.id == item.id);
+    if (!exists) return;
+
+    _applyTransactionEffect(item, reverse: true);
     data.transactions.removeWhere((e) => e.id == item.id);
+    final rebuildFrom = _earliestPastMonth(item.date);
+    if (rebuildFrom != null) rebuildSnapshotsFrom(rebuildFrom);
     commit();
   }
 
   /// Migração v0.3.7.
   ///
-  /// Versões anteriores aplicavam imediatamente no saldo qualquer transação
-  /// criada com data futura. Na primeira abertura desta versão, o efeito é
-  /// estornado e a movimentação é migrada para Planejamento.
-  ///
-  /// Se a movimentação pertencia a uma recorrência/parcelamento já excluído,
-  /// ela é removida em vez de recriada como previsão.
+  /// Versões anteriores aplicavam imediatamente no saldo qualquer receita ou
+  /// despesa criada com data futura. Na primeira abertura, o efeito é estornado
+  /// e a movimentação é migrada para Planejamento.
   Future<void> repairLegacyFutureTransactionEffects() async {
     const repairKey = 'finora_v037_future_effect_repaired';
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _preferences();
     if (prefs.getBool(repairKey) == true) return;
 
     final future = data.transactions
@@ -133,7 +150,6 @@ extension FinanceStoreTransactions on FinanceStore {
         .toList();
 
     for (final item in future) {
-      // O saldo/cartão já havia sido alterado pela versão antiga.
       _applyTransactionEffect(item, reverse: true);
 
       final recurrenceStillExists = item.recurrenceId == null ||
@@ -150,24 +166,63 @@ extension FinanceStoreTransactions on FinanceStore {
       data.transactions.removeWhere((tx) => tx.id == item.id);
     }
 
-    await _save();
+    if (future.isNotEmpty) {
+      commit();
+      await flushPersistence();
+    }
     await prefs.setBool(repairKey, true);
-    // commit() pertence ao FinanceStore e faz a notificação de forma válida.
-    commit();
   }
 
-  void transfer({
+  /// Migração v0.3.9.
+  ///
+  /// O formulário de transferência antigo aceitava uma data futura, mas o
+  /// método de transferência já movia os dois saldos imediatamente. O reparo
+  /// devolve esses saldos e transforma a transferência futura em previsão.
+  Future<void> repairLegacyFutureTransferEffects() async {
+    const repairKey = 'finora_v039_future_transfer_repaired';
+    final prefs = await _preferences();
+    if (prefs.getBool(repairKey) == true) return;
+
+    final futureTransfers = data.transactions
+        .where((item) =>
+            item.type == TransactionType.transfer &&
+            !item.title.startsWith('Pagamento fatura') &&
+            _isFutureTransactionDate(item.date))
+        .toList();
+    var changed = false;
+
+    for (final item in futureTransfers) {
+      final accounts = transferAccounts(item);
+      if (accounts == null) continue;
+      final source = findAccount(accounts[0]);
+      final target = findAccount(accounts[1]);
+      if (source == null || target == null || source == target) continue;
+
+      _applyTransactionEffect(item, reverse: true);
+      data.planned.add(_plannedFromTransaction(item));
+      data.transactions.removeWhere((tx) => tx.id == item.id);
+      changed = true;
+    }
+
+    if (changed) {
+      commit();
+      await flushPersistence();
+    }
+    await prefs.setBool(repairKey, true);
+  }
+
+  bool transfer({
     required double amount,
     required String from,
     required String to,
     DateTime? date,
   }) {
+    if (!isValidAmount(amount)) return false;
     final source = findAccount(from);
     final target = findAccount(to);
-    if (source == null || target == null || source == target) return;
-    source.balance -= amount;
-    target.balance += amount;
-    data.transactions.add(TransactionItem(
+    if (source == null || target == null || source == target) return false;
+
+    final item = TransactionItem(
       id: FinanceStore.newId(),
       type: TransactionType.transfer,
       title: 'Transferência',
@@ -175,11 +230,13 @@ extension FinanceStoreTransactions on FinanceStore {
       amount: amount,
       date: date ?? DateTime.now(),
       account: '$from → $to',
-    ));
+    );
+    if (!_addTransactionInternal(item)) return false;
     commit();
+    return true;
   }
 
-  void payInvoice({
+  bool payInvoice({
     required String cardId,
     required String accountName,
     DateTime? month,
@@ -187,18 +244,16 @@ extension FinanceStoreTransactions on FinanceStore {
     final card = findCard(cardId);
     final account = findAccount(accountName);
     final targetMonth = month ?? selectedMonth;
-    if (card == null || account == null) return;
+    if (card == null || account == null) return false;
 
     var amount = invoiceOutstandingForMonth(cardId, targetMonth);
     final now = DateTime.now();
-    if (amount <= 0 && sameMonth(targetMonth, now) && card.used > 0) {
-      amount = card.used;
+    if (sameMonth(targetMonth, now)) {
+      amount += manualCardOutstanding(cardId);
     }
-    if (amount <= 0) return;
+    if (!isValidAmount(amount)) return false;
 
-    account.balance -= amount;
-    card.used = (card.used - amount).clamp(0.0, double.infinity).toDouble();
-    data.transactions.add(TransactionItem(
+    final item = TransactionItem(
       id: FinanceStore.newId(),
       type: TransactionType.transfer,
       title: 'Pagamento fatura ${card.name}',
@@ -208,8 +263,10 @@ extension FinanceStoreTransactions on FinanceStore {
       account: '$accountName → ${card.name}',
       cardId: card.id,
       invoiceMonth: DateTime(targetMonth.year, targetMonth.month),
-    ));
+    );
+    if (!_addTransactionInternal(item)) return false;
     commit();
+    return true;
   }
 
   List<TransactionItem> cardTransactionsForMonth(

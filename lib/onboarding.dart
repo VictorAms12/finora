@@ -35,6 +35,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
+    if (account.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Informe um nome para a primeira conta.')),
+      );
+      pages.animateToPage(
+        1,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      );
+      return;
+    }
+
     final value = double.tryParse(balance.text.replaceAll(',', '.')) ?? 0;
     context.read<FinanceStore>().finishOnboarding(
           accountName: account.text,

@@ -8,7 +8,7 @@
 ![Dart](https://img.shields.io/badge/Dart-3.10%2B-0175C2?logo=dart&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-Release-3DDC84?logo=android&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-x64-0078D4?logo=windows11&logoColor=white)
-![Version](https://img.shields.io/badge/versão-0.3.8-111111)
+![Version](https://img.shields.io/badge/versão-0.3.9-111111)
 
 [![Build Android](https://github.com/VictorAms12/finora/actions/workflows/build-android.yml/badge.svg)](https://github.com/VictorAms12/finora/actions/workflows/build-android.yml)
 [![Build Windows](https://github.com/VictorAms12/finora/actions/workflows/build-windows.yml/badge.svg)](https://github.com/VictorAms12/finora/actions/workflows/build-windows.yml)
@@ -35,7 +35,7 @@ A aplicação reúne em uma única base local:
 - investimentos;
 - relatórios e projeções mensais.
 
-> Versão atual: **0.3.8**
+> Versão atual: **0.3.9**
 
 ---
 
@@ -46,14 +46,14 @@ A aplicação reúne em uma única base local:
 | **Dashboard** | saldo, disponível para gastar, projeções e visão do mês |
 | **Movimentações** | receitas, despesas, transferências, pesquisa, filtros e edição |
 | **Planejamento** | previstos, atrasos, recorrências, parcelamentos e projeções |
-| **Cartões** | limite, fechamento, vencimento, compras, parcelas e faturas |
+| **Cartões** | limite, fechamento, vencimento, compras, parcelas e faturas por competência |
 | **Orçamentos** | acompanhamento mensal por categoria |
 | **Metas e reservas** | progresso, prazo, cobertura e aportes |
 | **Investimentos** | acompanhamento básico do patrimônio investido |
 | **Relatórios** | comparação mensal, histórico e distribuição de gastos |
-| **Backup** | exportação completa copiável e restauração dos dados |
+| **Backup** | exportação completa copiável, restauração e recuperação local do último estado íntegro |
 | **Segurança** | biometria no Android e Windows Hello quando disponível |
-| **Experiência** | temas claro/escuro/OLED e layout adaptado a mobile e desktop |
+| **Experiência** | temas claro/escuro/OLED, cache de agregações e layout adaptado a mobile e desktop |
 
 ### Salário no 5º dia útil
 
@@ -61,13 +61,38 @@ O Finora permite programar uma receita salarial recorrente para o **5º dia úti
 
 ### Lançamentos futuros
 
-Receitas e despesas com data futura permanecem como planejamento e **não alteram o saldo atual antes de serem realizadas**.
+Receitas, despesas e transferências com data futura permanecem como planejamento e **não alteram o saldo atual antes de serem realizadas**.
+
+Recorrências indefinidas mantêm um horizonte futuro rolante. Adiar ou ignorar uma ocorrência preserva sua identidade, evitando que a mesma cobrança seja recriada silenciosamente na data original.
+
+### Faturas por competência
+
+Compras no cartão são associadas à competência calculada pelo fechamento do cartão. O Finora separa compras rastreadas de um eventual saldo inicial/manual do cartão para evitar que valores da próxima fatura sejam cobrados como se pertencessem à fatura atual.
+
+---
+
+## Performance e integridade
+
+A v0.3.9 passou por uma revisão ampla do fluxo de estado e persistência.
+
+Entre as otimizações aplicadas:
+
+- o `MaterialApp` observa apenas tema e conclusão do onboarding, em vez de reconstruir a árvore inteira em toda movimentação;
+- movimentações e agregações mensais são cacheadas e invalidadas somente quando os dados mudam;
+- gravações em `SharedPreferences` são serializadas, preservando a ordem de commits rápidos;
+- operações compostas, como parcelamentos e recorrências, são persistidas como uma única alteração lógica;
+- notificações nativas são inicializadas depois da primeira renderização;
+- navegação direta entre meses gera uma única atualização de estado;
+- listas grandes de movimentações são exibidas progressivamente em blocos de 50 registros;
+- componentes de UI usam seletores de estado mais específicos para reduzir rebuilds desnecessários.
+
+A camada financeira também valida referências e efeitos antes de concluir operações. Por exemplo, um previsto não é marcado como realizado se a conta/cartão associado deixou de existir.
 
 ---
 
 ## Backup e recuperação
 
-A partir da v0.3.8, o Finora possui backup completo pelo próprio aplicativo.
+A partir da v0.3.8, o Finora possui backup completo pelo próprio aplicativo. Na v0.3.9, a persistência também mantém uma cópia local do último estado íntegro para recuperação em caso de JSON principal inválido.
 
 O backup inclui, entre outros:
 
@@ -127,7 +152,9 @@ O Finora segue uma abordagem **offline-first**, com estado centralizado em `Fina
 flowchart LR
     UI[Interface Flutter] --> STORE[FinanceStore]
     STORE --> DATA[Modelos financeiros]
+    STORE --> CACHE[Cache mensal]
     STORE --> LOCAL[(SharedPreferences)]
+    LOCAL --> RECOVERY[Cópia íntegra anterior]
     STORE --> TX[Movimentações]
     STORE --> PLAN[Planejamento]
     STORE --> ENT[Entidades financeiras]
@@ -180,7 +207,7 @@ finora/
 |---|---|
 | **Flutter** | aplicação multiplataforma |
 | **Dart** | linguagem principal |
-| **Provider** | gerenciamento de estado |
+| **Provider** | gerenciamento de estado e seletores reativos |
 | **SharedPreferences** | persistência local atual |
 | **local_auth** | biometria e Windows Hello |
 | **flutter_local_notifications** | notificações locais |
@@ -267,6 +294,7 @@ Na versão atual:
 - não há envio automático dos dados financeiros para servidor próprio;
 - Android e Windows mantêm bases independentes;
 - existe backup manual completo pelo aplicativo;
+- existe recuperação local da última persistência íntegra;
 - sincronização entre dispositivos ainda não está disponível.
 
 O bloqueio biométrico protege o acesso pela interface do Finora, mas a persistência atual em `SharedPreferences` não representa criptografia integral dos dados em repouso.
@@ -276,7 +304,7 @@ O bloqueio biométrico protege o acesso pela interface do Finora, mas a persist�
 ## Limitações atuais
 
 - sincronização Android ↔ Windows ainda não disponível;
-- persistência ainda baseada em `SharedPreferences`;
+- persistência ainda baseada em `SharedPreferences` (mesmo com serialização e recuperação, não é um banco transacional);
 - investimentos possuem acompanhamento básico;
 - não existe integração bancária/Open Finance;
 - não existe importação OFX/CSV;
