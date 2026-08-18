@@ -6,16 +6,28 @@ extension FinanceStorePlanning on FinanceStore {
     if (data.snapshots.isEmpty &&
         data.trackingMonth != null &&
         sameMonth(data.trackingMonth!, now)) {
-      data.trackingOpeningCash = cashBalance - cashMovementForMonth(now);
-      commit();
+      final expected = cashBalance - cashMovementForMonth(now);
+      if ((data.trackingOpeningCash - expected).abs() > 0.005) {
+        data.trackingOpeningCash = expected;
+        commit();
+      }
     }
+  }
+
+  bool _plannedDueInMonth(DateTime dueDate, DateTime month) {
+    final target = monthStart(month);
+    final current = DateTime(DateTime.now().year, DateTime.now().month);
+    final due = monthStart(dueDate);
+    if (sameMonth(target, current)) return !due.isAfter(current);
+    return sameMonth(due, target);
   }
 
   double cashPlannedReceivableForMonth(DateTime month) => data.planned
       .where((e) =>
           e.status == PlannedStatus.planned &&
           e.type == TransactionType.income &&
-          sameMonth(e.date, month))
+          e.paymentKind == PaymentKind.account &&
+          _plannedDueInMonth(e.date, month))
       .fold<double>(0, (sum, item) => sum + item.amount);
 
   double cashPlannedPayableForMonth(DateTime month) {
@@ -26,43 +38,20 @@ extension FinanceStorePlanning on FinanceStore {
           item.type != TransactionType.expense) {
         continue;
       }
-      if (item.paymentKind == PaymentKind.account && sameMonth(item.date, month)) {
+      if (item.paymentKind == PaymentKind.account &&
+          _plannedDueInMonth(item.date, month)) {
         total += item.amount;
       } else if (item.paymentKind == PaymentKind.card) {
         final invoice = item.invoiceMonth ??
             _plannedInvoiceMonth(item.paymentKind, item.cardId, item.date);
-        if (invoice != null && sameMonth(invoice, month)) {
+        if (invoice != null && _plannedDueInMonth(invoice, month)) {
           total += item.amount;
         }
       }
     }
 
     for (final card in data.cards) {
-      total += invoiceOutstandingForMonth(card.id, month);
-    }
-
-    final now = DateTime.now();
-    if (sameMonth(month, now)) {
-      for (final card in data.cards) {
-        final trackedCardPurchases = data.transactions
-            .where((e) =>
-                e.paymentKind == PaymentKind.card &&
-                e.cardId == card.id &&
-                e.type == TransactionType.expense)
-            .fold<double>(0, (sum, item) => sum + item.amount);
-        final paid = data.transactions
-            .where((e) =>
-                e.type == TransactionType.transfer &&
-                e.cardId == card.id &&
-                e.title.startsWith('Pagamento fatura'))
-            .fold<double>(0, (sum, item) => sum + item.amount);
-        final trackedOutstanding =
-            (trackedCardPurchases - paid).clamp(0.0, double.infinity).toDouble();
-        final manualOutstanding = (card.used - trackedOutstanding)
-            .clamp(0.0, double.infinity)
-            .toDouble();
-        total += manualOutstanding;
-      }
+      total += cardOutstandingDueForPlanningMonth(card.id, month);
     }
 
     return total;
@@ -174,41 +163,155 @@ extension FinanceStorePlanning on FinanceStore {
     return FinanceStore.nextOccurrence(current, rule.frequency);
   }
 
+  int _futureRecurrenceHorizon(RecurringRule rule) {
+    switch (rule.frequency) {
+      case RecurrenceFrequency.weekly:
+        return 52;
+      case RecurrenceFrequency.monthly:
+        return 24;
+      case RecurrenceFrequency.yearly:
+        return 10;
+    }
+  }
+
+  String _occurrenceKey(DateTime date) =>
+      '${date.year}-${date.month}-${date.day}';
+
+  bool _transactionRepresentsOccurrence(
+    RecurringRule rule,
+    DateTime occurrence,
+  ) =>
+      data.transactions.any((tx) =>
+          tx.recurrenceId == rule.id && sameDay(tx.date, occurrence));
+
+  void _updateRecurringPlannedItem(
+    PlannedItem item,
+    RecurringRule rule,
+    DateTime canonicalDate,
+  ) {
+    item.type = rule.type;
+    item.title = rule.title;
+    item.category = rule.category;
+    item.amount = rule.amount;
+    item.sourceName = rule.sourceName;
+    item.paymentKind = rule.paymentKind;
+    item.cardId = rule.cardId;
+    item.recurrenceDate = canonicalDate;
+    item.invoiceMonth =
+        _plannedInvoiceMonth(rule.paymentKind, rule.cardId, item.date);
+  }
+
   void _materializeRecurringFuture(RecurringRule rule) {
-    data.planned.removeWhere((e) =>
-        e.recurrenceId == rule.id && e.status == PlannedStatus.planned);
-    if (!rule.active) return;
+    final existing = data.planned
+        .where((item) => item.recurrenceId == rule.id)
+        .toList();
 
-    var cursor = rule.startDate;
+    if (!rule.active) {
+      data.planned.removeWhere((item) =>
+          item.recurrenceId == rule.id &&
+          item.status == PlannedStatus.planned);
+      return;
+    }
+
+    final byOccurrence = <String, PlannedItem>{};
+    for (final item in existing) {
+      byOccurrence.putIfAbsent(
+        _occurrenceKey(item.canonicalRecurrenceDate),
+        () => item,
+      );
+    }
+
+    final retainedPendingIds = <String>{};
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final catchUpStart = FinanceStore.addMonths(today, -12);
+    final futureLimit = _futureRecurrenceHorizon(rule);
+
+    var cursor = DateTime(
+      rule.startDate.year,
+      rule.startDate.month,
+      rule.startDate.day,
+    );
     var occurrenceNumber = 1;
-    final horizon = rule.maxOccurrences ?? 24;
+    var futureOccurrences = 0;
+    var safety = 0;
 
-    for (var i = 0; i < horizon; i++) {
-      if (!_recurrenceAllowed(rule, cursor, occurrenceNumber)) break;
+    while (safety < 5000 &&
+        _recurrenceAllowed(rule, cursor, occurrenceNumber)) {
+      final canonical = DateTime(cursor.year, cursor.month, cursor.day);
+      final key = _occurrenceKey(canonical);
+      final item = byOccurrence[key];
+      final future = canonical.isAfter(today);
+      final representedByTransaction =
+          _transactionRepresentsOccurrence(rule, canonical);
 
-      if (_isFutureTransactionDate(cursor)) {
-        data.planned.add(PlannedItem(
+      if (item != null) {
+        if (item.status == PlannedStatus.planned) {
+          _updateRecurringPlannedItem(item, rule, canonical);
+          retainedPendingIds.add(item.id);
+        }
+      } else if (!representedByTransaction &&
+          (future || !canonical.isBefore(catchUpStart))) {
+        final planned = PlannedItem(
           id: FinanceStore.newId(),
           type: rule.type,
           title: rule.title,
           category: rule.category,
           amount: rule.amount,
-          date: cursor,
+          date: canonical,
           sourceName: rule.sourceName,
           paymentKind: rule.paymentKind,
           cardId: rule.cardId,
           recurrenceId: rule.id,
+          recurrenceDate: canonical,
           invoiceMonth:
-              _plannedInvoiceMonth(rule.paymentKind, rule.cardId, cursor),
-        ));
+              _plannedInvoiceMonth(rule.paymentKind, rule.cardId, canonical),
+        );
+        data.planned.add(planned);
+        retainedPendingIds.add(planned.id);
+      }
+
+      if (future) {
+        futureOccurrences++;
+        if (rule.maxOccurrences == null &&
+            rule.endDate == null &&
+            futureOccurrences >= futureLimit) {
+          break;
+        }
       }
 
       cursor = _nextOccurrenceForRule(rule, cursor);
       occurrenceNumber++;
+      safety++;
     }
+
+    data.planned.removeWhere((item) =>
+        item.recurrenceId == rule.id &&
+        item.status == PlannedStatus.planned &&
+        !retainedPendingIds.contains(item.id));
   }
 
-  void addRecurring({
+  void refreshRecurringPlanning({bool persist = true}) {
+    for (final rule in data.recurringRules) {
+      _materializeRecurringFuture(rule);
+    }
+    if (persist) commit();
+  }
+
+  bool _validRecurringSource(
+    TransactionType type,
+    PaymentKind paymentKind,
+    String sourceName,
+    String? cardId,
+  ) {
+    if (type == TransactionType.income && paymentKind == PaymentKind.card) {
+      return false;
+    }
+    if (paymentKind == PaymentKind.card) return findCard(cardId) != null;
+    return findAccount(sourceName) != null;
+  }
+
+  bool addRecurring({
     required TransactionType type,
     required String title,
     required String category,
@@ -221,11 +324,20 @@ extension FinanceStorePlanning on FinanceStore {
     DateTime? endDate,
     num? maxOccurrences,
   }) {
+    if (!isValidAmount(amount) ||
+        title.trim().isEmpty ||
+        !_validRecurringSource(type, paymentKind, sourceName, cardId)) {
+      return false;
+    }
+    if (endDate != null && endDate.isBefore(startDate)) return false;
+    final max = maxOccurrences?.toInt();
+    if (max != null && max < 1) return false;
+
     final id = FinanceStore.newId();
     final rule = RecurringRule(
       id: id,
       type: type,
-      title: title,
+      title: title.trim(),
       category: category,
       amount: amount,
       sourceName: sourceName,
@@ -234,15 +346,15 @@ extension FinanceStorePlanning on FinanceStore {
       startDate: startDate,
       frequency: frequency,
       endDate: endDate,
-      maxOccurrences: maxOccurrences?.toInt(),
+      maxOccurrences: max,
     );
     data.recurringRules.add(rule);
 
     if (!_isFutureTransactionDate(startDate)) {
-      addTransaction(TransactionItem(
+      _addTransactionInternal(TransactionItem(
         id: FinanceStore.newId(),
         type: type,
-        title: title,
+        title: rule.title,
         category: category,
         amount: amount,
         date: startDate,
@@ -255,9 +367,10 @@ extension FinanceStorePlanning on FinanceStore {
 
     _materializeRecurringFuture(rule);
     commit();
+    return true;
   }
 
-  void addSalaryOnFifthBusinessDay({
+  bool addSalaryOnFifthBusinessDay({
     required double amount,
     required String sourceName,
     DateTime? startMonth,
@@ -266,22 +379,30 @@ extension FinanceStorePlanning on FinanceStore {
     DateTime? endDate,
     num? maxOccurrences,
   }) {
+    if (!isValidAmount(amount) ||
+        title.trim().isEmpty ||
+        findAccount(sourceName) == null) {
+      return false;
+    }
+
     final now = DateTime.now();
     var month = startMonth ?? DateTime(now.year, now.month + 1);
     var firstDate = fifthBusinessDayOfMonth(month);
     final today = DateTime(now.year, now.month, now.day);
 
-    // Se o 5º dia útil do mês escolhido já passou, começa no mês seguinte.
     if (firstDate.isBefore(today)) {
       month = DateTime(month.year, month.month + 1);
       firstDate = fifthBusinessDayOfMonth(month);
     }
+    if (endDate != null && endDate.isBefore(firstDate)) return false;
+    final max = maxOccurrences?.toInt();
+    if (max != null && max < 1) return false;
 
     final id = 'salary5-${FinanceStore.newId()}';
     final rule = RecurringRule(
       id: id,
       type: TransactionType.income,
-      title: title,
+      title: title.trim(),
       category: category,
       amount: amount,
       sourceName: sourceName,
@@ -289,15 +410,15 @@ extension FinanceStorePlanning on FinanceStore {
       startDate: firstDate,
       frequency: RecurrenceFrequency.monthly,
       endDate: endDate,
-      maxOccurrences: maxOccurrences?.toInt(),
+      maxOccurrences: max,
     );
 
     data.recurringRules.add(rule);
     if (!_isFutureTransactionDate(firstDate)) {
-      addTransaction(TransactionItem(
+      _addTransactionInternal(TransactionItem(
         id: FinanceStore.newId(),
         type: TransactionType.income,
-        title: title,
+        title: rule.title,
         category: category,
         amount: amount,
         date: firstDate,
@@ -308,9 +429,10 @@ extension FinanceStorePlanning on FinanceStore {
     }
     _materializeRecurringFuture(rule);
     commit();
+    return true;
   }
 
-  void updateRecurring(
+  bool updateRecurring(
     RecurringRule rule, {
     required String title,
     required String category,
@@ -319,18 +441,26 @@ extension FinanceStorePlanning on FinanceStore {
     DateTime? endDate,
     num? maxOccurrences,
   }) {
-    rule.title = title;
+    if (!isValidAmount(amount) || title.trim().isEmpty) return false;
+    if (endDate != null && endDate.isBefore(rule.startDate)) return false;
+    final max = maxOccurrences?.toInt();
+    if (max != null && max < 1) return false;
+
+    rule.title = title.trim();
     rule.category = category;
     rule.amount = amount;
     rule.frequency = frequency;
     rule.endDate = endDate;
-    rule.maxOccurrences = maxOccurrences?.toInt();
+    rule.maxOccurrences = max;
     _materializeRecurringFuture(rule);
     commit();
+    return true;
   }
 
   void toggleRecurring(String id) {
-    final rule = data.recurringRules.firstWhere((e) => e.id == id);
+    final index = data.recurringRules.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    final rule = data.recurringRules[index];
     rule.active = !rule.active;
     _materializeRecurringFuture(rule);
     commit();
@@ -338,13 +468,15 @@ extension FinanceStorePlanning on FinanceStore {
 
   void deleteRecurring(String id) {
     data.recurringRules.removeWhere((e) => e.id == id);
-    data.planned.removeWhere(
-      (e) => e.recurrenceId == id && e.status == PlannedStatus.planned,
-    );
+    for (final item in data.planned.where((e) => e.recurrenceId == id)) {
+      if (item.status == PlannedStatus.planned) {
+        item.status = PlannedStatus.skipped;
+      }
+    }
     commit();
   }
 
-  void addInstallment({
+  bool addInstallment({
     required String title,
     required String category,
     required double totalAmount,
@@ -354,11 +486,22 @@ extension FinanceStorePlanning on FinanceStore {
     String? cardId,
     required DateTime startDate,
   }) {
+    if (!isValidAmount(totalAmount) ||
+        installments < 2 ||
+        title.trim().isEmpty) {
+      return false;
+    }
+    if (paymentKind == PaymentKind.card) {
+      if (findCard(cardId) == null) return false;
+    } else if (findAccount(sourceName) == null) {
+      return false;
+    }
+
     final planId = FinanceStore.newId();
     final part = totalAmount / installments;
     data.installmentPlans.add(InstallmentPlan(
       id: planId,
-      title: title,
+      title: title.trim(),
       category: category,
       sourceName: sourceName,
       paymentKind: paymentKind,
@@ -368,10 +511,10 @@ extension FinanceStorePlanning on FinanceStore {
       startDate: startDate,
     ));
 
-    addTransaction(TransactionItem(
+    _addTransactionInternal(TransactionItem(
       id: FinanceStore.newId(),
       type: TransactionType.expense,
-      title: '$title (1/$installments)',
+      title: '${title.trim()} (1/$installments)',
       category: category,
       amount: part,
       date: startDate,
@@ -388,7 +531,7 @@ extension FinanceStorePlanning on FinanceStore {
       data.planned.add(PlannedItem(
         id: FinanceStore.newId(),
         type: TransactionType.expense,
-        title: '$title ($i/$installments)',
+        title: '${title.trim()} ($i/$installments)',
         category: category,
         amount: part,
         date: purchaseDate,
@@ -403,6 +546,7 @@ extension FinanceStorePlanning on FinanceStore {
       ));
     }
     commit();
+    return true;
   }
 
   int paidInstallments(String planId) => data.transactions
@@ -424,8 +568,31 @@ extension FinanceStorePlanning on FinanceStore {
     commit();
   }
 
-  void settlePlanned(PlannedItem item) {
-    if (item.status != PlannedStatus.planned) return;
+  bool _canSettlePlanned(PlannedItem item) {
+    if (item.type == TransactionType.transfer) {
+      return findAccount(item.sourceName) != null &&
+          item.destinationName != null &&
+          findAccount(item.destinationName!) != null &&
+          item.sourceName != item.destinationName;
+    }
+    if (item.type == TransactionType.income &&
+        item.paymentKind == PaymentKind.card) {
+      return false;
+    }
+    if (item.paymentKind == PaymentKind.card) {
+      return findCard(item.cardId) != null;
+    }
+    return findAccount(item.sourceName) != null;
+  }
+
+  bool settlePlanned(PlannedItem item) {
+    if (item.status != PlannedStatus.planned || !_canSettlePlanned(item)) {
+      return false;
+    }
+
+    final account = item.type == TransactionType.transfer
+        ? '${item.sourceName} → ${item.destinationName}'
+        : item.sourceName;
     final tx = TransactionItem(
       id: FinanceStore.newId(),
       type: item.type,
@@ -433,7 +600,7 @@ extension FinanceStorePlanning on FinanceStore {
       category: item.category,
       amount: item.amount,
       date: DateTime.now(),
-      account: item.sourceName,
+      account: account,
       paymentKind: item.paymentKind,
       cardId: item.cardId,
       recurrenceId: item.recurrenceId,
@@ -442,9 +609,10 @@ extension FinanceStorePlanning on FinanceStore {
       installmentTotal: item.installmentTotal,
       invoiceMonth: item.invoiceMonth,
     );
+    if (!_addTransactionInternal(tx)) return false;
     item.status = PlannedStatus.settled;
-    addTransaction(tx);
     commit();
+    return true;
   }
 
   void skipPlanned(PlannedItem item) {
@@ -464,7 +632,14 @@ extension FinanceStorePlanning on FinanceStore {
   }
 
   void deletePlanned(String id) {
-    data.planned.removeWhere((e) => e.id == id);
+    final index = data.planned.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    final item = data.planned[index];
+    if (item.recurrenceId != null || item.installmentId != null) {
+      item.status = PlannedStatus.skipped;
+    } else {
+      data.planned.removeAt(index);
+    }
     commit();
   }
 }
