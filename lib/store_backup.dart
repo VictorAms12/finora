@@ -2,11 +2,12 @@ part of 'store.dart';
 
 extension FinanceStoreBackup on FinanceStore {
   static const _backupPrefix = 'FINORA-BACKUP-1:';
+  static const _backupVersion = 1;
 
   String exportBackupText() {
     final envelope = <String, dynamic>{
       'format': 'finora-backup',
-      'version': 1,
+      'version': _backupVersion,
       'exportedAt': DateTime.now().toIso8601String(),
       'data': data.toJson(),
     };
@@ -29,13 +30,24 @@ extension FinanceStoreBackup on FinanceStore {
 
       if (decoded is! Map) return false;
       final map = Map<String, dynamic>.from(decoded);
+
+      if (map['format'] == 'finora-backup') {
+        final version = (map['version'] as num?)?.toInt() ?? 0;
+        if (version < 1 || version > _backupVersion) return false;
+      }
+
       final rawData = map['format'] == 'finora-backup' ? map['data'] : map;
       if (rawData is! Map) return false;
 
-      data = FinanceData.fromJson(Map<String, dynamic>.from(rawData));
+      // Só substitui o estado atual depois de validar toda a estrutura.
+      final restored = FinanceData.fromJson(Map<String, dynamic>.from(rawData));
+      data = restored;
+      _invalidateCaches();
+      refreshRecurringPlanning(persist: false);
       final now = DateTime.now();
       selectedMonth = DateTime(now.year, now.month);
       commit();
+      await flushPersistence();
       return true;
     } catch (_) {
       return false;
