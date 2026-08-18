@@ -73,6 +73,16 @@ jobs:
       - name: Compilar APK Release
         run: flutter build apk --release
 
+      - name: Preparar apksigner oficial
+        shell: bash
+        run: |
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          echo "Build-tools: $BUILD_TOOLS"
+          mkdir -p apksigner-export/lib
+          cp "$BUILD_TOOLS/apksigner" apksigner-export/apksigner
+          cp "$BUILD_TOOLS/lib/apksigner.jar" apksigner-export/lib/apksigner.jar
+          chmod +x apksigner-export/apksigner
+
       - name: Publicar APK temporario
         uses: actions/upload-artifact@v4
         with:
@@ -80,3 +90,11 @@ jobs:
           if-no-files-found: error
           retention-days: 1
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publicar apksigner oficial
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-apksigner-official
+          if-no-files-found: error
+          retention-days: 1
+          path: apksigner-export/
