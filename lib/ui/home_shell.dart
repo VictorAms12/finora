@@ -247,7 +247,7 @@ class _DesktopSidebar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
-              'Finora Desktop · v0.3.7\nCtrl + N para novo lançamento',
+              'Finora Desktop · v0.3.9\nCtrl + N para novo lançamento',
               style: TextStyle(
                 fontSize: 9,
                 height: 1.5,
