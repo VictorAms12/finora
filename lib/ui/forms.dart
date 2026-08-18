@@ -6,7 +6,8 @@ import '../theme.dart';
 import 'common.dart';
 import 'forms_v035.dart' as v035;
 
-export 'forms_v035.dart' hide showPlannedDetails, showQuickActions;
+export 'forms_v035.dart'
+    hide showPlannedDetails, showQuickActions, showPlannedForm;
 
 Future<void> showQuickActions(BuildContext context) async {
   await showModalBottomSheet<void>(
@@ -151,7 +152,7 @@ Future<void> showQuickActions(BuildContext context) async {
                     FinoraColors.warning,
                     () {
                       Navigator.pop(sheetContext);
-                      v035.showPlannedForm(context);
+                      showPlannedForm(context);
                     },
                   ),
                   _smallQuickAction(
@@ -337,6 +338,225 @@ Widget _smallQuickAction(
         ),
       ),
     );
+
+Future<void> showPlannedForm(BuildContext context) async {
+  final store = context.read<FinanceStore>();
+  if (store.data.accounts.isEmpty && store.data.cards.isEmpty) {
+    await v035.showAccountForm(context);
+    if (!context.mounted || store.data.accounts.isEmpty) return;
+  }
+
+  final amount = TextEditingController();
+  final title = TextEditingController();
+  var type = TransactionType.expense;
+  var date = DateTime.now().add(const Duration(days: 1));
+  var category = store.expenseCategories.first;
+
+  String initialSource() {
+    if (store.data.accounts.isNotEmpty) {
+      return 'account:${store.data.accounts.first.name}';
+    }
+    return 'card:${store.data.cards.first.id}';
+  }
+
+  var sourceKey = initialSource();
+
+  List<MapEntry<String, String>> sourceOptions() {
+    final entries = <MapEntry<String, String>>[];
+    for (final account in store.data.accounts) {
+      entries.add(MapEntry(
+        'account:${account.name}',
+        'Conta • ${account.name}',
+      ));
+    }
+    if (type == TransactionType.expense) {
+      for (final card in store.data.cards) {
+        entries.add(MapEntry('card:${card.id}', 'Cartão • ${card.name}'));
+      }
+    }
+    return entries;
+  }
+
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (sheetContext) => Padding(
+      padding: EdgeInsets.fromLTRB(
+        14,
+        0,
+        14,
+        MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+      ),
+      child: StatefulBuilder(
+        builder: (_, setLocal) {
+          final sources = sourceOptions();
+          if (!sources.any((entry) => entry.key == sourceKey) &&
+              sources.isNotEmpty) {
+            sourceKey = sources.first.key;
+          }
+          final categories = type == TransactionType.income
+              ? store.incomeCategories
+              : store.expenseCategories;
+          if (!categories.contains(category)) category = categories.first;
+
+          return SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Novo previsto',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 13),
+                SegmentedButton<TransactionType>(
+                  segments: [
+                    if (store.data.accounts.isNotEmpty)
+                      const ButtonSegment(
+                        value: TransactionType.income,
+                        label: Text('Receita'),
+                        icon: Icon(Icons.south_west_rounded),
+                      ),
+                    const ButtonSegment(
+                      value: TransactionType.expense,
+                      label: Text('Despesa'),
+                      icon: Icon(Icons.north_east_rounded),
+                    ),
+                  ],
+                  selected: {type},
+                  onSelectionChanged: (values) {
+                    if (values.isEmpty) return;
+                    setLocal(() {
+                      type = values.first;
+                      category = type == TransactionType.income
+                          ? store.incomeCategories.first
+                          : store.expenseCategories.first;
+                      final options = sourceOptions();
+                      if (!options.any((entry) => entry.key == sourceKey) &&
+                          options.isNotEmpty) {
+                        sourceKey = options.first.key;
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: amount,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Valor',
+                    prefixText: 'R\$ ',
+                  ),
+                ),
+                const SizedBox(height: 9),
+                TextField(
+                  controller: title,
+                  decoration: const InputDecoration(labelText: 'Descrição'),
+                ),
+                const SizedBox(height: 9),
+                DropdownButtonFormField<String>(
+                  key: ValueKey('category-${type.name}-$category'),
+                  initialValue: category,
+                  decoration: const InputDecoration(labelText: 'Categoria'),
+                  items: categories
+                      .map((value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setLocal(() => category = value);
+                  },
+                ),
+                const SizedBox(height: 9),
+                DropdownButtonFormField<String>(
+                  key: ValueKey('source-${type.name}-$sourceKey'),
+                  initialValue: sourceKey,
+                  decoration: const InputDecoration(labelText: 'Conta ou cartão'),
+                  items: sources
+                      .map((entry) => DropdownMenuItem(
+                            value: entry.key,
+                            child: Text(entry.value),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) setLocal(() => sourceKey = value);
+                  },
+                ),
+                const SizedBox(height: 9),
+                InkWell(
+                  onTap: () async {
+                    final picked = await v035.pickFinoraDate(sheetContext, date);
+                    if (picked != null) setLocal(() => date = picked);
+                  },
+                  child: InputDecorator(
+                    decoration: const InputDecoration(labelText: 'Data prevista'),
+                    child: Text(fullDate(date)),
+                  ),
+                ),
+                const SizedBox(height: 13),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: sources.isEmpty
+                        ? null
+                        : () {
+                            final value = double.tryParse(
+                                  amount.text.replaceAll(',', '.'),
+                                ) ??
+                                0;
+                            if (!store.isValidAmount(value) ||
+                                title.text.trim().isEmpty) {
+                              return;
+                            }
+
+                            final isCard = sourceKey.startsWith('card:');
+                            final cardId = isCard ? sourceKey.substring(5) : null;
+                            final sourceName = isCard
+                                ? store.findCard(cardId)?.name ?? ''
+                                : sourceKey.substring('account:'.length);
+                            if (sourceName.isEmpty) return;
+
+                            DateTime? invoiceMonth;
+                            if (isCard) {
+                              final card = store.findCard(cardId);
+                              if (card == null) return;
+                              invoiceMonth =
+                                  store.invoiceMonthForPurchase(card, date);
+                            }
+
+                            store.data.planned.add(PlannedItem(
+                              id: FinanceStore.newId(),
+                              type: type,
+                              title: title.text.trim(),
+                              category: category,
+                              amount: value,
+                              date: date,
+                              sourceName: sourceName,
+                              paymentKind: isCard
+                                  ? PaymentKind.card
+                                  : PaymentKind.account,
+                              cardId: cardId,
+                              invoiceMonth: invoiceMonth,
+                            ));
+                            store.commit();
+                            Navigator.pop(sheetContext);
+                          },
+                    child: const Text('Adicionar previsto'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+
+  amount.dispose();
+  title.dispose();
+}
 
 Future<void> showSalaryForm(BuildContext context) async {
   final store = context.read<FinanceStore>();
@@ -560,7 +780,7 @@ Future<void> showSalaryForm(BuildContext context) async {
                         return;
                       }
 
-                      store.addSalaryOnFifthBusinessDay(
+                      final added = store.addSalaryOnFifthBusinessDay(
                         amount: value,
                         sourceName: accountName,
                         startMonth: startMonth,
@@ -569,6 +789,7 @@ Future<void> showSalaryForm(BuildContext context) async {
                         endDate: duration == 'data' ? endDate : null,
                         maxOccurrences: maxOccurrences,
                       );
+                      if (!added) return;
                       Navigator.pop(sheetContext);
                     },
                     icon: const Icon(Icons.event_available_rounded),
@@ -582,6 +803,10 @@ Future<void> showSalaryForm(BuildContext context) async {
       ),
     ),
   );
+
+  amount.dispose();
+  title.dispose();
+  count.dispose();
 }
 
 Future<void> showPlannedDetails(
@@ -620,7 +845,9 @@ Future<void> showPlannedDetails(
                 fontWeight: FontWeight.w900,
                 color: item.type == TransactionType.income
                     ? FinoraColors.income
-                    : FinoraColors.expense,
+                    : item.type == TransactionType.transfer
+                        ? FinoraColors.balance
+                        : FinoraColors.expense,
               ),
             ),
             const SizedBox(height: 12),
@@ -628,6 +855,8 @@ Future<void> showPlannedDetails(
             v035.detailRow(context, 'Categoria', item.category),
             if (item.sourceName.isNotEmpty)
               v035.detailRow(context, 'Origem', item.sourceName),
+            if (item.destinationName != null)
+              v035.detailRow(context, 'Destino', item.destinationName!),
             if (item.invoiceMonth != null)
               v035.detailRow(
                 context,
@@ -638,17 +867,20 @@ Future<void> showPlannedDetails(
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pop(sheetContext);
-                        showPlannedEditForm(context, item);
-                      },
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Editar'),
+                  if (item.type != TransactionType.transfer &&
+                      item.recurrenceId == null) ...[
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          showPlannedEditForm(context, item);
+                        },
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Editar'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
@@ -671,14 +903,27 @@ Future<void> showPlannedDetails(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () {
-                    context.read<FinanceStore>().settlePlanned(item);
+                    final settled =
+                        context.read<FinanceStore>().settlePlanned(item);
+                    if (!settled) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Não foi possível realizar: confira a conta ou cartão vinculado.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     Navigator.pop(sheetContext);
                   },
                   icon: const Icon(Icons.check_rounded),
                   label: Text(
                     item.type == TransactionType.income
                         ? 'Marcar como recebido'
-                        : 'Marcar como pago',
+                        : item.type == TransactionType.transfer
+                            ? 'Realizar transferência'
+                            : 'Marcar como pago',
                   ),
                 ),
               ),
@@ -705,6 +950,8 @@ Future<void> showPlannedEditForm(
   BuildContext context,
   PlannedItem item,
 ) async {
+  if (item.type == TransactionType.transfer || item.recurrenceId != null) return;
+
   final store = context.read<FinanceStore>();
   final title = TextEditingController(text: item.title);
   final amount = TextEditingController(text: item.amount.toStringAsFixed(2));
@@ -725,7 +972,11 @@ Future<void> showPlannedEditForm(
       sources['card:${card.id}'] = 'Cartão • ${card.name}';
     }
   }
-  if (sources.isEmpty) return;
+  if (sources.isEmpty) {
+    title.dispose();
+    amount.dispose();
+    return;
+  }
 
   var sourceKey = item.paymentKind == PaymentKind.card && item.cardId != null
       ? 'card:${item.cardId}'
@@ -819,7 +1070,10 @@ Future<void> showPlannedEditForm(
                   onPressed: () {
                     final value =
                         double.tryParse(amount.text.replaceAll(',', '.')) ?? 0;
-                    if (value <= 0 || title.text.trim().isEmpty) return;
+                    if (!store.isValidAmount(value) ||
+                        title.text.trim().isEmpty) {
+                      return;
+                    }
 
                     final isCard = sourceKey.startsWith('card:');
                     final cardId = isCard ? sourceKey.substring(5) : null;
@@ -855,6 +1109,9 @@ Future<void> showPlannedEditForm(
       ),
     ),
   );
+
+  title.dispose();
+  amount.dispose();
 }
 
 Widget _plannedStatusChip(PlannedItem item) {
