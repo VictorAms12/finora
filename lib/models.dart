@@ -186,9 +186,11 @@ class PlannedItem {
   double amount;
   DateTime date;
   String sourceName;
+  String? destinationName;
   PaymentKind paymentKind;
   String? cardId;
   String? recurrenceId;
+  DateTime? recurrenceDate;
   String? installmentId;
   int? installmentNumber;
   int? installmentTotal;
@@ -203,9 +205,11 @@ class PlannedItem {
     required this.amount,
     required this.date,
     this.sourceName = '',
+    this.destinationName,
     this.paymentKind = PaymentKind.account,
     this.cardId,
     this.recurrenceId,
+    this.recurrenceDate,
     this.installmentId,
     this.installmentNumber,
     this.installmentTotal,
@@ -214,7 +218,16 @@ class PlannedItem {
   });
 
   bool get isPending => status == PlannedStatus.planned;
-  bool get isOverdue => isPending && date.isBefore(DateTime.now());
+
+  bool get isOverdue {
+    if (!isPending) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final scheduled = DateTime(date.year, date.month, date.day);
+    return scheduled.isBefore(today);
+  }
+
+  DateTime get canonicalRecurrenceDate => recurrenceDate ?? date;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -224,9 +237,11 @@ class PlannedItem {
         'amount': amount,
         'date': date.toIso8601String(),
         'sourceName': sourceName,
+        'destinationName': destinationName,
         'paymentKind': paymentKind.name,
         'cardId': cardId,
         'recurrenceId': recurrenceId,
+        'recurrenceDate': recurrenceDate?.toIso8601String(),
         'installmentId': installmentId,
         'installmentNumber': installmentNumber,
         'installmentTotal': installmentTotal,
@@ -245,12 +260,15 @@ class PlannedItem {
         amount: (j['amount'] as num? ?? 0).toDouble(),
         date: DateTime.tryParse(j['date'] as String? ?? '') ?? DateTime.now(),
         sourceName: j['sourceName'] as String? ?? '',
+        destinationName: j['destinationName'] as String?,
         paymentKind: PaymentKind.values.firstWhere(
           (e) => e.name == j['paymentKind'],
           orElse: () => PaymentKind.account,
         ),
         cardId: j['cardId'] as String?,
         recurrenceId: j['recurrenceId'] as String?,
+        recurrenceDate:
+            DateTime.tryParse(j['recurrenceDate'] as String? ?? ''),
         installmentId: j['installmentId'] as String?,
         installmentNumber: (j['installmentNumber'] as num?)?.toInt(),
         installmentTotal: (j['installmentTotal'] as num?)?.toInt(),
