@@ -38,7 +38,9 @@ String formatMoney(double value) {
 }
 
 String money(BuildContext context, double value) {
-  final privacy = context.watch<FinanceStore>().data.privacyMode;
+  final privacy = context.select<FinanceStore, bool>(
+    (store) => store.data.privacyMode,
+  );
   return privacy ? 'R\$ ••••••' : formatMoney(value);
 }
 
@@ -190,7 +192,10 @@ class MonthSwitcher extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final store = context.watch<FinanceStore>();
+    final selectedMonth = context.select<FinanceStore, DateTime>(
+      (store) => store.selectedMonth,
+    );
+    final store = context.read<FinanceStore>();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
       decoration: BoxDecoration(
@@ -222,8 +227,8 @@ class MonthSwitcher extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  monthLabel(store.selectedMonth),
-                  key: ValueKey('${store.selectedMonth.year}-${store.selectedMonth.month}'),
+                  monthLabel(selectedMonth),
+                  key: ValueKey('${selectedMonth.year}-${selectedMonth.month}'),
                   style: TextStyle(fontSize: compact ? 11 : 12, fontWeight: FontWeight.w900),
                 ),
               ),
@@ -310,17 +315,7 @@ Future<void> showMonthPicker(BuildContext context) async {
 }
 
 void _moveStoreToMonth(FinanceStore store, DateTime target) {
-  final diff = (target.year - store.selectedMonth.year) * 12 +
-      target.month - store.selectedMonth.month;
-  if (diff > 0) {
-    for (var i = 0; i < diff; i++) {
-      store.nextMonth();
-    }
-  } else if (diff < 0) {
-    for (var i = 0; i < -diff; i++) {
-      store.previousMonth();
-    }
-  }
+  store.selectMonth(target);
 }
 
 Widget sectionTitle(BuildContext context, String eyebrow, String title) => Align(
