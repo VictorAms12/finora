@@ -1,7 +1,29 @@
 part of 'store.dart';
 
 extension FinanceStoreEntities on FinanceStore {
-  void addBudget(String category, double limit) {
+  String _normalizedName(String value) => value.trim().toLowerCase();
+
+  bool accountNameExists(String name, {String? exceptId}) {
+    final normalized = _normalizedName(name);
+    if (normalized.isEmpty) return false;
+    return data.accounts.any((account) =>
+        account.id != exceptId && _normalizedName(account.name) == normalized);
+  }
+
+  bool _categoryNameExists(String name, bool income, {String? exceptId}) {
+    final normalized = _normalizedName(name);
+    final defaults = income
+        ? FinanceStore.defaultIncomeCategories
+        : FinanceStore.defaultExpenseCategories;
+    if (defaults.any((value) => _normalizedName(value) == normalized)) return true;
+    return data.categories.any((category) =>
+        category.id != exceptId &&
+        category.income == income &&
+        _normalizedName(category.name) == normalized);
+  }
+
+  bool addBudget(String category, double limit) {
+    if (!isValidAmount(limit)) return false;
     final existing = data.budgets.where((e) => e.category == category);
     if (existing.isNotEmpty) {
       existing.first.limit = limit;
@@ -13,12 +35,15 @@ extension FinanceStoreEntities on FinanceStore {
       ));
     }
     commit();
+    return true;
   }
 
-  void updateBudget(BudgetItem item, String category, double limit) {
+  bool updateBudget(BudgetItem item, String category, double limit) {
+    if (!isValidAmount(limit)) return false;
     item.category = category;
     item.limit = limit;
     commit();
+    return true;
   }
 
   void deleteBudget(String id) {
@@ -26,38 +51,50 @@ extension FinanceStoreEntities on FinanceStore {
     commit();
   }
 
-  void addCategory(String name, bool income) {
+  bool addCategory(String name, bool income) {
     final clean = name.trim();
-    if (clean.isEmpty) return;
-    final defaults = income
-        ? FinanceStore.defaultIncomeCategories
-        : FinanceStore.defaultExpenseCategories;
-    if (defaults.contains(clean) ||
-        data.categories.any((e) => e.income == income && e.name == clean)) {
-      return;
-    }
+    if (clean.isEmpty || _categoryNameExists(clean, income)) return false;
     data.categories.add(CategoryItem(
       id: FinanceStore.newId(),
       name: clean,
       income: income,
     ));
     commit();
+    return true;
   }
 
-  void updateCategory(CategoryItem item, String name, bool income) {
+  bool updateCategory(CategoryItem item, String name, bool income) {
+    final clean = name.trim();
+    if (clean.isEmpty ||
+        _categoryNameExists(clean, income, exceptId: item.id)) {
+      return false;
+    }
+
     final oldName = item.name;
-    item.name = name.trim();
+    item.name = clean;
     item.income = income;
     for (final tx in data.transactions.where((e) => e.category == oldName)) {
-      tx.category = item.name;
+      tx.category = clean;
     }
     for (final planned in data.planned.where((e) => e.category == oldName)) {
-      planned.category = item.name;
+      planned.category = clean;
     }
-    for (final budget in data.budgets.where((e) => e.category == oldName)) {
-      budget.category = item.name;
+    for (final rule in data.recurringRules.where((e) => e.category == oldName)) {
+      rule.category = clean;
+    }
+    for (final plan in data.installmentPlans.where((e) => e.category == oldName)) {
+      plan.category = clean;
+    }
+
+    if (income) {
+      data.budgets.removeWhere((e) => e.category == oldName);
+    } else {
+      for (final budget in data.budgets.where((e) => e.category == oldName)) {
+        budget.category = clean;
+      }
     }
     commit();
+    return true;
   }
 
   void deleteCategory(String id) {
@@ -65,29 +102,39 @@ extension FinanceStoreEntities on FinanceStore {
     commit();
   }
 
-  void addGoal(String name, double target, double saved, DateTime deadline) {
+  bool addGoal(String name, double target, double saved, DateTime deadline) {
+    final clean = name.trim();
+    if (clean.isEmpty || !isValidAmount(target)) return false;
     data.goals.add(GoalItem(
       id: FinanceStore.newId(),
-      name: name,
+      name: clean,
       target: target,
-      saved: saved,
+      saved: saved.isFinite
+          ? saved.clamp(0.0, target).toDouble()
+          : 0,
       deadline: deadline,
     ));
     commit();
+    return true;
   }
 
-  void updateGoal(
+  bool updateGoal(
     GoalItem item,
     String name,
     double target,
     double saved,
     DateTime deadline,
   ) {
-    item.name = name;
+    final clean = name.trim();
+    if (clean.isEmpty || !isValidAmount(target)) return false;
+    item.name = clean;
     item.target = target;
-    item.saved = saved.clamp(0.0, target).toDouble();
+    item.saved = saved.isFinite
+        ? saved.clamp(0.0, target).toDouble()
+        : 0;
     item.deadline = deadline;
     commit();
+    return true;
   }
 
   void deleteGoal(String id) {
@@ -95,29 +142,44 @@ extension FinanceStoreEntities on FinanceStore {
     commit();
   }
 
-  void addReserve(String name, double target, double saved, {int months = 6}) {
+  bool addReserve(
+    String name,
+    double target,
+    double saved, {
+    int months = 6,
+  }) {
+    final clean = name.trim();
+    if (clean.isEmpty || !isValidAmount(target)) return false;
     data.reserves.add(ReserveItem(
       id: FinanceStore.newId(),
-      name: name,
+      name: clean,
       target: target,
-      saved: saved,
-      months: months,
+      saved: saved.isFinite
+          ? saved.clamp(0.0, target).toDouble()
+          : 0,
+      months: months.clamp(1, 60),
     ));
     commit();
+    return true;
   }
 
-  void updateReserve(
+  bool updateReserve(
     ReserveItem item,
     String name,
     double target,
     double saved,
     int months,
   ) {
-    item.name = name;
+    final clean = name.trim();
+    if (clean.isEmpty || !isValidAmount(target)) return false;
+    item.name = clean;
     item.target = target;
-    item.saved = saved.clamp(0.0, target).toDouble();
+    item.saved = saved.isFinite
+        ? saved.clamp(0.0, target).toDouble()
+        : 0;
     item.months = months.clamp(1, 60);
     commit();
+    return true;
   }
 
   void deleteReserve(String id) {
@@ -125,34 +187,44 @@ extension FinanceStoreEntities on FinanceStore {
     commit();
   }
 
-  void addInvestment(
+  bool addInvestment(
     String name,
     String assetClass,
     double amount,
     double estimatedReturn,
   ) {
+    final clean = name.trim();
+    if (clean.isEmpty || !isValidAmount(amount) || !estimatedReturn.isFinite) {
+      return false;
+    }
     data.investments.add(InvestmentItem(
       id: FinanceStore.newId(),
-      name: name,
+      name: clean,
       assetClass: assetClass,
       amount: amount,
       estimatedReturn: estimatedReturn,
     ));
     commit();
+    return true;
   }
 
-  void updateInvestment(
+  bool updateInvestment(
     InvestmentItem item,
     String name,
     String assetClass,
     double amount,
     double estimatedReturn,
   ) {
-    item.name = name;
+    final clean = name.trim();
+    if (clean.isEmpty || !isValidAmount(amount) || !estimatedReturn.isFinite) {
+      return false;
+    }
+    item.name = clean;
     item.assetClass = assetClass;
     item.amount = amount;
     item.estimatedReturn = estimatedReturn;
     commit();
+    return true;
   }
 
   void deleteInvestment(String id) {
@@ -160,51 +232,85 @@ extension FinanceStoreEntities on FinanceStore {
     commit();
   }
 
-  void addAccount(String name, double balance, {String type = 'Conta digital'}) {
+  bool addAccount(
+    String name,
+    double balance, {
+    String type = 'Conta digital',
+  }) {
+    final clean = name.trim();
+    if (clean.isEmpty || accountNameExists(clean) || !balance.isFinite) {
+      return false;
+    }
     data.accounts.add(AccountItem(
       id: FinanceStore.newId(),
-      name: name,
+      name: clean,
       type: type,
       balance: balance,
     ));
     commit();
+    return true;
   }
 
-  void updateAccount(
+  bool updateAccount(
     AccountItem item,
     String name,
     String type,
     double balance,
   ) {
+    final clean = name.trim();
+    if (clean.isEmpty ||
+        accountNameExists(clean, exceptId: item.id) ||
+        !balance.isFinite) {
+      return false;
+    }
+
     final oldName = item.name;
-    item.name = name;
+    item.name = clean;
     item.type = type;
     item.balance = balance;
 
-    for (final tx in data.transactions.where((e) => e.account == oldName)) {
-      tx.account = name;
+    for (final tx in data.transactions) {
+      if (tx.type == TransactionType.transfer) {
+        final accounts = transferAccounts(tx);
+        if (accounts != null) {
+          final from = accounts[0] == oldName ? clean : accounts[0];
+          final to = accounts[1] == oldName ? clean : accounts[1];
+          tx.account = '$from → $to';
+        }
+      } else if (tx.account == oldName) {
+        tx.account = clean;
+      }
     }
-    for (final planned in data.planned.where((e) => e.sourceName == oldName)) {
-      planned.sourceName = name;
+    for (final planned in data.planned) {
+      if (planned.sourceName == oldName) planned.sourceName = clean;
+      if (planned.destinationName == oldName) planned.destinationName = clean;
     }
     for (final rule in data.recurringRules.where((e) => e.sourceName == oldName)) {
-      rule.sourceName = name;
+      rule.sourceName = clean;
     }
     for (final plan in data.installmentPlans.where((e) => e.sourceName == oldName)) {
-      plan.sourceName = name;
+      plan.sourceName = clean;
     }
     for (final card in data.cards.where((e) => e.defaultAccountName == oldName)) {
-      card.defaultAccountName = name;
+      card.defaultAccountName = clean;
     }
     commit();
+    return true;
   }
 
   void deleteAccount(String id) {
-    data.accounts.removeWhere((e) => e.id == id);
+    final index = data.accounts.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    final removedName = data.accounts[index].name;
+    data.accounts.removeAt(index);
+
+    for (final card in data.cards.where((e) => e.defaultAccountName == removedName)) {
+      card.defaultAccountName = '';
+    }
     commit();
   }
 
-  void addCard(
+  bool addCard(
     String name,
     double limit,
     double used,
@@ -212,19 +318,22 @@ extension FinanceStoreEntities on FinanceStore {
     int dueDay, {
     String defaultAccountName = '',
   }) {
+    final clean = name.trim();
+    if (clean.isEmpty || !isValidAmount(limit) || !used.isFinite) return false;
     data.cards.add(CardItem(
       id: FinanceStore.newId(),
-      name: name,
+      name: clean,
       limit: limit,
-      used: used,
-      closeDay: closeDay.clamp(1, 31).toInt(),
-      dueDay: dueDay.clamp(1, 31).toInt(),
+      used: used.clamp(0.0, double.infinity).toDouble(),
+      closeDay: closeDay.clamp(1, 31),
+      dueDay: dueDay.clamp(1, 31),
       defaultAccountName: defaultAccountName,
     ));
     commit();
+    return true;
   }
 
-  void updateCard(
+  bool updateCard(
     CardItem item,
     String name,
     double limit,
@@ -233,34 +342,38 @@ extension FinanceStoreEntities on FinanceStore {
     int dueDay,
     String defaultAccountName,
   ) {
+    final clean = name.trim();
+    if (clean.isEmpty || !isValidAmount(limit) || !used.isFinite) return false;
+
     final oldName = item.name;
-    item.name = name;
+    item.name = clean;
     item.limit = limit;
     item.used = used.clamp(0.0, double.infinity).toDouble();
-    item.closeDay = closeDay.clamp(1, 31).toInt();
-    item.dueDay = dueDay.clamp(1, 31).toInt();
+    item.closeDay = closeDay.clamp(1, 31);
+    item.dueDay = dueDay.clamp(1, 31);
     item.defaultAccountName = defaultAccountName;
 
     for (final tx in data.transactions.where((e) =>
         e.paymentKind == PaymentKind.card && e.cardId == item.id)) {
-      tx.account = name;
+      tx.account = clean;
       tx.invoiceMonth = invoiceMonthForPurchase(item, tx.date);
     }
     for (final planned in data.planned.where((e) =>
         e.paymentKind == PaymentKind.card && e.cardId == item.id)) {
-      planned.sourceName = name;
+      planned.sourceName = clean;
       planned.invoiceMonth = invoiceMonthForPurchase(item, planned.date);
     }
     for (final rule in data.recurringRules.where((e) => e.cardId == item.id)) {
-      rule.sourceName = name;
+      rule.sourceName = clean;
     }
     for (final plan in data.installmentPlans.where((e) => e.cardId == item.id)) {
-      plan.sourceName = name;
+      plan.sourceName = clean;
     }
     for (final tx in data.transactions.where((e) => e.account == oldName)) {
-      if (tx.paymentKind == PaymentKind.card) tx.account = name;
+      if (tx.paymentKind == PaymentKind.card) tx.account = clean;
     }
     commit();
+    return true;
   }
 
   void deleteCard(String id) {
@@ -269,38 +382,49 @@ extension FinanceStoreEntities on FinanceStore {
   }
 
   void contributeGoal(String id, double value) {
-    final item = data.goals.firstWhere((e) => e.id == id);
+    if (!isValidAmount(value)) return;
+    final index = data.goals.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    final item = data.goals[index];
     item.saved = (item.saved + value).clamp(0.0, item.target).toDouble();
     commit();
   }
 
   void contributeReserve(String id, double value) {
-    final item = data.reserves.firstWhere((e) => e.id == id);
+    if (!isValidAmount(value)) return;
+    final index = data.reserves.indexWhere((e) => e.id == id);
+    if (index == -1) return;
+    final item = data.reserves[index];
     item.saved = (item.saved + value).clamp(0.0, item.target).toDouble();
     commit();
   }
 
   void loadDemo() {
     final theme = data.darkMode;
+    final privacy = data.privacyMode;
     final biometric = data.biometricEnabled;
     final notifications = data.notificationsEnabled;
     final notificationDays = data.notificationDaysBefore;
     data = demoData()
       ..darkMode = theme
+      ..privacyMode = privacy
       ..biometricEnabled = biometric
       ..notificationsEnabled = notifications
       ..notificationDaysBefore = notificationDays;
-    currentMonth();
+    final now = DateTime.now();
+    selectedMonth = DateTime(now.year, now.month);
     commit();
   }
 
   void clearForRealUse() {
     final theme = data.darkMode;
+    final privacy = data.privacyMode;
     final biometric = data.biometricEnabled;
     final notifications = data.notificationsEnabled;
     final notificationDays = data.notificationDaysBefore;
     data = emptyData()
       ..darkMode = theme
+      ..privacyMode = privacy
       ..biometricEnabled = biometric
       ..notificationsEnabled = notifications
       ..notificationDaysBefore = notificationDays
@@ -308,7 +432,7 @@ extension FinanceStoreEntities on FinanceStore {
     final now = DateTime.now();
     data.trackingMonth = DateTime(now.year, now.month);
     data.trackingOpeningCash = 0;
-    currentMonth();
+    selectedMonth = DateTime(now.year, now.month);
     commit();
   }
 }
