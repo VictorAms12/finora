@@ -87,8 +87,8 @@ extension FinanceStoreTransactions on FinanceStore {
     final second = b == null ? null : monthStart(b);
     DateTime? earliest;
     if (first.isBefore(current)) earliest = first;
-    if (second != null && second.isBefore(current)) {
-      if (earliest == null || second.isBefore(earliest)) earliest = second;
+    if (second != null && second.isBefore(earliest ?? second.add(const Duration(days: 1)))) {
+      earliest = second;
     }
     return earliest;
   }
@@ -135,9 +135,9 @@ extension FinanceStoreTransactions on FinanceStore {
 
   /// Migração v0.3.7.
   ///
-  /// Versões anteriores aplicavam imediatamente no saldo qualquer transação
-  /// criada com data futura. Na primeira abertura desta versão, o efeito é
-  /// estornado e a movimentação é migrada para Planejamento.
+  /// Versões anteriores aplicavam imediatamente no saldo qualquer receita ou
+  /// despesa criada com data futura. Na primeira abertura, o efeito é estornado
+  /// e a movimentação é migrada para Planejamento.
   Future<void> repairLegacyFutureTransactionEffects() async {
     const repairKey = 'finora_v037_future_effect_repaired';
     final prefs = await _preferences();
@@ -167,6 +167,42 @@ extension FinanceStoreTransactions on FinanceStore {
     }
 
     if (future.isNotEmpty) {
+      commit();
+      await flushPersistence();
+    }
+    await prefs.setBool(repairKey, true);
+  }
+
+  /// Migração v0.3.9.
+  ///
+  /// O formulário de transferência antigo aceitava uma data futura, mas o
+  /// método de transferência já movia os dois saldos imediatamente. O reparo
+  /// devolve esses saldos e transforma a transferência futura em previsão.
+  Future<void> repairLegacyFutureTransferEffects() async {
+    const repairKey = 'finora_v039_future_transfer_repaired';
+    final prefs = await _preferences();
+    if (prefs.getBool(repairKey) == true) return;
+
+    final futureTransfers = data.transactions
+        .where((item) =>
+            item.type == TransactionType.transfer &&
+            !item.title.startsWith('Pagamento fatura') &&
+            _isFutureTransactionDate(item.date))
+        .toList();
+
+    for (final item in futureTransfers) {
+      final accounts = transferAccounts(item);
+      if (accounts != null &&
+          findAccount(accounts[0]) != null &&
+          findAccount(accounts[1]) != null) {
+        _applyTransactionEffect(item, reverse: true);
+      }
+
+      data.planned.add(_plannedFromTransaction(item));
+      data.transactions.removeWhere((tx) => tx.id == item.id);
+    }
+
+    if (futureTransfers.isNotEmpty) {
       commit();
       await flushPersistence();
     }
