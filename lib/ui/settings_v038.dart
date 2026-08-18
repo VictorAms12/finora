@@ -222,7 +222,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 14),
           Center(
             child: Text(
-              'Finora v0.3.8',
+              'Finora v0.3.9',
               style: TextStyle(
                 fontSize: 8.5,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -288,9 +288,11 @@ class SettingsScreen extends StatelessWidget {
         ],
       ),
     );
+    final backupText = controller.text;
+    controller.dispose();
     if (accepted != true || !context.mounted) return;
 
-    final ok = await context.read<FinanceStore>().restoreBackupText(controller.text);
+    final ok = await context.read<FinanceStore>().restoreBackupText(backupText);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
