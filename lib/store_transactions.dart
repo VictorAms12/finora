@@ -87,8 +87,8 @@ extension FinanceStoreTransactions on FinanceStore {
     final second = b == null ? null : monthStart(b);
     DateTime? earliest;
     if (first.isBefore(current)) earliest = first;
-    if (second != null && second.isBefore(earliest ?? second.add(const Duration(days: 1)))) {
-      earliest = second;
+    if (second != null && second.isBefore(current)) {
+      if (earliest == null || second.isBefore(earliest)) earliest = second;
     }
     return earliest;
   }
@@ -189,20 +189,22 @@ extension FinanceStoreTransactions on FinanceStore {
             !item.title.startsWith('Pagamento fatura') &&
             _isFutureTransactionDate(item.date))
         .toList();
+    var changed = false;
 
     for (final item in futureTransfers) {
       final accounts = transferAccounts(item);
-      if (accounts != null &&
-          findAccount(accounts[0]) != null &&
-          findAccount(accounts[1]) != null) {
-        _applyTransactionEffect(item, reverse: true);
-      }
+      if (accounts == null) continue;
+      final source = findAccount(accounts[0]);
+      final target = findAccount(accounts[1]);
+      if (source == null || target == null || source == target) continue;
 
+      _applyTransactionEffect(item, reverse: true);
       data.planned.add(_plannedFromTransaction(item));
       data.transactions.removeWhere((tx) => tx.id == item.id);
+      changed = true;
     }
 
-    if (futureTransfers.isNotEmpty) {
+    if (changed) {
       commit();
       await flushPersistence();
     }
