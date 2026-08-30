@@ -8,7 +8,7 @@
 ![Dart](https://img.shields.io/badge/Dart-3.10%2B-0175C2?logo=dart&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-Release-3DDC84?logo=android&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-x64-0078D4?logo=windows11&logoColor=white)
-![Version](https://img.shields.io/badge/versão-0.3.9-111111)
+![Version](https://img.shields.io/badge/versão-0.4.0-111111)
 
 [![Build Android](https://github.com/VictorAms12/finora/actions/workflows/build-android.yml/badge.svg)](https://github.com/VictorAms12/finora/actions/workflows/build-android.yml)
 [![Build Windows](https://github.com/VictorAms12/finora/actions/workflows/build-windows.yml/badge.svg)](https://github.com/VictorAms12/finora/actions/workflows/build-windows.yml)
@@ -35,7 +35,7 @@ A aplicação reúne em uma única base local:
 - investimentos;
 - relatórios e projeções mensais.
 
-> Versão atual: **0.3.9**
+> Versão atual: **0.4.0**
 
 ---
 
@@ -51,6 +51,7 @@ A aplicação reúne em uma única base local:
 | **Metas e reservas** | progresso, prazo, cobertura e aportes |
 | **Investimentos** | acompanhamento básico do patrimônio investido |
 | **Relatórios** | comparação mensal, histórico e distribuição de gastos |
+| **Finora IA** | lançamento por linguagem natural, análise do mês e perguntas sobre os próprios dados via Gemini |
 | **Backup** | exportação completa copiável, restauração e recuperação local do último estado íntegro |
 | **Segurança** | biometria no Android e Windows Hello quando disponível |
 | **Experiência** | temas claro/escuro/OLED, cache de agregações e layout adaptado a mobile e desktop |
@@ -73,7 +74,7 @@ Compras no cartão são associadas à competência calculada pelo fechamento do 
 
 ## Performance e integridade
 
-A v0.3.9 passou por uma revisão ampla do fluxo de estado e persistência.
+A v0.3.9 passou por uma revisão ampla do fluxo de estado. Na v0.4.0, o armazenamento principal evoluiu para SQLite transacional sem reescrever as regras financeiras já validadas.
 
 Entre as otimizações aplicadas:
 
@@ -109,7 +110,7 @@ O backup inclui, entre outros:
 
 Em **Configurações → Backup e recuperação** é possível copiar um backup completo e restaurá-lo posteriormente.
 
-> O armazenamento principal ainda é local. Faça backup antes de limpar dados, desinstalar o aplicativo ou trocar de dispositivo.
+> O armazenamento principal continua local e offline-first, agora em SQLite. O espelho legado da v0.3.9 é mantido durante a migração. Faça backup antes de limpar dados, desinstalar o aplicativo ou trocar de dispositivo.
 
 ---
 
@@ -153,8 +154,10 @@ flowchart LR
     UI[Interface Flutter] --> STORE[FinanceStore]
     STORE --> DATA[Modelos financeiros]
     STORE --> CACHE[Cache mensal]
-    STORE --> LOCAL[(SharedPreferences)]
-    LOCAL --> RECOVERY[Cópia íntegra anterior]
+    STORE --> SQLITE[(SQLite)]
+    SQLITE --> INDEX[Índice financeiro]
+    SQLITE --> RECOVERY[Cópia íntegra anterior]
+    STORE --> LEGACY[(Espelho SharedPreferences)]
     STORE --> TX[Movimentações]
     STORE --> PLAN[Planejamento]
     STORE --> ENT[Entidades financeiras]

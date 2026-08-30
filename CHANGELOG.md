@@ -2,6 +2,27 @@
 
 As mudanças relevantes do Finora são registradas aqui por versão.
 
+## [0.4.0] - 2026-08-30
+
+### Adicionado
+- armazenamento SQLite transacional como camada primária, mantendo o `FinanceStore` validado como núcleo das regras financeiras;
+- migração automática e não destrutiva dos dados existentes da v0.3.9 em `SharedPreferences` para SQLite;
+- índice local de transações e previstos para consultas rápidas e relatórios;
+- Finora IA via Gemini, opt-in e configurável pelo próprio usuário;
+- lançamento por linguagem natural com prévia e confirmação obrigatória;
+- análise mensal e perguntas sobre os próprios dados financeiros;
+- armazenamento seguro da chave Gemini no cofre do sistema operacional.
+
+### Integridade e privacidade
+- o JSON legado da v0.3.9 permanece como espelho de compatibilidade durante a migração;
+- falha do SQLite não impede acesso aos dados: o Finora retorna ao armazenamento legado;
+- SQLite mantém o estado anterior íntegro como recuperação transacional;
+- respostas de IA nunca alteram saldos diretamente e reutilizam as validações do `FinanceStore`;
+- contexto enviado à IA é reduzido e exclui backup completo e notas privadas.
+
+### Qualidade
+- testes cobrem migração v0.3.9 → SQLite, preservação de saldo, indexação pós-migração e recuperação do espelho legado corrompido.
+
 ## [0.3.9] - 2026-08-18
 
 ### Corrigido

@@ -6,6 +6,7 @@ import '../security.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
+import 'ai_settings.dart';
 import 'forms.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -74,6 +75,31 @@ class SettingsScreen extends StatelessWidget {
               ),
               value: store.data.biometricEnabled,
               onChanged: (value) => _changeBiometric(context, value),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text('FINORA IA', style: eyebrowStyle(context)),
+          const SizedBox(height: 7),
+          SurfaceCard(
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.auto_awesome_rounded,
+                color: FinoraColors.investment,
+              ),
+              title: const Text(
+                'Configurar Gemini',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              ),
+              subtitle: const Text(
+                'Chave da API, teste de conexão e privacidade',
+                style: TextStyle(fontSize: 8.5),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(
+                context,
+                PremiumRoute(page: const AiSettingsScreen()),
+              ),
             ),
           ),
           const SizedBox(height: 14),
@@ -222,7 +248,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 14),
           Center(
             child: Text(
-              'Finora v0.3.9',
+              'Finora v0.4.0',
               style: TextStyle(
                 fontSize: 8.5,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
