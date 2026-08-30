@@ -103,17 +103,24 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                         children: [
                           const Text(
                             'Gemini 3.5 Flash-Lite',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                           Text(
-                            _hasKey ? 'Chave configurada neste aparelho' : 'Nenhuma chave configurada',
+                            _hasKey
+                                ? 'Chave configurada neste aparelho'
+                                : 'Nenhuma chave configurada',
                             style: const TextStyle(fontSize: 9),
                           ),
                         ],
                       ),
                     ),
                     Icon(
-                      _hasKey ? Icons.check_circle_rounded : Icons.warning_amber_rounded,
+                      _hasKey
+                          ? Icons.check_circle_rounded
+                          : Icons.warning_amber_rounded,
                       color: _hasKey ? FinoraColors.income : FinoraColors.warning,
                     ),
                   ],
@@ -125,11 +132,17 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   autocorrect: false,
                   enableSuggestions: false,
                   decoration: InputDecoration(
-                    labelText: _hasKey ? 'Substituir chave' : 'Chave da API Gemini',
+                    labelText: _hasKey
+                        ? 'Substituir chave'
+                        : 'Chave da API Gemini',
                     hintText: 'Cole uma nova Auth API Key do Google AI Studio',
                     suffixIcon: IconButton(
                       onPressed: () => setState(() => _obscure = !_obscure),
-                      icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                      icon: Icon(
+                        _obscure
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
                     ),
                   ),
                 ),
@@ -145,7 +158,9 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.cloud_done_outlined),
-                    label: Text(_busy ? 'Testando...' : 'Testar e salvar chave'),
+                    label: Text(
+                      _busy ? 'Testando...' : 'Testar e salvar chave',
+                    ),
                   ),
                 ),
                 if (_hasKey) ...[
@@ -165,32 +180,36 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
           const SizedBox(height: 14),
           Text('PRIVACIDADE', style: eyebrowStyle(context)),
           const SizedBox(height: 7),
-          SurfaceCard(
+          const SurfaceCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 _InfoLine(
                   icon: Icons.lock_outline_rounded,
                   title: 'A chave não vai para o GitHub',
-                  body: 'Ela é informada por você e armazenada pelo cofre seguro do sistema operacional.',
+                  body:
+                      'Ela é informada por você e armazenada pelo cofre seguro do sistema operacional.',
                 ),
                 Divider(),
                 _InfoLine(
                   icon: Icons.visibility_off_outlined,
                   title: 'IA desligada por padrão',
-                  body: 'O Finora só envia dados quando você toca em interpretar, analisar ou perguntar.',
+                  body:
+                      'O Finora só envia dados quando você toca em interpretar, analisar ou perguntar.',
                 ),
                 Divider(),
                 _InfoLine(
                   icon: Icons.filter_alt_outlined,
                   title: 'Contexto reduzido',
-                  body: 'O assistente envia agregados, até 35 movimentações recentes e 25 previstos. O backup completo e notas privadas não são enviados.',
+                  body:
+                      'O assistente envia agregados, até 35 movimentações recentes e 25 previstos. O backup completo e notas privadas não são enviados.',
                 ),
                 Divider(),
                 _InfoLine(
                   icon: Icons.info_outline_rounded,
                   title: 'Free Tier do Gemini',
-                  body: 'O nível gratuito pode usar o conteúdo enviado para melhorar produtos do Google. Não use a IA para dados que você não queira transmitir.',
+                  body:
+                      'O nível gratuito pode usar o conteúdo enviado para melhorar produtos do Google. Não use a IA para dados que você não queira transmitir.',
                 ),
               ],
             ),
@@ -217,7 +236,11 @@ class _InfoLine extends StatelessWidget {
   final String title;
   final String body;
 
-  const _InfoLine({required this.icon, required this.title, required this.body});
+  const _InfoLine({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -232,9 +255,18 @@ class _InfoLine extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text(body, style: const TextStyle(fontSize: 8.8, height: 1.4)),
+                Text(
+                  body,
+                  style: const TextStyle(fontSize: 8.8, height: 1.4),
+                ),
               ],
             ),
           ),
