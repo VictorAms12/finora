@@ -1,0 +1,77 @@
+name: Corrigir integracao v0.4 temporariamente
+
+on:
+  push:
+    branches:
+      - agent/finora-v040-ai-sqlite
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar branch
+        uses: actions/checkout@v5
+        with:
+          ref: agent/finora-v040-ai-sqlite
+
+      - name: Aplicar correcoes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f'Bloco esperado nao encontrado em {path}: {old!r}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # Enums usados pela tela de IA.
+          replace_once(
+              'lib/ui/ai_assistant.dart',
+              "import '../ai/gemini_service.dart';\n",
+              "import '../ai/gemini_service.dart';\nimport '../models.dart';\n",
+          )
+
+          # A FFI ja reexporta os tipos de sqlite_api usados neste arquivo.
+          replace_once(
+              'lib/local_database.dart',
+              "import 'package:sqflite_common/sqlite_api.dart';\n",
+              '',
+          )
+
+          # Construtor imutavel do cofre seguro.
+          replace_once(
+              'lib/ai/gemini_service.dart',
+              'static final FlutterSecureStorage _storage = FlutterSecureStorage();',
+              'static const FlutterSecureStorage _storage = FlutterSecureStorage();',
+          )
+
+          # Garante double em vez de num depois do clamp.
+          replace_once(
+              'lib/ai/finance_ai.dart',
+              "confidence: ((result['confidence'] as num?)?.toDouble() ?? .5).clamp(0.0, 1.0),",
+              "confidence: ((result['confidence'] as num?)?.toDouble() ?? .5)\n          .clamp(0.0, 1.0)\n          .toDouble(),",
+          )
+          PY
+
+          dart format lib/ui/ai_assistant.dart lib/local_database.dart lib/ai/gemini_service.dart lib/ai/finance_ai.dart || true
+
+      - name: Commitar correcoes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'Nada para alterar.'
+            exit 0
+          fi
+          git config user.name 'Finora CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib
+          git commit -m 'fix(v0.4): corrige integracao SQLite e Finora IA'
+          git push origin HEAD:agent/finora-v040-ai-sqlite
