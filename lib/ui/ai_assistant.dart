@@ -15,13 +15,12 @@ class _ChatMessage {
   final bool user;
   final String text;
   final AiTransactionSuggestion? suggestion;
-  bool handled;
+  bool handled = false;
 
   _ChatMessage({
     required this.user,
     required this.text,
     this.suggestion,
-    this.handled = false,
   });
 }
 
@@ -37,10 +36,10 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
   final _ai = const FinoraAiService();
   final _composer = TextEditingController();
   final _keyController = TextEditingController();
-  final _scrollController = ScrollController();
-  final _composerFocus = FocusNode();
+  final _scroll = ScrollController();
+  final _focus = FocusNode();
 
-  final List<_ChatMessage> _messages = [
+  final _messages = <_ChatMessage>[
     _ChatMessage(
       user: false,
       text:
@@ -65,8 +64,8 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
   void dispose() {
     _composer.dispose();
     _keyController.dispose();
-    _scrollController.dispose();
-    _composerFocus.dispose();
+    _scroll.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -97,7 +96,7 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
           _ChatMessage(
             user: false,
             text:
-                'Conectado. Agora você pode conversar comigo ou usar o modo Lançar para registrar algo por texto.',
+                'Conectado. Agora é só conversar comigo ou trocar para Lançar quando quiser registrar algo.',
           ),
         );
       });
@@ -118,13 +117,12 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
   }
 
   String _conversationContext() {
-    final eligible = _messages
+    final messages = _messages
         .where((message) => message.suggestion == null)
         .toList(growable: false);
-    final start = eligible.length > 8 ? eligible.length - 8 : 0;
-    final recent = eligible.sublist(start);
-    if (recent.length <= 1) return '';
-    return recent
+    final start = messages.length > 8 ? messages.length - 8 : 0;
+    return messages
+        .sublist(start)
         .map((message) => '${message.user ? 'Usuário' : 'Finora'}: ${message.text}')
         .join('\n');
   }
@@ -134,7 +132,7 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
     final clean = (preset ?? _composer.text).trim();
     if (clean.isEmpty) return;
 
-    final conversation = _conversationContext();
+    final history = _conversationContext();
     final mode = _mode;
     setState(() {
       _messages.add(_ChatMessage(user: true, text: clean));
@@ -145,25 +143,25 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
 
     try {
       if (mode == _AiMode.transaction) {
-        final result = await _ai.interpretTransaction(
+        final suggestion = await _ai.interpretTransaction(
           context.read<FinanceStore>(),
           clean,
         );
         if (!mounted) return;
-        setState(() {
-          _messages.add(
+        setState(
+          () => _messages.add(
             _ChatMessage(
               user: false,
-              text: 'Entendi o lançamento. Confira os dados antes de registrar:',
-              suggestion: result,
+              text: 'Entendi. Confira antes de registrar:',
+              suggestion: suggestion,
             ),
-          );
-        });
+          ),
+        );
       } else {
-        final question = conversation.isEmpty
+        final question = history.isEmpty
             ? clean
-            : '''Considere esta conversa recente para entender referências e perguntas de continuação:
-$conversation
+            : '''Use esta conversa recente somente para entender referências e perguntas de continuação:
+$history
 
 Pergunta atual: $clean''';
         final answer = await _ai.ask(
@@ -188,7 +186,7 @@ Pergunta atual: $clean''';
     }
   }
 
-  Future<void> _analyzeMonth() async {
+  Future<void> _analyze() async {
     if (_busy || !_hasKey) return;
     setState(() {
       _mode = _AiMode.chat;
@@ -217,21 +215,20 @@ Pergunta atual: $clean''';
     }
   }
 
-  void _askPreset(String question) {
+  void _askPreset(String text) {
     setState(() => _mode = _AiMode.chat);
-    _send(question);
+    _send(text);
   }
 
   void _startTransaction() {
     setState(() => _mode = _AiMode.transaction);
-    _composerFocus.requestFocus();
+    _focus.requestFocus();
   }
 
-  void _confirmSuggestion(_ChatMessage message) {
+  void _confirm(_ChatMessage message) {
     final suggestion = message.suggestion;
     if (suggestion == null || message.handled) return;
-    final ok = suggestion.apply(context.read<FinanceStore>());
-    if (!ok) {
+    if (!suggestion.apply(context.read<FinanceStore>())) {
       setState(
         () => _messages.add(
           _ChatMessage(
@@ -246,19 +243,18 @@ Pergunta atual: $clean''';
     }
     setState(() {
       message.handled = true;
+      _mode = _AiMode.chat;
       _messages.add(
         _ChatMessage(
           user: false,
-          text:
-              'Pronto — lançamento registrado. Seus saldos e relatórios já foram atualizados.',
+          text: 'Pronto — lançamento registrado e saldos atualizados.',
         ),
       );
-      _mode = _AiMode.chat;
     });
     _scrollToEnd();
   }
 
-  void _discardSuggestion(_ChatMessage message) {
+  void _discard(_ChatMessage message) {
     if (message.handled) return;
     setState(() {
       message.handled = true;
@@ -269,15 +265,14 @@ Pergunta atual: $clean''';
     _scrollToEnd();
   }
 
-  void _clearChat() {
+  void _clear() {
     setState(() {
       _messages
         ..clear()
         ..add(
           _ChatMessage(
             user: false,
-            text:
-                'Conversa limpa. O que você quer entender ou registrar agora?',
+            text: 'Conversa limpa. O que você quer entender ou registrar agora?',
           ),
         );
       _mode = _AiMode.chat;
@@ -286,10 +281,10 @@ Pergunta atual: $clean''';
 
   void _scrollToEnd() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 260),
+      if (!_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
       );
     });
@@ -302,182 +297,51 @@ Pergunta atual: $clean''';
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final setupVisible = !_checkingKey && !_hasKey;
-    final listCount = _messages.length + (setupVisible ? 1 : 0) + (_busy ? 1 : 0);
+    final setup = !_checkingKey && !_hasKey;
+    final count = _messages.length + (setup ? 1 : 0) + (_busy ? 1 : 0);
 
     return Column(
       children: [
-        _ChatHeader(
-          connected: _hasKey,
-          checking: _checkingKey,
-          onSettings: _openSettings,
-          onClear: _clearChat,
-        ),
-        _QuickActions(
-          enabled: _hasKey && !_busy,
-          onAnalyze: _analyzeMonth,
-          onAvailable: () => _askPreset('Quanto eu posso gastar sem comprometer os próximos pagamentos?'),
-          onUpcoming: () => _askPreset('Quais são meus próximos compromissos e o que merece atenção?'),
-          onCards: () => _askPreset('Resuma a situação dos meus cartões e faturas.'),
-          onTransaction: _startTransaction,
-        ),
+        _header(context),
+        _quickActions(),
         Expanded(
           child: ListView.builder(
-            controller: _scrollController,
+            controller: _scroll,
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
-            itemCount: listCount,
+            itemCount: count,
             itemBuilder: (context, rawIndex) {
               var index = rawIndex;
-              if (setupVisible) {
-                if (index == 0) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _InlineKeySetup(
-                      controller: _keyController,
-                      obscure: _obscureKey,
-                      busy: _busyKey,
-                      onToggleObscure: () =>
-                          setState(() => _obscureKey = !_obscureKey),
-                      onConnect: _connectKey,
-                      onMore: _openSettings,
-                    ),
-                  );
-                }
+              if (setup) {
+                if (index == 0) return _keySetup(context);
                 index--;
               }
-
               if (index < _messages.length) {
                 final message = _messages[index];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _MessageBubble(
                     message: message,
-                    sourceLabel: message.suggestion == null
+                    source: message.suggestion == null
                         ? null
-                        : _sourceLabel(context, message.suggestion!),
-                    onConfirm: () => _confirmSuggestion(message),
-                    onDiscard: () => _discardSuggestion(message),
+                        : _sourceLabel(message.suggestion!),
+                    onConfirm: () => _confirm(message),
+                    onDiscard: () => _discard(message),
                   ),
                 );
               }
-
-              return const Padding(
-                padding: EdgeInsets.only(bottom: 10),
-                child: _TypingBubble(),
-              );
+              return const _TypingBubble();
             },
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
-          ),
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    _ModePill(
-                      icon: Icons.chat_bubble_outline_rounded,
-                      label: 'Conversar',
-                      selected: _mode == _AiMode.chat,
-                      onTap: () => setState(() => _mode = _AiMode.chat),
-                    ),
-                    const SizedBox(width: 7),
-                    _ModePill(
-                      icon: Icons.add_card_rounded,
-                      label: 'Lançar',
-                      selected: _mode == _AiMode.transaction,
-                      onTap: _startTransaction,
-                    ),
-                    const Spacer(),
-                    if (_mode == _AiMode.transaction)
-                      Text(
-                        'confirmação obrigatória',
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _composer,
-                        focusNode: _composerFocus,
-                        enabled: _hasKey && !_busy,
-                        minLines: 1,
-                        maxLines: 4,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _send(),
-                        decoration: InputDecoration(
-                          hintText: !_hasKey
-                              ? 'Conecte o Gemini acima para começar'
-                              : _mode == _AiMode.transaction
-                                  ? 'Ex.: gastei 32,90 de gasolina no Nubank'
-                                  : 'Pergunte qualquer coisa sobre suas finanças...',
-                          prefixIcon: Icon(
-                            _mode == _AiMode.transaction
-                                ? Icons.edit_note_rounded
-                                : Icons.auto_awesome_rounded,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filled(
-                      tooltip: _mode == _AiMode.transaction
-                          ? 'Interpretar lançamento'
-                          : 'Enviar',
-                      onPressed: !_hasKey || _busy ? null : () => _send(),
-                      icon: const Icon(Icons.arrow_upward_rounded),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
+        _composerArea(context),
       ],
     );
   }
 
-  String _sourceLabel(BuildContext context, AiTransactionSuggestion suggestion) {
-    if (suggestion.paymentKind == PaymentKind.card) {
-      return context.read<FinanceStore>().findCard(suggestion.cardId)?.name ?? 'Cartão';
-    }
-    return suggestion.accountName;
-  }
-}
-
-class _ChatHeader extends StatelessWidget {
-  final bool connected;
-  final bool checking;
-  final VoidCallback onSettings;
-  final VoidCallback onClear;
-
-  const _ChatHeader({
-    required this.connected,
-    required this.checking,
-    required this.onSettings,
-    required this.onClear,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final status = checking
+  Widget _header(BuildContext context) {
+    final status = _checkingKey
         ? 'Verificando conexão...'
-        : connected
+        : _hasKey
             ? 'Gemini conectado'
             : 'Conecte o Gemini para começar';
     return Container(
@@ -517,7 +381,7 @@ class _ChatHeader extends StatelessWidget {
                       height: 7,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: connected ? FinoraColors.income : FinoraColors.warning,
+                        color: _hasKey ? FinoraColors.income : FinoraColors.warning,
                       ),
                     ),
                     const SizedBox(width: 5),
@@ -538,52 +402,62 @@ class _ChatHeader extends StatelessWidget {
           ),
           IconButton(
             tooltip: 'Limpar conversa',
-            onPressed: onClear,
+            onPressed: _clear,
             icon: const Icon(Icons.refresh_rounded),
           ),
           IconButton(
             tooltip: 'Configurações da IA',
-            onPressed: onSettings,
+            onPressed: _openSettings,
             icon: const Icon(Icons.tune_rounded),
           ),
         ],
       ),
     );
   }
-}
 
-class _QuickActions extends StatelessWidget {
-  final bool enabled;
-  final VoidCallback onAnalyze;
-  final VoidCallback onAvailable;
-  final VoidCallback onUpcoming;
-  final VoidCallback onCards;
-  final VoidCallback onTransaction;
-
-  const _QuickActions({
-    required this.enabled,
-    required this.onAnalyze,
-    required this.onAvailable,
-    required this.onUpcoming,
-    required this.onCards,
-    required this.onTransaction,
-  });
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        height: 48,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.fromLTRB(12, 7, 12, 5),
-          children: [
-            _chip(Icons.analytics_outlined, 'Analisar mês', enabled ? onAnalyze : null),
-            _chip(Icons.wallet_outlined, 'Quanto posso gastar?', enabled ? onAvailable : null),
-            _chip(Icons.event_note_rounded, 'Próximas contas', enabled ? onUpcoming : null),
-            _chip(Icons.credit_card_rounded, 'Cartões', enabled ? onCards : null),
-            _chip(Icons.add_card_rounded, 'Registrar gasto', enabled ? onTransaction : null),
-          ],
-        ),
-      );
+  Widget _quickActions() {
+    final enabled = _hasKey && !_busy;
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 7, 12, 5),
+        children: [
+          _chip(Icons.analytics_outlined, 'Analisar mês', enabled ? _analyze : null),
+          _chip(
+            Icons.wallet_outlined,
+            'Quanto posso gastar?',
+            enabled
+                ? () => _askPreset(
+                      'Quanto eu posso gastar sem comprometer os próximos pagamentos?',
+                    )
+                : null,
+          ),
+          _chip(
+            Icons.event_note_rounded,
+            'Próximas contas',
+            enabled
+                ? () => _askPreset(
+                      'Quais são meus próximos compromissos e o que merece atenção?',
+                    )
+                : null,
+          ),
+          _chip(
+            Icons.credit_card_rounded,
+            'Cartões',
+            enabled
+                ? () => _askPreset('Resuma a situação dos meus cartões e faturas.')
+                : null,
+          ),
+          _chip(
+            Icons.add_card_rounded,
+            'Registrar gasto',
+            enabled ? _startTransaction : null,
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _chip(IconData icon, String label, VoidCallback? onTap) => Padding(
         padding: const EdgeInsets.only(right: 7),
@@ -595,99 +469,175 @@ class _QuickActions extends StatelessWidget {
           labelStyle: const TextStyle(fontSize: 9.2, fontWeight: FontWeight.w700),
         ),
       );
-}
 
-class _InlineKeySetup extends StatelessWidget {
-  final TextEditingController controller;
-  final bool obscure;
-  final bool busy;
-  final VoidCallback onToggleObscure;
-  final VoidCallback onConnect;
-  final VoidCallback onMore;
-
-  const _InlineKeySetup({
-    required this.controller,
-    required this.obscure,
-    required this.busy,
-    required this.onToggleObscure,
-    required this.onConnect,
-    required this.onMore,
-  });
-
-  @override
-  Widget build(BuildContext context) => SurfaceCard(
-        borderColor: FinoraColors.investment.withValues(alpha: .30),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.key_rounded, color: FinoraColors.investment, size: 21),
-                SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    'Conecte sua chave Gemini aqui',
-                    style: TextStyle(fontSize: 12.3, fontWeight: FontWeight.w900),
+  Widget _keySetup(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: SurfaceCard(
+          borderColor: FinoraColors.investment.withValues(alpha: .30),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.key_rounded, color: FinoraColors.investment, size: 21),
+                  SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      'Conecte sua chave Gemini aqui',
+                      style: TextStyle(fontSize: 12.3, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Você só faz isso uma vez. A chave fica no armazenamento seguro do aparelho e não vai para o GitHub.',
+                style: TextStyle(
+                  fontSize: 9,
+                  height: 1.4,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _keyController,
+                obscureText: _obscureKey,
+                enabled: !_busyKey,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: InputDecoration(
+                  labelText: 'Chave da API Gemini',
+                  hintText: 'Cole a chave do Google AI Studio',
+                  suffixIcon: IconButton(
+                    onPressed: _busyKey
+                        ? null
+                        : () => setState(() => _obscureKey = !_obscureKey),
+                    icon: Icon(
+                      _obscureKey
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Você só faz isso uma vez. A chave fica no armazenamento seguro do aparelho e não vai para o GitHub.',
-              style: TextStyle(
-                fontSize: 9,
-                height: 1.4,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              obscureText: obscure,
-              enabled: !busy,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: InputDecoration(
-                labelText: 'Chave da API Gemini',
-                hintText: 'Cole a chave do Google AI Studio',
-                suffixIcon: IconButton(
-                  onPressed: busy ? null : onToggleObscure,
-                  icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: _busyKey ? null : _connectKey,
+                icon: _busyKey
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.link_rounded),
+                label: Text(_busyKey ? 'Testando conexão...' : 'Testar e conectar'),
               ),
-            ),
-            const SizedBox(height: 10),
-            FilledButton.icon(
-              onPressed: busy ? null : onConnect,
-              icon: busy
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.link_rounded),
-              label: Text(busy ? 'Testando conexão...' : 'Testar e conectar'),
-            ),
-            const SizedBox(height: 4),
-            TextButton(
-              onPressed: busy ? null : onMore,
-              child: const Text('Privacidade e opções avançadas'),
-            ),
-          ],
+              TextButton(
+                onPressed: _busyKey ? null : _openSettings,
+                child: const Text('Privacidade e opções avançadas'),
+              ),
+            ],
+          ),
         ),
       );
+
+  Widget _composerArea(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  _ModePill(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    label: 'Conversar',
+                    selected: _mode == _AiMode.chat,
+                    onTap: () => setState(() => _mode = _AiMode.chat),
+                  ),
+                  const SizedBox(width: 7),
+                  _ModePill(
+                    icon: Icons.add_card_rounded,
+                    label: 'Lançar',
+                    selected: _mode == _AiMode.transaction,
+                    onTap: _startTransaction,
+                  ),
+                  const Spacer(),
+                  if (_mode == _AiMode.transaction)
+                    Text(
+                      'confirmação obrigatória',
+                      style: TextStyle(
+                        fontSize: 8,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _composer,
+                      focusNode: _focus,
+                      enabled: _hasKey && !_busy,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
+                      decoration: InputDecoration(
+                        hintText: !_hasKey
+                            ? 'Conecte o Gemini acima para começar'
+                            : _mode == _AiMode.transaction
+                                ? 'Ex.: gastei 32,90 de gasolina no Nubank'
+                                : 'Pergunte qualquer coisa sobre suas finanças...',
+                        prefixIcon: Icon(
+                          _mode == _AiMode.transaction
+                              ? Icons.edit_note_rounded
+                              : Icons.auto_awesome_rounded,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    tooltip: _mode == _AiMode.transaction
+                        ? 'Interpretar lançamento'
+                        : 'Enviar',
+                    onPressed: !_hasKey || _busy ? null : () => _send(),
+                    icon: const Icon(Icons.arrow_upward_rounded),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+
+  String _sourceLabel(AiTransactionSuggestion suggestion) {
+    if (suggestion.paymentKind == PaymentKind.card) {
+      return context.read<FinanceStore>().findCard(suggestion.cardId)?.name ?? 'Cartão';
+    }
+    return suggestion.accountName;
+  }
 }
 
 class _MessageBubble extends StatelessWidget {
   final _ChatMessage message;
-  final String? sourceLabel;
+  final String? source;
   final VoidCallback onConfirm;
   final VoidCallback onDiscard;
 
   const _MessageBubble({
     required this.message,
-    required this.sourceLabel,
+    required this.source,
     required this.onConfirm,
     required this.onDiscard,
   });
@@ -695,49 +645,35 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final alignment = message.user ? Alignment.centerRight : Alignment.centerLeft;
-    final bubbleColor = message.user
-        ? FinoraColors.goldBright.withValues(alpha: .14)
-        : scheme.surfaceContainerHighest.withValues(alpha: .58);
-    final borderColor = message.user
-        ? FinoraColors.goldBright.withValues(alpha: .22)
-        : Theme.of(context).dividerColor;
-
     return Align(
-      alignment: alignment,
+      alignment: message.user ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 680),
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: bubbleColor,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(17),
-              topRight: const Radius.circular(17),
-              bottomLeft: Radius.circular(message.user ? 17 : 5),
-              bottomRight: Radius.circular(message.user ? 5 : 17),
+            color: message.user
+                ? FinoraColors.goldBright.withValues(alpha: .14)
+                : scheme.surfaceContainerHighest.withValues(alpha: .58),
+            borderRadius: BorderRadius.circular(17),
+            border: Border.all(
+              color: message.user
+                  ? FinoraColors.goldBright.withValues(alpha: .22)
+                  : Theme.of(context).dividerColor,
             ),
-            border: Border.all(color: borderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (!message.user) ...[
-                const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.auto_awesome_rounded, size: 13, color: FinoraColors.investment),
-                    SizedBox(width: 5),
-                    Text(
-                      'FINORA IA',
-                      style: TextStyle(
-                        fontSize: 7.8,
-                        letterSpacing: .8,
-                        fontWeight: FontWeight.w900,
-                        color: FinoraColors.investment,
-                      ),
-                    ),
-                  ],
+                const Text(
+                  '✦ FINORA IA',
+                  style: TextStyle(
+                    fontSize: 7.8,
+                    letterSpacing: .7,
+                    fontWeight: FontWeight.w900,
+                    color: FinoraColors.investment,
+                  ),
                 ),
                 const SizedBox(height: 6),
               ],
@@ -749,7 +685,7 @@ class _MessageBubble extends StatelessWidget {
                 const SizedBox(height: 10),
                 _SuggestionCard(
                   suggestion: suggestion,
-                  source: sourceLabel ?? suggestion.accountName,
+                  source: source ?? suggestion.accountName,
                   handled: message.handled,
                   onConfirm: onConfirm,
                   onDiscard: onDiscard,
@@ -769,24 +705,29 @@ class _TypingBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Align(
         alignment: Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: .58),
-            borderRadius: BorderRadius.circular(17),
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 9),
-              Text('Finora está pensando...', style: TextStyle(fontSize: 9.5)),
-            ],
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .colorScheme
+                  .surfaceContainerHighest
+                  .withValues(alpha: .58),
+              borderRadius: BorderRadius.circular(17),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 9),
+                Text('Finora está pensando...', style: TextStyle(fontSize: 9.5)),
+              ],
+            ),
           ),
         ),
       );
@@ -857,21 +798,18 @@ class _SuggestionCard extends StatelessWidget {
     required this.onDiscard,
   });
 
-  String get typeLabel => switch (suggestion.type) {
-        TransactionType.income => 'Receita',
-        TransactionType.expense => 'Despesa',
-        TransactionType.transfer => 'Transferência',
-      };
-
-  String get money =>
-      'R\$ ${suggestion.amount.toStringAsFixed(2).replaceAll('.', ',')}';
-
-  String get date =>
-      '${suggestion.date.day.toString().padLeft(2, '0')}/${suggestion.date.month.toString().padLeft(2, '0')}/${suggestion.date.year}';
-
   @override
   Widget build(BuildContext context) {
-    final percent = (suggestion.confidence * 100).round();
+    final type = switch (suggestion.type) {
+      TransactionType.income => 'Receita',
+      TransactionType.expense => 'Despesa',
+      TransactionType.transfer => 'Transferência',
+    };
+    final amount =
+        'R\$ ${suggestion.amount.toStringAsFixed(2).replaceAll('.', ',')}';
+    final date =
+        '${suggestion.date.day.toString().padLeft(2, '0')}/${suggestion.date.month.toString().padLeft(2, '0')}/${suggestion.date.year}';
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -896,12 +834,15 @@ class _SuggestionCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
                 ),
               ),
-              Text('$percent%', style: const TextStyle(fontSize: 8.4, fontWeight: FontWeight.w800)),
+              Text(
+                '${(suggestion.confidence * 100).round()}%',
+                style: const TextStyle(fontSize: 8.4, fontWeight: FontWeight.w800),
+              ),
             ],
           ),
           const SizedBox(height: 9),
-          _detail('Tipo', typeLabel),
-          _detail('Valor', money),
+          _detail('Tipo', type),
+          _detail('Valor', amount),
           _detail('Descrição', suggestion.title),
           _detail('Categoria', suggestion.category),
           _detail('Data', date),
