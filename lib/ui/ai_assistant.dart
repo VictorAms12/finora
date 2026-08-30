@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../ai/finance_ai.dart';
 import '../ai/gemini_service.dart';
+import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'ai_settings.dart';

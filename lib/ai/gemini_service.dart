@@ -21,7 +21,7 @@ class GeminiApiException implements Exception {
 class GeminiService {
   static const model = 'gemini-3.5-flash-lite';
   static const _secretName = 'finora_gemini_api_key';
-  static final FlutterSecureStorage _storage = FlutterSecureStorage();
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   const GeminiService();
 

@@ -226,7 +226,9 @@ $clean
       destinationAccountName: destination,
       cardId: cardId,
       note: result['note']?.toString().trim() ?? '',
-      confidence: ((result['confidence'] as num?)?.toDouble() ?? .5).clamp(0.0, 1.0),
+      confidence: ((result['confidence'] as num?)?.toDouble() ?? .5)
+          .clamp(0.0, 1.0)
+          .toDouble(),
       reason: result['reason']?.toString().trim() ?? '',
     );
   }
