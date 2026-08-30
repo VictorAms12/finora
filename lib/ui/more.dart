@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'accounts.dart';
-import 'ai_assistant.dart';
 import 'categories_settings.dart';
 import 'common.dart';
 import 'goals_reserves.dart';
@@ -66,14 +65,6 @@ class MoreScreen extends StatelessWidget {
               'Organize seus lançamentos',
               FinoraColors.investment,
               const CategoriesScreen(),
-            ),
-            _item(
-              context,
-              Icons.auto_awesome_rounded,
-              'Finora IA',
-              'Lançamentos por texto, perguntas e análise',
-              FinoraColors.investment,
-              const FinoraAiScreen(),
             ),
             _item(
               context,
