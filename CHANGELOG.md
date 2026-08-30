@@ -2,6 +2,13 @@
 
 As mudanças relevantes do Finora são registradas aqui por versão.
 
+## [0.4.1] - 2026-08-30
+
+### Corrigido
+- adicionada a permissão `android.permission.INTERNET` ao APK Release, permitindo que o Finora IA acesse a API Gemini no Android;
+- mensagens de erro de rede da IA agora diferenciam bloqueio de permissão, falta de conexão e timeout;
+- versão Android incrementada para `0.4.1+13`, permitindo instalar o hotfix por cima da v0.4.0 sem perder o banco SQLite ou demais dados locais.
+
 ## [0.4.0] - 2026-08-30
 
 ### Adicionado
@@ -78,37 +85,3 @@ As mudanças relevantes do Finora são registradas aqui por versão.
 
 ### Corrigido
 - receitas e despesas futuras deixam de alterar o saldo atual antes da realização;
-- remoção de previsões órfãs após exclusão de recorrências.
-
-## [0.3.6] - 2026-08-14
-
-### Adicionado
-- porte do Finora para Windows;
-- navegação lateral responsiva para desktop;
-- atalhos de teclado;
-- Windows Hello quando disponível;
-- pacote portátil em ZIP via GitHub Actions.
-
-## [0.2.3]
-
-### Corrigido
-- APIs depreciadas que faziam `flutter analyze` interromper a pipeline;
-- uso de `withValues(alpha: ...)` e `initialValue` onde aplicável;
-- separação de artifacts APK e AAB.
-
-## [0.2.2]
-
-### Corrigido
-- erros de sintaxe em formulários e detalhes de movimentação;
-- remoção do teste padrão gerado pelo `flutter create`;
-- análise estática passou a bloquear erros reais de compilação.
-
-## [0.2.1]
-
-### Corrigido
-- primeiros problemas de build no GitHub Actions;
-- remoção automática do `test/widget_test.dart` incompatível com a aplicação.
-
----
-
-Versões anteriores a 0.2.1 pertencem à fase inicial de prototipação do projeto e não possuem changelog estruturado.
