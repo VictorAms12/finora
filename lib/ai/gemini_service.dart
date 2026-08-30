@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -102,8 +103,6 @@ class GeminiService {
     final body = <String, dynamic>{
       'model': model,
       'input': input,
-      // Não precisamos recuperar esta interação depois; evita criar histórico
-      // de sessão no endpoint de Interactions.
       'store': false,
       'generation_config': {
         'max_output_tokens': maxOutputTokens,
@@ -150,8 +149,21 @@ class GeminiService {
       return text.trim();
     } on GeminiApiException {
       rethrow;
-    } on SocketException {
-      throw const GeminiApiException('Sem conexão com a internet para acessar o Gemini.');
+    } on SocketException catch (error) {
+      final message = error.message.toLowerCase();
+      final code = error.osError?.errorCode;
+      if (code == 13 || message.contains('permission denied')) {
+        throw const GeminiApiException(
+          'O Android bloqueou o acesso à internet desta versão do Finora. Atualize o aplicativo.',
+        );
+      }
+      throw const GeminiApiException(
+        'Não foi possível conectar ao Gemini. Verifique Wi-Fi/dados móveis e tente novamente.',
+      );
+    } on TimeoutException {
+      throw const GeminiApiException(
+        'A conexão com o Gemini demorou demais. Tente novamente em alguns instantes.',
+      );
     } on HandshakeException {
       throw const GeminiApiException('Falha ao estabelecer conexão segura com o Gemini.');
     } on HttpException {

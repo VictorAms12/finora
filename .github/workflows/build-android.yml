@@ -102,6 +102,10 @@ jobs:
       - name: Configurar Android
         run: python tool/configure_android.py
 
+      - name: Verificar permissão de internet
+        shell: bash
+        run: grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
+
       - name: Verificar assinatura estável
         if: steps.signing.outputs.stable == 'true'
         shell: bash
