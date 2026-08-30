@@ -1,9 +1,7 @@
-name: Compilar Finora Android
+name: Compilar Finora Android compatível
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -11,17 +9,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: finora-android-${{ github.workflow }}-${{ github.ref }}
+  group: finora-android-compatible-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
-    name: Verificar e compilar Android
+    name: Validar e gerar APK compatível
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar repositório
+      - name: Baixar repositório com histórico
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Configurar Java 17
         uses: actions/setup-java@v5
@@ -46,58 +46,26 @@ jobs:
       - name: Gerar estrutura Android
         run: flutter create . --platforms=android --project-name=finora --org=com.finora
 
-      - name: Preparar assinatura
-        id: signing
+      - name: Recuperar assinatura histórica compatível
         shell: bash
-        env:
-          FINORA_KEYSTORE_BASE64: ${{ secrets.FINORA_KEYSTORE_BASE64 }}
-          FINORA_KEYSTORE_PASSWORD: ${{ secrets.FINORA_KEYSTORE_PASSWORD }}
-          FINORA_KEY_ALIAS: ${{ secrets.FINORA_KEY_ALIAS }}
-          FINORA_KEY_PASSWORD: ${{ secrets.FINORA_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           mkdir -p android/app
-
-          HAS_ANY_SECRET=false
-          for value in "$FINORA_KEYSTORE_BASE64" "$FINORA_KEYSTORE_PASSWORD" "$FINORA_KEY_ALIAS" "$FINORA_KEY_PASSWORD"; do
-            if [[ -n "$value" ]]; then HAS_ANY_SECRET=true; fi
-          done
-
-          if [[ "$HAS_ANY_SECRET" == "true" ]]; then
-            if [[ -z "$FINORA_KEYSTORE_BASE64" || -z "$FINORA_KEYSTORE_PASSWORD" || -z "$FINORA_KEY_ALIAS" || -z "$FINORA_KEY_PASSWORD" ]]; then
-              echo "Os secrets de assinatura estão incompletos. Configure os quatro secrets FINORA_* descritos em docs/SIGNING.md."
-              exit 1
-            fi
-
-            printf '%s' "$FINORA_KEYSTORE_BASE64" | base64 --decode > android/app/finora-release.jks
-            cat > android/key.properties <<EOF
-          storePassword=$FINORA_KEYSTORE_PASSWORD
-          keyPassword=$FINORA_KEY_PASSWORD
-          keyAlias=$FINORA_KEY_ALIAS
+          git show 81cc038ce6e8a1c4af41c4ff54b11e76321a47ee:android/keystore/finora-dev.jks > android/app/finora-release.jks
+          cat > android/key.properties <<'EOF'
+          storePassword=FinoraDev2026!
+          keyPassword=FinoraDev2026!
+          keyAlias=finora
           storeFile=finora-release.jks
           EOF
-            echo "stable=true" >> "$GITHUB_OUTPUT"
-            echo "Assinatura estável carregada por GitHub Secrets."
-          else
-            keytool -genkeypair \
-              -keystore android/app/ci-ephemeral.jks \
-              -storepass 'FinoraCIOnly2026!' \
-              -keypass 'FinoraCIOnly2026!' \
-              -alias finora-ci \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 2 \
-              -dname 'CN=Finora CI, OU=CI, O=Finora, C=BR' \
-              -noprompt
-            cat > android/key.properties <<'EOF'
-          storePassword=FinoraCIOnly2026!
-          keyPassword=FinoraCIOnly2026!
-          keyAlias=finora-ci
-          storeFile=ci-ephemeral.jks
-          EOF
-            echo "stable=false" >> "$GITHUB_OUTPUT"
-            echo "Nenhum secret de assinatura configurado: usando chave efêmera somente para validar a compilação."
-          fi
+
+          keytool -list -v \
+            -keystore android/app/finora-release.jks \
+            -storepass 'FinoraDev2026!' \
+            -alias finora | tee /tmp/finora-key.txt
+
+          grep -q '3B:9F:57:35:03:3F:60:F9:B5:FB:28:6C:F5:24:0A:3B:FB:8C:91:B2:D8:01:E3:52:BA:8E:8E:AF:EF:DE:5F:34' /tmp/finora-key.txt
+          echo 'Fingerprint histórico confirmado.'
 
       - name: Configurar Android
         run: python tool/configure_android.py
@@ -105,18 +73,6 @@ jobs:
       - name: Verificar permissão de internet
         shell: bash
         run: grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
-
-      - name: Verificar assinatura estável
-        if: steps.signing.outputs.stable == 'true'
-        shell: bash
-        env:
-          FINORA_KEYSTORE_PASSWORD: ${{ secrets.FINORA_KEYSTORE_PASSWORD }}
-          FINORA_KEY_ALIAS: ${{ secrets.FINORA_KEY_ALIAS }}
-        run: |
-          keytool -list -v \
-            -keystore android/app/finora-release.jks \
-            -storepass "$FINORA_KEYSTORE_PASSWORD" \
-            -alias "$FINORA_KEY_ALIAS" | grep -E 'Alias name:|SHA256:'
 
       - name: Aplicar identidade visual Finora
         run: |
@@ -135,37 +91,20 @@ jobs:
       - name: Executar testes
         run: flutter test
 
-      - name: Compilar APK Release
+      - name: Compilar APK Release compatível
         run: flutter build apk --release
 
-      - name: Compilar AAB Release
-        run: flutter build appbundle --release
-
-      - name: Avisar sobre build efêmera
-        if: steps.signing.outputs.stable != 'true'
+      - name: Verificar assinatura do APK final
         shell: bash
         run: |
-          {
-            echo '### Android compilado com assinatura efêmera de CI'
-            echo ''
-            echo 'A compilação foi validada, mas APK/AAB não foram publicados para evitar que uma chave descartável vire baseline de instalação.'
-            echo 'Configure os secrets descritos em `docs/SIGNING.md` para publicar releases instaláveis e atualizáveis.'
-          } >> "$GITHUB_STEP_SUMMARY"
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --verbose --print-certs build/app/outputs/flutter-apk/app-release.apk | tee /tmp/apk-cert.txt
+          grep -q '3b9f5735033f60f9b5fb286cf5240a3bfb8c91b2d801e352ba8e8eafefde5f34' /tmp/apk-cert.txt
 
-      - name: Publicar APK
-        if: steps.signing.outputs.stable == 'true' && github.event_name != 'pull_request'
+      - name: Publicar APK instalável
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-APK-v${{ env.FINORA_VERSION }}
+          name: Finora-v${{ env.FINORA_VERSION }}-APK-COMPATIVEL
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
           path: build/app/outputs/flutter-apk/app-release.apk
-
-      - name: Publicar AAB
-        if: steps.signing.outputs.stable == 'true' && github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Finora-AAB-v${{ env.FINORA_VERSION }}
-          if-no-files-found: error
-          retention-days: 14
-          path: build/app/outputs/bundle/release/app-release.aab
