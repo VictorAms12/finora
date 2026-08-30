@@ -91,7 +91,7 @@ if (keystorePropertiesFile.exists()) {
 
     app = re.sub(
         r"compileSdk\s*=\s*flutter\.compileSdkVersion",
-        "compileSdk = 36",
+        "compileSdk = 37",
         app,
     )
     app = re.sub(
