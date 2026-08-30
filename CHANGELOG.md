@@ -2,6 +2,23 @@
 
 As mudanças relevantes do Finora são registradas aqui por versão.
 
+## [0.4.2] - 2026-08-30
+
+### Experiência da Finora IA
+- Finora IA passa a ser uma aba principal no mobile e no desktop, deixando de ficar escondida dentro de `Mais`;
+- a interface de três formulários independentes foi substituída por um chat contínuo com histórico durante a sessão;
+- um único campo de conversa atende perguntas e lançamentos, com modos `Conversar` e `Lançar` claramente separados;
+- atalhos contextuais permitem analisar o mês, consultar valor disponível, próximos compromissos, cartões e iniciar um lançamento;
+- perguntas de continuação recebem o contexto recente da conversa para tornar o diálogo mais natural;
+- a primeira configuração da chave Gemini pode ser feita dentro do próprio chat, sem obrigar o usuário a abrir Configurações;
+- respostas, erros e confirmações passam a aparecer na conversa em vez de depender principalmente de mensagens temporárias;
+- sugestões de lançamento continuam exigindo confirmação explícita antes de alterar qualquer dado financeiro;
+- o botão de novo lançamento deixa o centro da barra inferior para liberar uma quinta aba real e permanece disponível como ação flutuante nas demais telas.
+
+### Compatibilidade
+- nenhuma alteração destrutiva foi feita no SQLite, na migração ou nas regras financeiras;
+- versão incrementada para `0.4.2+14`, preservando a atualização sobre a v0.4.1 e os dados locais quando assinada com a mesma chave.
+
 ## [0.4.1] - 2026-08-30
 
 ### Corrigido

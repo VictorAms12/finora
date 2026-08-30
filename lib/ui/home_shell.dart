@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme.dart';
+import 'ai_assistant.dart';
 import 'dashboard.dart';
 import 'desktop_actions.dart';
 import 'finora_logo.dart';
@@ -39,7 +40,7 @@ class _HomeShellState extends State<HomeShell> {
   List<Widget> get pages => const [
         DashboardScreen(),
         PlanningScreen(),
-        SizedBox(),
+        FinoraAiScreen(),
         TransactionsScreen(),
         MoreScreen(),
       ];
@@ -62,8 +63,9 @@ class _HomeShellState extends State<HomeShell> {
                       : showQuickActions(context),
               const SingleActivator(LogicalKeyboardKey.digit1, control: true): () => go(0),
               const SingleActivator(LogicalKeyboardKey.digit2, control: true): () => go(1),
-              const SingleActivator(LogicalKeyboardKey.digit3, control: true): () => go(3),
-              const SingleActivator(LogicalKeyboardKey.digit4, control: true): () => go(4),
+              const SingleActivator(LogicalKeyboardKey.digit3, control: true): () => go(2),
+              const SingleActivator(LogicalKeyboardKey.digit4, control: true): () => go(3),
+              const SingleActivator(LogicalKeyboardKey.digit5, control: true): () => go(4),
             },
             child: Focus(
               autofocus: true,
@@ -100,46 +102,36 @@ class _HomeShellState extends State<HomeShell> {
 
           return Scaffold(
             body: SafeArea(child: content),
-            floatingActionButton: Tooltip(
-              message: 'Novo lançamento',
-              child: Container(
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: FinoraColors.goldBright.withValues(alpha: .22),
-                      blurRadius: 18,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: FloatingActionButton(
-                  heroTag: 'finora-main-add',
-                  onPressed: () => showQuickActions(context),
-                  backgroundColor: FinoraColors.goldBright,
-                  foregroundColor: Colors.black,
-                  elevation: 2,
-                  child: const Icon(Icons.add_rounded, size: 32),
-                ),
-              ),
-            ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+            floatingActionButton: index == 2
+                ? null
+                : FloatingActionButton.small(
+                    heroTag: 'finora-main-add',
+                    tooltip: 'Novo lançamento',
+                    onPressed: () => showQuickActions(context),
+                    backgroundColor: FinoraColors.goldBright,
+                    foregroundColor: Colors.black,
+                    elevation: 3,
+                    child: const Icon(Icons.add_rounded),
+                  ),
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
             bottomNavigationBar: BottomAppBar(
               height: 72,
               color: Theme.of(context).brightness == Brightness.dark
                   ? const Color(0xFF050505)
                   : Colors.white,
               surfaceTintColor: Colors.transparent,
-              notchMargin: 10,
-              shape: const CircularNotchedRectangle(),
               padding: EdgeInsets.zero,
               child: Row(
                 children: [
                   _mobileNav(context, Icons.home_rounded, 'Início', 0),
                   _mobileNav(context, Icons.calendar_month_rounded, 'Planejar', 1),
-                  const Expanded(child: SizedBox()),
+                  _mobileNav(
+                    context,
+                    Icons.auto_awesome_rounded,
+                    'IA',
+                    2,
+                    accent: FinoraColors.investment,
+                  ),
                   _mobileNav(context, Icons.swap_vert_rounded, 'Movimentos', 3),
                   _mobileNav(context, Icons.grid_view_rounded, 'Mais', 4),
                 ],
@@ -153,11 +145,12 @@ class _HomeShellState extends State<HomeShell> {
     BuildContext context,
     IconData icon,
     String label,
-    int page,
-  ) {
+    int page, {
+    Color? accent,
+  }) {
     final active = index == page;
     final color = active
-        ? FinoraColors.goldBright
+        ? (accent ?? FinoraColors.goldBright)
         : Theme.of(context).colorScheme.onSurfaceVariant;
     return Expanded(
       child: InkWell(
@@ -169,16 +162,16 @@ class _HomeShellState extends State<HomeShell> {
             children: [
               AnimatedScale(
                 duration: const Duration(milliseconds: 180),
-                scale: active ? 1.08 : 1,
+                scale: active ? 1.10 : 1,
                 child: Icon(icon, size: 22, color: color),
               ),
               const SizedBox(height: 3),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9.5,
                   color: color,
-                  fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+                  fontWeight: active ? FontWeight.w900 : FontWeight.w500,
                 ),
               ),
             ],
@@ -241,13 +234,21 @@ class _DesktopSidebar extends StatelessWidget {
           const SizedBox(height: 18),
           _railItem(context, Icons.home_rounded, 'Início', 'Ctrl + 1', 0),
           _railItem(context, Icons.calendar_month_rounded, 'Planejamento', 'Ctrl + 2', 1),
-          _railItem(context, Icons.swap_vert_rounded, 'Movimentações', 'Ctrl + 3', 3),
-          _railItem(context, Icons.grid_view_rounded, 'Mais', 'Ctrl + 4', 4),
+          _railItem(
+            context,
+            Icons.auto_awesome_rounded,
+            'Finora IA',
+            'Ctrl + 3',
+            2,
+            accent: FinoraColors.investment,
+          ),
+          _railItem(context, Icons.swap_vert_rounded, 'Movimentações', 'Ctrl + 4', 3),
+          _railItem(context, Icons.grid_view_rounded, 'Mais', 'Ctrl + 5', 4),
           const Spacer(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
-              'Finora Desktop · v0.4.0\nCtrl + N para novo lançamento',
+              'Finora Desktop · v0.4.2\nCtrl + N para novo lançamento',
               style: TextStyle(
                 fontSize: 9,
                 height: 1.5,
@@ -265,16 +266,18 @@ class _DesktopSidebar extends StatelessWidget {
     IconData icon,
     String label,
     String shortcut,
-    int page,
-  ) {
+    int page, {
+    Color? accent,
+  }) {
     final active = index == page;
+    final activeColor = accent ?? FinoraColors.goldBright;
     final foreground = active
-        ? FinoraColors.goldBright
+        ? activeColor
         : Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.only(bottom: 5),
       child: Material(
-        color: active ? FinoraColors.gold.withValues(alpha: .10) : Colors.transparent,
+        color: active ? activeColor.withValues(alpha: .10) : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: () => onNavigate(page),
