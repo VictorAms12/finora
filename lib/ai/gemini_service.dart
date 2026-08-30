@@ -54,15 +54,18 @@ class GeminiService {
       maxOutputTokens: 16,
     );
     if (!text.toUpperCase().contains('OK')) {
-      throw const GeminiApiException('A API respondeu, mas o teste não foi reconhecido.');
+      throw const GeminiApiException(
+        'A API respondeu, mas o teste não foi reconhecido.',
+      );
     }
   }
 
   Future<String> generateText({
     required String input,
     int maxOutputTokens = 900,
-  }) =>
-      _interaction(input: input, maxOutputTokens: maxOutputTokens);
+  }) async => cleanAssistantText(
+        await _interaction(input: input, maxOutputTokens: maxOutputTokens),
+      );
 
   Future<Map<String, dynamic>> generateStructured({
     required String input,
@@ -75,14 +78,14 @@ class GeminiService {
       maxOutputTokens: maxOutputTokens,
     );
     try {
-      final decoded = jsonDecode(text);
+      final decoded = jsonDecode(_unwrapJson(text));
       if (decoded is! Map) {
         throw const FormatException('Resposta não é um objeto.');
       }
       return Map<String, dynamic>.from(decoded);
     } catch (_) {
       throw const GeminiApiException(
-        'O Gemini respondeu em um formato inesperado. Tente novamente.',
+        'A resposta veio em um formato inesperado. Tente novamente.',
       );
     }
   }
@@ -96,7 +99,7 @@ class GeminiService {
     final apiKey = apiKeyOverride ?? await _readApiKey();
     if (apiKey == null || apiKey.isEmpty) {
       throw const GeminiApiException(
-        'Configure sua chave do Gemini em Configurações > Finora IA.',
+        'Abra a aba IA e conecte sua chave do Gemini para começar.',
       );
     }
 
@@ -119,7 +122,11 @@ class GeminiService {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
     try {
       final request = await client
-          .postUrl(Uri.parse('https://generativelanguage.googleapis.com/v1beta/interactions'))
+          .postUrl(
+            Uri.parse(
+              'https://generativelanguage.googleapis.com/v1beta/interactions',
+            ),
+          )
           .timeout(const Duration(seconds: 15));
       request.headers.contentType = ContentType.json;
       request.headers.set('x-goog-api-key', apiKey);
@@ -140,7 +147,9 @@ class GeminiService {
       }
       final map = Map<String, dynamic>.from(decoded);
       if (map['status'] == 'failed') {
-        throw const GeminiApiException('O Gemini não conseguiu concluir a solicitação.');
+        throw const GeminiApiException(
+          'Não consegui concluir essa solicitação agora.',
+        );
       }
       final text = _extractModelText(map);
       if (text.trim().isEmpty) {
@@ -158,21 +167,23 @@ class GeminiService {
         );
       }
       throw const GeminiApiException(
-        'Não foi possível conectar ao Gemini. Verifique Wi-Fi/dados móveis e tente novamente.',
+        'Não consegui conectar ao Gemini. Confira sua internet e tente novamente.',
       );
     } on TimeoutException {
       throw const GeminiApiException(
-        'A conexão com o Gemini demorou demais. Tente novamente em alguns instantes.',
+        'A resposta está demorando mais que o normal. Tente novamente em alguns instantes.',
       );
     } on HandshakeException {
-      throw const GeminiApiException('Falha ao estabelecer conexão segura com o Gemini.');
+      throw const GeminiApiException(
+        'Não consegui estabelecer uma conexão segura com o Gemini.',
+      );
     } on HttpException {
-      throw const GeminiApiException('Falha de comunicação com o Gemini.');
+      throw const GeminiApiException('Houve uma falha de comunicação com o Gemini.');
     } on FormatException {
-      throw const GeminiApiException('Resposta inválida recebida do Gemini.');
+      throw const GeminiApiException('Recebi uma resposta inválida do Gemini.');
     } catch (error) {
       if (error is GeminiApiException) rethrow;
-      throw const GeminiApiException('Não foi possível concluir a solicitação de IA.');
+      throw const GeminiApiException('Não consegui concluir essa solicitação.');
     } finally {
       client.close(force: true);
     }
@@ -209,19 +220,63 @@ class GeminiService {
 
     switch (statusCode) {
       case 400:
-        return serverMessage ?? 'A solicitação enviada ao Gemini foi rejeitada.';
+        return serverMessage ?? 'O Gemini rejeitou essa solicitação.';
       case 401:
       case 403:
-        return 'Chave do Gemini inválida, sem permissão ou bloqueada.';
+        return 'Sua chave do Gemini é inválida, está sem permissão ou foi bloqueada.';
       case 429:
-        return 'Limite gratuito do Gemini atingido. Tente novamente mais tarde.';
+        return 'O limite gratuito do Gemini foi atingido. Tente novamente mais tarde.';
       case 500:
       case 502:
       case 503:
       case 504:
         return 'O Gemini está temporariamente indisponível. Tente novamente.';
       default:
-        return serverMessage ?? 'Erro $statusCode ao acessar o Gemini.';
+        return serverMessage ?? 'O Gemini retornou o erro $statusCode.';
     }
+  }
+
+  static String cleanAssistantText(String input) {
+    var text = input.trim();
+    if (text.isEmpty) return '';
+
+    text = text.replaceAll(RegExp(r'```(?:json|markdown|md|text)?', caseSensitive: false), '');
+    text = text.replaceAll('```', '');
+    text = text.replaceAll(
+      RegExp(
+        r'</?(?:analysis|assistant|response|answer|final|message|content|result)[^>]*>',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    text = text.replaceAll(
+      RegExp(r'^\s{0,3}#{1,6}\s*', multiLine: true),
+      '',
+    );
+    text = text.replaceAll(
+      RegExp(
+        r'^\s*(?:assistant|finora\s*ia|resposta)\s*:\s*',
+        caseSensitive: false,
+        multiLine: true,
+      ),
+      '',
+    );
+    text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    return text.trim();
+  }
+
+  static String _unwrapJson(String input) {
+    var text = input.trim();
+    text = text.replaceFirst(
+      RegExp(r'^```(?:json)?\s*', caseSensitive: false),
+      '',
+    );
+    text = text.replaceFirst(RegExp(r'\s*```$'), '');
+    final firstObject = text.indexOf('{');
+    final lastObject = text.lastIndexOf('}');
+    if (firstObject >= 0 && lastObject > firstObject) {
+      text = text.substring(firstObject, lastObject + 1);
+    }
+    return text.trim();
   }
 }
