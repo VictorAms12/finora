@@ -102,6 +102,10 @@ jobs:
       - name: Configurar Android
         run: python tool/configure_android.py
 
+      - name: Verificar permissão de internet
+        shell: bash
+        run: grep -q 'android.permission.INTERNET' android/app/src/main/AndroidManifest.xml
+
       - name: Verificar assinatura estável
         if: steps.signing.outputs.stable == 'true'
         shell: bash
@@ -133,6 +137,15 @@ jobs:
 
       - name: Compilar APK Release
         run: flutter build apk --release
+
+      - name: Publicar APK temporário para reassinatura
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finora-APK-CI-v${{ env.FINORA_VERSION }}
+          if-no-files-found: error
+          retention-days: 1
+          path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Compilar AAB Release
         run: flutter build appbundle --release
