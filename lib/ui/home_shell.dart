@@ -37,12 +37,12 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  List<Widget> get pages => [
-        DashboardScreen(onOpenAi: () => go(2)),
-        const PlanningScreen(),
-        const FinoraAiScreen(),
-        const TransactionsScreen(),
-        const MoreScreen(),
+  List<Widget> get pages => const [
+        DashboardScreen(),
+        PlanningScreen(),
+        FinoraAiScreen(),
+        TransactionsScreen(),
+        MoreScreen(),
       ];
 
   @override
