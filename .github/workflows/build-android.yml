@@ -138,15 +138,6 @@ jobs:
       - name: Compilar APK Release
         run: flutter build apk --release
 
-      - name: Publicar APK temporário para reassinatura
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Finora-APK-CI-v${{ env.FINORA_VERSION }}
-          if-no-files-found: error
-          retention-days: 1
-          path: build/app/outputs/flutter-apk/app-release.apk
-
       - name: Compilar AAB Release
         run: flutter build appbundle --release
 
