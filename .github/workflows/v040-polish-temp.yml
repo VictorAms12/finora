@@ -1,0 +1,145 @@
+name: Polir v0.4 temporariamente
+
+on:
+  push:
+    branches:
+      - agent/finora-v040-ai-sqlite
+
+permissions:
+  contents: write
+
+jobs:
+  polish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/finora-v040-ai-sqlite
+      - shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f'Bloco esperado nao encontrado em {path}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'lib/ui/home_shell.dart',
+              "Finora Desktop · v0.3.9\\nCtrl + N para novo lançamento",
+              "Finora Desktop · v0.4.0\\nCtrl + N para novo lançamento",
+          )
+
+          # Configuracao do Gemini também fica acessível pela tela geral de Configurações.
+          replace_once(
+              'lib/ui/settings_v038.dart',
+              "import 'common.dart';\n",
+              "import 'common.dart';\nimport 'ai_settings.dart';\n",
+          )
+          replace_once(
+              'lib/ui/settings_v038.dart',
+              """          const SizedBox(height: 14),
+          Text('NOTIFICAÇÕES', style: eyebrowStyle(context)),
+""",
+              """          const SizedBox(height: 14),
+          Text('FINORA IA', style: eyebrowStyle(context)),
+          const SizedBox(height: 7),
+          SurfaceCard(
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.auto_awesome_rounded,
+                color: FinoraColors.investment,
+              ),
+              title: const Text(
+                'Configurar Gemini',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              ),
+              subtitle: const Text(
+                'Chave da API, teste de conexão e privacidade',
+                style: TextStyle(fontSize: 8.5),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(
+                context,
+                PremiumRoute(page: const AiSettingsScreen()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text('NOTIFICAÇÕES', style: eyebrowStyle(context)),
+""",
+          )
+          replace_once(
+              'lib/ui/settings_v038.dart',
+              "'Finora v0.3.9'",
+              "'Finora v0.4.0'",
+          )
+
+          # Changelog da versão.
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text(encoding='utf-8')
+          marker = '## [0.3.9] - 2026-08-18'
+          section = '''## [0.4.0] - 2026-08-30
+
+### Adicionado
+- armazenamento SQLite transacional como camada primária, mantendo o `FinanceStore` validado como núcleo das regras financeiras;
+- migração automática e não destrutiva dos dados existentes da v0.3.9 em `SharedPreferences` para SQLite;
+- índice local de transações e previstos para consultas rápidas, relatórios e evolução futura da camada de dados;
+- Finora IA via Gemini, opt-in e configurável pelo próprio usuário;
+- lançamento por linguagem natural com prévia e confirmação obrigatória;
+- análise mensal e perguntas sobre os próprios dados financeiros;
+- armazenamento seguro da chave Gemini no cofre do sistema operacional.
+
+### Integridade e privacidade
+- o JSON legado da v0.3.9 permanece como espelho de compatibilidade durante a migração;
+- falha do driver SQLite não impede acesso aos dados: o Finora retorna ao armazenamento legado;
+- SQLite mantém o estado anterior íntegro como recuperação transacional;
+- respostas de IA nunca alteram saldos diretamente e reutilizam as validações determinísticas do `FinanceStore`;
+- contexto enviado à IA é reduzido e exclui backup completo e notas privadas.
+
+### Qualidade
+- testes automatizados cobrem migração v0.3.9 → SQLite, preservação de saldo, indexação pós-migração e recuperação do espelho legado corrompido.
+
+'''
+          if section not in text:
+              if marker not in text:
+                  raise SystemExit('Marcador do changelog nao encontrado')
+              text = text.replace(marker, section + marker, 1)
+              changelog.write_text(text, encoding='utf-8')
+
+          # README alinhado à nova arquitetura.
+          p = Path('README.md')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace('versão-0.3.9-111111', 'versão-0.4.0-111111')
+          text = text.replace('> Versão atual: **0.3.9**', '> Versão atual: **0.4.0**')
+          text = text.replace(
+              '| **Backup** | exportação completa copiável, restauração e recuperação local do último estado íntegro |',
+              '| **Finora IA** | lançamento por linguagem natural, análise do mês e perguntas sobre os próprios dados via Gemini |\n| **Backup** | exportação completa copiável, restauração e recuperação local do último estado íntegro |',
+          )
+          text = text.replace(
+              'A v0.3.9 passou por uma revisão ampla do fluxo de estado e persistência.',
+              'A v0.3.9 passou por uma revisão ampla do fluxo de estado. Na v0.4.0, o armazenamento principal evoluiu para SQLite transacional sem reescrever as regras financeiras já validadas.',
+          )
+          text = text.replace(
+              '> O armazenamento principal ainda é local. Faça backup antes de limpar dados, desinstalar o aplicativo ou trocar de dispositivo.',
+              '> O armazenamento principal continua local e offline-first, agora em SQLite. O espelho legado da v0.3.9 é mantido durante a migração. Faça backup antes de limpar dados, desinstalar o aplicativo ou trocar de dispositivo.',
+          )
+          text = text.replace(
+              '    STORE --> LOCAL[(SharedPreferences)]\n    LOCAL --> RECOVERY[Cópia íntegra anterior]',
+              '    STORE --> SQLITE[(SQLite)]\n    SQLITE --> INDEX[Índice financeiro]\n    SQLITE --> RECOVERY[Cópia íntegra anterior]\n    STORE --> LEGACY[(Espelho SharedPreferences)]',
+          )
+          p.write_text(text, encoding='utf-8')
+      - shell: bash
+        run: |
+          dart format lib/ui/home_shell.dart lib/ui/settings_v038.dart || true
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'Finora CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib README.md CHANGELOG.md
+          git commit -m 'docs(v0.4): finaliza versão, configurações e migração SQLite'
+          git push origin HEAD:agent/finora-v040-ai-sqlite
