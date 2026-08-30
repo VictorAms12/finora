@@ -1,0 +1,349 @@
+name: Integrar Finora v0.4 temporariamente
+
+on:
+  push:
+    branches: [agent/finora-v040-ai-sqlite]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/finora-v040-ai-sqlite
+          fetch-depth: 0
+
+      - name: Aplicar integração idempotente
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f'Bloco esperado não encontrado em {path}')
+              p.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          # FinanceStore: SQLite primário + SharedPreferences como espelho legado.
+          replace_once(
+              'lib/store.dart',
+              "import 'models.dart';\n",
+              "import 'models.dart';\nimport 'local_database.dart';\n",
+          )
+
+          replace_once(
+              'lib/store.dart',
+              """  SharedPreferences? _prefs;
+  Future<void> _saveChain = Future<void>.value();
+  String? _lastQueuedRaw;
+""",
+              """  final FinoraDatabase _database;
+
+  FinanceStore({FinoraDatabase? database})
+      : _database = database ?? FinoraDatabase();
+
+  SharedPreferences? _prefs;
+  Future<void> _saveChain = Future<void>.value();
+  String? _lastQueuedRaw;
+  bool _sqliteAvailable = false;
+  String? _storageError;
+
+  bool get sqliteAvailable => _sqliteAvailable;
+  String? get storageError => _storageError;
+""",
+          )
+
+          replace_once(
+              'lib/store.dart',
+              """  Future<void> load() async {
+    final prefs = await _preferences();
+    final primaryRaw = prefs.getString(_key);
+    final backupRaw = prefs.getString(_backupKey);
+
+    var loaded = _decodeData(primaryRaw);
+    var recoveredFromBackup = false;
+    if (loaded == null && primaryRaw != null) {
+      loaded = _decodeData(backupRaw);
+      recoveredFromBackup = loaded != null;
+    }
+
+    data = loaded ?? emptyData();
+    _invalidateCaches();
+    refreshRecurringPlanning(persist: false);
+    _ensureMonthlyTracking();
+
+    final normalizedRaw = data.encode();
+    if (primaryRaw != normalizedRaw || recoveredFromBackup) {
+      await _persistRaw(
+        normalizedRaw,
+        rotateBackup: !recoveredFromBackup && _decodeData(primaryRaw) != null,
+      );
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> _persistRaw(
+    String raw, {
+    bool rotateBackup = true,
+  }) async {
+    final prefs = await _preferences();
+    if (rotateBackup) {
+      final previous = prefs.getString(_key);
+      if (previous != null &&
+          previous != raw &&
+          _decodeData(previous) != null) {
+        await prefs.setString(_backupKey, previous);
+      }
+    }
+    await prefs.setString(_key, raw);
+  }
+""",
+              """  Future<void> load() async {
+    final prefs = await _preferences();
+    final legacyPrimaryRaw = prefs.getString(_key);
+    final legacyBackupRaw = prefs.getString(_backupKey);
+
+    String? sqlitePrimaryRaw;
+    String? sqliteBackupRaw;
+    try {
+      sqlitePrimaryRaw = await _database.readPrimaryRaw();
+      sqliteBackupRaw = await _database.readBackupRaw();
+      _sqliteAvailable = true;
+      _storageError = null;
+    } catch (error, stackTrace) {
+      _sqliteAvailable = false;
+      _storageError = error.toString();
+      debugPrint('Finora SQLite: falha ao abrir banco, usando compatibilidade: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+
+    FinanceData? loaded = _decodeData(sqlitePrimaryRaw);
+    String? sourceRaw = sqlitePrimaryRaw;
+    var recoveredFromBackup = false;
+
+    if (loaded == null && sqlitePrimaryRaw != null) {
+      loaded = _decodeData(sqliteBackupRaw);
+      sourceRaw = sqliteBackupRaw;
+      recoveredFromBackup = loaded != null;
+    }
+
+    // Migração v0.4: se o SQLite ainda não possui estado válido, importa a
+    // mesma estrutura JSON usada pela v0.3.9. Nada é apagado do legado.
+    if (loaded == null) {
+      loaded = _decodeData(legacyPrimaryRaw);
+      sourceRaw = legacyPrimaryRaw;
+      if (loaded == null && legacyPrimaryRaw != null) {
+        loaded = _decodeData(legacyBackupRaw);
+        sourceRaw = legacyBackupRaw;
+        recoveredFromBackup = loaded != null;
+      }
+    }
+
+    data = loaded ?? emptyData();
+    _invalidateCaches();
+    refreshRecurringPlanning(persist: false);
+    _ensureMonthlyTracking();
+
+    // Sempre normaliza e persiste ao carregar. Na primeira abertura da v0.4,
+    // isso materializa o SQLite; em paralelo mantém o JSON legado atualizado,
+    // permitindo retorno seguro para a v0.3.9 durante a fase de migração.
+    final normalizedRaw = data.encode();
+    await _persistRaw(
+      normalizedRaw,
+      rotateBackup: !recoveredFromBackup &&
+          sourceRaw != null &&
+          _decodeData(sourceRaw) != null &&
+          sourceRaw != normalizedRaw,
+    );
+
+    notifyListeners();
+  }
+
+  Future<void> _persistRaw(
+    String raw, {
+    bool rotateBackup = true,
+  }) async {
+    try {
+      await _database.saveRaw(raw, rotateBackup: rotateBackup);
+      _sqliteAvailable = true;
+      _storageError = null;
+    } catch (error, stackTrace) {
+      // O app não pode perder acesso aos dados se um driver SQLite falhar.
+      // Mantemos o espelho legado funcionando e expomos o estado na UI.
+      _sqliteAvailable = false;
+      _storageError = error.toString();
+      debugPrint('Finora SQLite: falha ao persistir, mantendo espelho legado: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
+
+    final prefs = await _preferences();
+    if (rotateBackup) {
+      final previous = prefs.getString(_key);
+      if (previous != null &&
+          previous != raw &&
+          _decodeData(previous) != null) {
+        await prefs.setString(_backupKey, previous);
+      }
+    }
+    await prefs.setString(_key, raw);
+  }
+
+  Future<int> indexedFinanceRowCount() async {
+    if (!_sqliteAvailable) return 0;
+    try {
+      return await _database.indexedRowCount();
+    } catch (_) {
+      return 0;
+    }
+  }
+""",
+          )
+
+          # Finora IA no menu Mais.
+          replace_once(
+              'lib/ui/more.dart',
+              "import '../theme.dart';\n",
+              "import '../theme.dart';\nimport 'ai_assistant.dart';\n",
+          )
+          replace_once(
+              'lib/ui/more.dart',
+              """            _item(
+              context,
+              Icons.notifications_none_rounded,
+              'Notificações',
+""",
+              """            _item(
+              context,
+              Icons.auto_awesome_rounded,
+              'Finora IA',
+              'Lançamentos por texto, perguntas e análise',
+              FinoraColors.investment,
+              const FinoraAiScreen(),
+            ),
+            _item(
+              context,
+              Icons.notifications_none_rounded,
+              'Notificações',
+""",
+          )
+
+          # Configuração da chave + diagnóstico visível do SQLite.
+          replace_once(
+              'lib/ui/settings_v038.dart',
+              "import 'common.dart';\n",
+              "import 'common.dart';\nimport 'ai_settings.dart';\n",
+          )
+          replace_once(
+              'lib/ui/settings_v038.dart',
+              """          const SizedBox(height: 14),
+          Text('NOTIFICAÇÕES', style: eyebrowStyle(context)),
+""",
+              """          const SizedBox(height: 14),
+          Text('FINORA IA', style: eyebrowStyle(context)),
+          const SizedBox(height: 7),
+          SurfaceCard(
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(
+                Icons.auto_awesome_rounded,
+                color: FinoraColors.investment,
+              ),
+              title: const Text(
+                'Configurar Gemini',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              ),
+              subtitle: const Text(
+                'Chave da API, teste de conexão e privacidade',
+                style: TextStyle(fontSize: 8.5),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(
+                context,
+                PremiumRoute(page: const AiSettingsScreen()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text('NOTIFICAÇÕES', style: eyebrowStyle(context)),
+""",
+          )
+          replace_once(
+              'lib/ui/settings_v038.dart',
+              """          SurfaceCard(
+            child: Column(
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.science_outlined,
+""",
+              """          SurfaceCard(
+            child: Column(
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(
+                    store.sqliteAvailable
+                        ? Icons.storage_rounded
+                        : Icons.warning_amber_rounded,
+                    color: store.sqliteAvailable
+                        ? FinoraColors.income
+                        : FinoraColors.warning,
+                  ),
+                  title: const Text(
+                    'Armazenamento local',
+                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                  ),
+                  subtitle: Text(
+                    store.sqliteAvailable
+                        ? 'SQLite ativo · espelho de compatibilidade da v0.3.9 mantido'
+                        : 'Modo de compatibilidade ativo · SQLite indisponível',
+                    style: const TextStyle(fontSize: 8.5),
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.science_outlined,
+""",
+          )
+          replace_once(
+              'lib/ui/settings_v038.dart',
+              "'Finora v0.3.9'",
+              "'Finora v0.4.0'",
+          )
+
+          # Versão no desktop.
+          replace_once(
+              'lib/ui/home_shell.dart',
+              "'Finora Desktop · v0.3.9\\nCtrl + N para novo lançamento'",
+              "'Finora Desktop · v0.4.0\\nCtrl + N para novo lançamento'",
+          )
+
+          # Tipagem estrita do confidence retornado por num.clamp.
+          replace_once(
+              'lib/ai/finance_ai.dart',
+              "confidence: ((result['confidence'] as num?)?.toDouble() ?? .5).clamp(0.0, 1.0),",
+              "confidence: ((result['confidence'] as num?)?.toDouble() ?? .5)\n          .clamp(0.0, 1.0)\n          .toDouble(),",
+          )
+
+      - name: Commitar integração
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'Integração já aplicada.'
+            exit 0
+          fi
+          git config user.name 'Finora CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib
+          git commit -m 'feat(v0.4): integra SQLite e Finora IA ao aplicativo'
+          git push origin HEAD:agent/finora-v040-ai-sqlite
