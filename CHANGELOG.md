@@ -2,6 +2,29 @@
 
 As mudanças relevantes do Finora são registradas aqui por versão.
 
+## [0.4.3] - 2026-08-30
+
+### Finora Assistant Engine
+- respostas passam por um contrato estruturado que separa texto, continuações e ações da interface, evitando que JSON, tags ou marcações internas apareçam no chat;
+- personalidade conversacional revisada para respostas naturais, diretas e proporcionais à pergunta, sem linguagem de relatório ou termos de implementação;
+- roteador de intenção separa consultas de saldo, gastos, cartões, planejamento, comparação e lançamentos antes de montar o contexto da IA;
+- perguntas simples sobre saldo, patrimônio, disponível para gastar e faturas podem ser respondidas localmente, com cálculos do próprio Finora e sem chamada ao Gemini;
+- o contexto enviado ao Gemini passa a ser seletivo conforme a pergunta, reduzindo tokens e exposição desnecessária de dados;
+- perguntas de continuação usam o histórico recente sem repetir toda a conversa ou informações já compreendidas;
+- respostas podem oferecer chips de continuação e ações para abrir Planejamento, Movimentações ou iniciar um lançamento;
+- frases de lançamento podem ser reconhecidas no modo Conversar, sem exigir troca manual para o modo Registrar;
+- quando falta conta, cartão ou destino de transferência, o assistente pergunta naturalmente e oferece opções reais em vez de mostrar um erro técnico;
+- sem chave Gemini, consultas financeiras locais básicas continuam disponíveis;
+- configuração inicial da chave dentro do chat ficou mais compacta e menos intrusiva;
+- indicador de confiança numérico foi removido da interface de lançamento e substituído por um aviso simples apenas quando a interpretação merece conferência extra.
+
+### Robustez
+- pós-processamento remove code fences, tags de raciocínio/apresentação, cabeçalhos Markdown e rótulos artificiais antes de exibir texto do modelo;
+- cálculos financeiros continuam no `FinanceStore`; o Gemini interpreta e explica, mas não se torna fonte de verdade para saldos, faturas ou previsões;
+- lançamentos continuam exigindo confirmação explícita antes de alterar qualquer dado;
+- adicionados testes para respostas locais, roteamento de intenção, detecção de lançamento e sanitização de respostas;
+- versão incrementada para `0.4.3+15`, sem alteração destrutiva no SQLite ou na migração existente.
+
 ## [0.4.2] - 2026-08-30
 
 ### Experiência da Finora IA
