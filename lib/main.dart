@@ -6,19 +6,22 @@ import 'notification_service.dart';
 import 'onboarding.dart';
 import 'screens.dart';
 import 'security.dart';
+import 'sqlite_store.dart';
 import 'store.dart';
 import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final store = FinanceStore();
+  // A partir da v0.4, o SQLite é o armazenamento primário. A classe mantém um
+  // espelho compatível da v0.3.9 para que a migração não destrua dados.
+  final store = SqliteFinanceStore();
   await store.load();
   await store.repairLegacyFutureTransactionEffects();
   await store.repairLegacyFutureTransferEffects();
 
   runApp(
-    ChangeNotifierProvider.value(
+    ChangeNotifierProvider<FinanceStore>.value(
       value: store,
       child: const FinoraApp(),
     ),
