@@ -144,15 +144,17 @@ jobs:
           {
             echo '### Android compilado com assinatura efêmera de CI'
             echo ''
-            echo 'A compilação foi validada. O APK temporário deste PR é publicado apenas como binário intermediário para reassinatura local e não deve ser instalado diretamente.'
+            echo 'A compilação foi validada, mas APK/AAB não foram publicados para evitar que uma chave descartável vire baseline de instalação.'
+            echo 'Configure os secrets descritos em `docs/SIGNING.md` para publicar releases instaláveis e atualizáveis.'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publicar APK temporário
+      - name: Publicar APK
+        if: steps.signing.outputs.stable == 'true' && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-APK-v${{ env.FINORA_VERSION }}-binario-temporario
+          name: Finora-APK-v${{ env.FINORA_VERSION }}
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 14
           path: build/app/outputs/flutter-apk/app-release.apk
 
       - name: Publicar AAB
