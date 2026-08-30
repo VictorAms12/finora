@@ -37,12 +37,12 @@ class _HomeShellState extends State<HomeShell> {
     );
   }
 
-  List<Widget> get pages => const [
-        DashboardScreen(),
-        PlanningScreen(),
-        FinoraAiScreen(),
-        TransactionsScreen(),
-        MoreScreen(),
+  List<Widget> get pages => [
+        const DashboardScreen(),
+        const PlanningScreen(),
+        FinoraAiScreen(onNavigatePage: go),
+        const TransactionsScreen(),
+        const MoreScreen(),
       ];
 
   @override
@@ -248,7 +248,7 @@ class _DesktopSidebar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
-              'Finora Desktop · v0.4.2\nCtrl + N para novo lançamento',
+              'Finora Desktop · v0.4.3\nCtrl + N para novo lançamento',
               style: TextStyle(
                 fontSize: 9,
                 height: 1.5,
