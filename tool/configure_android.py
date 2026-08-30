@@ -7,12 +7,25 @@ def configure_manifest() -> None:
     text = manifest.read_text(encoding="utf-8")
 
     permissions = """
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 """
-    if "android.permission.USE_BIOMETRIC" not in text:
+    if "android.permission.INTERNET" not in text:
         text = text.replace(">", ">" + permissions, 1)
+    else:
+        for permission in (
+            "android.permission.USE_BIOMETRIC",
+            "android.permission.POST_NOTIFICATIONS",
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+        ):
+            if permission not in text:
+                text = text.replace(
+                    ">",
+                    f'>\n    <uses-permission android:name="{permission}" />',
+                    1,
+                )
 
     if "android:allowBackup=" not in text:
         text = text.replace(
