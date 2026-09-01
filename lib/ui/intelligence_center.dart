@@ -9,6 +9,7 @@ import '../ai/finance_ai.dart';
 import '../ai/gemini_service.dart';
 import '../ai/receipt_ai.dart';
 import '../intelligence_engine.dart';
+import '../models.dart';
 import '../notification_service.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -126,7 +127,10 @@ class _IntelligenceCenterScreenState extends State<IntelligenceCenterScreen> {
         categories: store.expenseCategories,
       );
       if (!mounted) return;
-      setState(() => _receipt = result);
+      setState(() {
+        _receipt = result;
+        _processing = false;
+      });
       await _interpret(_receiptInput(result));
     } on GeminiApiException catch (error) {
       _snack(error.message);

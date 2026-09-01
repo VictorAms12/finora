@@ -111,7 +111,7 @@ class FinoraIntelligenceEngine {
 
     return IntelligenceReport(
       generatedAt: reference,
-      healthScore: score.clamp(0, 100),
+      healthScore: score.clamp(0, 100).toInt(),
       insights: insights.take(8).toList(growable: false),
       subscriptions: subscriptions.take(12).toList(growable: false),
       anomalies: anomalies.take(8).toList(growable: false),
