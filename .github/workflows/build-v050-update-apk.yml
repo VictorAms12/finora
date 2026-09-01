@@ -84,10 +84,22 @@ jobs:
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk dist/Finora-v0.5.0-ATUALIZA.apk
 
+      - name: Verificar certificado do APK pronto
+        shell: bash
+        run: |
+          set -euo pipefail
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -1)
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs dist/Finora-v0.5.0-ATUALIZA.apk > /tmp/apk-signing.txt
+          DIGEST=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' /tmp/apk-signing.txt | head -1 | tr '[:lower:]' '[:upper:]')
+          test "$DIGEST" = '3B9F5735033F60F9B5FB286CF5240A3BFB8C91B2D801E352BA8E8EAFEFDE5F34'
+          grep -q 'Verifies' /tmp/apk-signing.txt || true
+          rm -f /tmp/apk-signing.txt
+
       - name: Publicar APK compatível
         uses: actions/upload-artifact@v4
         with:
-          name: Finora-v0.5.0-ATUALIZA
+          name: Finora-v0.5.0-ATUALIZA-verificado
           if-no-files-found: error
           retention-days: 3
           path: dist/Finora-v0.5.0-ATUALIZA.apk
