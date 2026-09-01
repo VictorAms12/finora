@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
@@ -46,11 +45,10 @@ class GoalsScreen extends StatelessWidget {
                     .clamp(0.0, double.infinity)
                     .toDouble();
                 final now = DateTime.now();
-                final months =
-                    ((goal.deadline.year - now.year) * 12 +
-                            goal.deadline.month -
-                            now.month)
-                        .clamp(1, 1200);
+                final months = ((goal.deadline.year - now.year) * 12 +
+                        goal.deadline.month -
+                        now.month)
+                    .clamp(1, 1200);
                 final monthly = remaining / months;
 
                 return SurfaceCard(
@@ -88,14 +86,8 @@ class GoalsScreen extends StatelessWidget {
                               }
                             },
                             itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Editar'),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Excluir'),
-                              ),
+                              PopupMenuItem(value: 'edit', child: Text('Editar')),
+                              PopupMenuItem(value: 'delete', child: Text('Excluir')),
                             ],
                           ),
                         ],
@@ -189,8 +181,8 @@ class ReservesScreen extends StatelessWidget {
                 final ratio = reserve.target <= 0
                     ? 0.0
                     : (reserve.saved / reserve.target)
-                          .clamp(0.0, 1.0)
-                          .toDouble();
+                        .clamp(0.0, 1.0)
+                        .toDouble();
                 final referenceMonthlyCost = reserve.months <= 0
                     ? 0.0
                     : reserve.target / reserve.months;
@@ -242,14 +234,8 @@ class ReservesScreen extends StatelessWidget {
                               }
                             },
                             itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Editar'),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Excluir'),
-                              ),
+                              PopupMenuItem(value: 'edit', child: Text('Editar')),
+                              PopupMenuItem(value: 'delete', child: Text('Excluir')),
                             ],
                           ),
                         ],
@@ -284,8 +270,8 @@ class ReservesScreen extends StatelessWidget {
                         excess > 0
                             ? 'Meta superada em ${money(context, excess)}.'
                             : remaining <= 0
-                            ? 'Meta de proteção atingida.'
-                            : 'Faltam ${money(context, remaining)} para a meta.',
+                                ? 'Meta de proteção atingida.'
+                                : 'Faltam ${money(context, remaining)} para a meta.',
                         style: TextStyle(
                           fontSize: 8.8,
                           fontWeight: FontWeight.w700,
@@ -404,7 +390,10 @@ class InvestmentsScreen extends StatelessWidget {
                             PopupMenuButton<String>(
                               onSelected: (value) async {
                                 if (value == 'edit') {
-                                  showInvestmentForm(context, editing: item);
+                                  showInvestmentForm(
+                                    context,
+                                    editing: item,
+                                  );
                                 } else if (value == 'delete') {
                                   final ok = await confirmAction(
                                     context,

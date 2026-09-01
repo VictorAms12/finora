@@ -20,16 +20,15 @@ class FinoraTheme {
     final surface = dark ? const Color(0xFF080808) : const Color(0xFFFFFFFF);
     final field = dark ? const Color(0xFF101010) : const Color(0xFFF7F6F2);
     final line = dark ? const Color(0xFF202020) : const Color(0xFFE8E4DA);
-    final scheme =
-        ColorScheme.fromSeed(
-          seedColor: FinoraColors.gold,
-          brightness: dark ? Brightness.dark : Brightness.light,
-        ).copyWith(
-          primary: dark ? FinoraColors.goldBright : const Color(0xFF806027),
-          secondary: FinoraColors.gold,
-          surface: surface,
-          error: dark ? FinoraColors.expense : const Color(0xFFC84A52),
-        );
+    final scheme = ColorScheme.fromSeed(
+      seedColor: FinoraColors.gold,
+      brightness: dark ? Brightness.dark : Brightness.light,
+    ).copyWith(
+      primary: dark ? FinoraColors.goldBright : const Color(0xFF806027),
+      secondary: FinoraColors.gold,
+      surface: surface,
+      error: dark ? FinoraColors.expense : const Color(0xFFC84A52),
+    );
 
     return ThemeData(
       useMaterial3: true,
@@ -47,18 +46,9 @@ class FinoraTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: field,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: line),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: line),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: FinoraColors.goldBright),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: line)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: line)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: FinoraColors.goldBright)),
       ),
     );
   }
@@ -66,25 +56,19 @@ class FinoraTheme {
 
 class PremiumRoute<T> extends PageRouteBuilder<T> {
   PremiumRoute({required Widget page})
-    : super(
-        transitionDuration: const Duration(milliseconds: 280),
-        reverseTransitionDuration: const Duration(milliseconds: 220),
-        pageBuilder: (_, __, ___) => page,
-        transitionsBuilder: (_, animation, __, child) {
-          final curve = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-          );
-          return FadeTransition(
-            opacity: curve,
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(.06, 0),
-                end: Offset.zero,
-              ).animate(curve),
-              child: child,
-            ),
-          );
-        },
-      );
+      : super(
+          transitionDuration: const Duration(milliseconds: 280),
+          reverseTransitionDuration: const Duration(milliseconds: 220),
+          pageBuilder: (_, __, ___) => page,
+          transitionsBuilder: (_, animation, __, child) {
+            final curve = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+            return FadeTransition(
+              opacity: curve,
+              child: SlideTransition(
+                position: Tween<Offset>(begin: const Offset(.06, 0), end: Offset.zero).animate(curve),
+                child: child,
+              ),
+            );
+          },
+        );
 }

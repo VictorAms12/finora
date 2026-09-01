@@ -76,7 +76,8 @@ class CopilotMemoryScreen extends StatelessWidget {
               child: EmptyState(
                 icon: Icons.memory_outlined,
                 title: 'Nenhuma memória salva',
-                subtitle: 'Você pode dizer algo como “lembre que meu salário cai na Conta Principal” ou adicionar uma memória manualmente.',
+                subtitle:
+                    'Você pode dizer algo como “lembre que meu salário cai na Conta Principal” ou adicionar uma memória manualmente.',
                 actionLabel: 'Adicionar memória',
                 onAction: () => _showEditor(context),
               ),
@@ -121,9 +122,9 @@ class CopilotMemoryScreen extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 9.2,
                                 height: 1.4,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],

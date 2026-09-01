@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import '../theme.dart';
 import 'accounts.dart';
 import 'categories_settings.dart';
@@ -104,23 +103,24 @@ class MoreScreen extends StatelessWidget {
     String subtitle,
     Color color,
     Widget page,
-  ) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    leading: Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Icon(icon, color: color, size: 20),
-    ),
-    title: Text(
-      title,
-      style: const TextStyle(fontSize: 12.3, fontWeight: FontWeight.w900),
-    ),
-    subtitle: Text(subtitle, style: const TextStyle(fontSize: 8.8)),
-    trailing: const Icon(Icons.chevron_right_rounded),
-    onTap: () => Navigator.push(context, PremiumRoute(page: page)),
-  );
+  ) =>
+      ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: .10),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontSize: 12.3, fontWeight: FontWeight.w900),
+        ),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 8.8)),
+        trailing: const Icon(Icons.chevron_right_rounded),
+        onTap: () => Navigator.push(context, PremiumRoute(page: page)),
+      );
 }

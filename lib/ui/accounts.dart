@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -131,9 +130,7 @@ class AccountsScreen extends StatelessWidget {
                           Expanded(
                             child: Text(
                               card.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                              ),
+                              style: const TextStyle(fontWeight: FontWeight.w900),
                             ),
                           ),
                           PopupMenuButton<String>(
@@ -147,28 +144,16 @@ class AccountsScreen extends StatelessWidget {
                                   'Excluir cartão?',
                                   'O cartão será removido. Lançamentos históricos serão mantidos.',
                                 );
-                                if (ok &&
-                                    !store.deleteCard(card.id) &&
-                                    context.mounted) {
+                                if (ok && !store.deleteCard(card.id) && context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Este cartão ainda possui previsões ou recorrências ativas. Resolva esses vínculos antes de excluí-lo.',
-                                      ),
-                                    ),
+                                    const SnackBar(content: Text('Este cartão ainda possui previsões ou recorrências ativas. Resolva esses vínculos antes de excluí-lo.')),
                                   );
                                 }
                               }
                             },
                             itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'edit',
-                                child: Text('Editar'),
-                              ),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Excluir'),
-                              ),
+                              PopupMenuItem(value: 'edit', child: Text('Editar')),
+                              PopupMenuItem(value: 'delete', child: Text('Excluir')),
                             ],
                           ),
                         ],
@@ -186,8 +171,8 @@ class AccountsScreen extends StatelessWidget {
                         value: card.limit <= 0
                             ? 0.0
                             : (card.used / card.limit)
-                                  .clamp(0.0, 1.0)
-                                  .toDouble(),
+                                .clamp(0.0, 1.0)
+                                .toDouble(),
                         minHeight: 5,
                         borderRadius: BorderRadius.circular(20),
                         color: FinoraColors.expense,
@@ -227,10 +212,7 @@ class AccountsScreen extends StatelessWidget {
             children: [
               Text(
                 account.name,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 5),
               Text(
@@ -266,16 +248,10 @@ class AccountsScreen extends StatelessWidget {
                           'O saldo deixará de compor o patrimônio. O histórico será mantido.',
                         );
                         if (!ok || !context.mounted) return;
-                        final deleted = context
-                            .read<FinanceStore>()
-                            .deleteAccount(account.id);
+                        final deleted = context.read<FinanceStore>().deleteAccount(account.id);
                         if (!deleted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Esta conta ainda é usada por previsões ou recorrências ativas.',
-                              ),
-                            ),
+                            const SnackBar(content: Text('Esta conta ainda é usada por previsões ou recorrências ativas.')),
                           );
                           return;
                         }
@@ -311,41 +287,29 @@ class CardInvoiceScreen extends StatelessWidget {
       );
     }
 
-    final transactions = store.cardTransactionsForInvoiceMonth(
-      card.id,
-      store.selectedMonth,
-    );
-    final outstanding = store.invoiceDisplayOutstandingForMonth(
-      card.id,
-      store.selectedMonth,
-    );
+    final transactions =
+        store.cardTransactionsForInvoiceMonth(card.id, store.selectedMonth);
+    final outstanding =
+        store.invoiceDisplayOutstandingForMonth(card.id, store.selectedMonth);
 
-    final nextMonth = DateTime(
-      store.selectedMonth.year,
-      store.selectedMonth.month + 1,
-    );
-    final nextInvoice =
-        store.invoiceOutstandingForMonth(card.id, nextMonth) +
+    final nextMonth =
+        DateTime(store.selectedMonth.year, store.selectedMonth.month + 1);
+    final nextInvoice = store.invoiceOutstandingForMonth(card.id, nextMonth) +
         store.data.planned
-            .where(
-              (e) =>
-                  e.status == PlannedStatus.planned &&
-                  e.cardId == card.id &&
-                  e.invoiceMonth != null &&
-                  store.sameMonth(e.invoiceMonth!, nextMonth),
-            )
+            .where((e) =>
+                e.status == PlannedStatus.planned &&
+                e.cardId == card.id &&
+                e.invoiceMonth != null &&
+                store.sameMonth(e.invoiceMonth!, nextMonth))
             .fold<double>(0, (sum, item) => sum + item.amount);
 
-    final futureInstallments =
-        store.data.planned
-            .where(
-              (e) =>
-                  e.status == PlannedStatus.planned &&
-                  e.cardId == card.id &&
-                  e.installmentId != null,
-            )
-            .toList()
-          ..sort((a, b) => a.date.compareTo(b.date));
+    final futureInstallments = store.data.planned
+        .where((e) =>
+            e.status == PlannedStatus.planned &&
+            e.cardId == card.id &&
+            e.installmentId != null)
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
 
     return Scaffold(
       appBar: AppBar(
@@ -368,10 +332,7 @@ class CardInvoiceScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'FATURA DE ${monthShort[store.selectedMonth.month - 1]}',
-                  style: eyebrowStyle(context),
-                ),
+                Text('FATURA DE ${monthShort[store.selectedMonth.month - 1]}', style: eyebrowStyle(context)),
                 const SizedBox(height: 6),
                 Text(
                   money(context, outstanding),
@@ -443,7 +404,8 @@ class CardInvoiceScreen extends StatelessWidget {
                 ? const EmptyState(
                     icon: Icons.credit_card_outlined,
                     title: 'Sem compras nesta fatura',
-                    subtitle: 'As compras são atribuídas automaticamente pelo dia de fechamento.',
+                    subtitle:
+                        'As compras são atribuídas automaticamente pelo dia de fechamento.',
                   )
                 : Column(
                     children: transactions
@@ -508,28 +470,14 @@ class CardInvoiceScreen extends StatelessWidget {
     String label,
     String value,
     Color color,
-  ) => Column(
-    children: [
-      Text(
-        label,
-        style: TextStyle(
-          fontSize: 8,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-      const SizedBox(height: 4),
-      Text(
-        value,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 10,
-          color: color,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-    ],
-  );
+  ) =>
+      Column(
+        children: [
+          Text(label, style: TextStyle(fontSize: 8, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 4),
+          Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w900)),
+        ],
+      );
 
   Future<void> _pay(
     BuildContext context,
@@ -537,14 +485,12 @@ class CardInvoiceScreen extends StatelessWidget {
     double outstanding,
   ) async {
     final store = context.read<FinanceStore>();
-    var account =
-        card.defaultAccountName.isNotEmpty &&
+    var account = card.defaultAccountName.isNotEmpty &&
             store.data.accounts.any((e) => e.name == card.defaultAccountName)
         ? card.defaultAccountName
         : store.data.accounts.first.name;
 
-    final ok =
-        await showDialog<bool>(
+    final ok = await showDialog<bool>(
           context: context,
           builder: (dialogContext) => StatefulBuilder(
             builder: (_, setLocal) => AlertDialog(
@@ -564,9 +510,7 @@ class CardInvoiceScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: account,
-                    decoration: const InputDecoration(
-                      labelText: 'Pagar usando',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Pagar usando'),
                     items: store.data.accounts
                         .map(
                           (e) => DropdownMenuItem(
@@ -604,9 +548,7 @@ class CardInvoiceScreen extends StatelessWidget {
       );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            paid ? 'Fatura paga' : 'Não há saldo pendente nesta fatura.',
-          ),
+          content: Text(paid ? 'Fatura paga' : 'Não há saldo pendente nesta fatura.'),
         ),
       );
     }

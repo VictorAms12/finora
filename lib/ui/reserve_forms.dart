@@ -31,7 +31,9 @@ Future<void> showReserveEditor(
   final saved = TextEditingController(
     text: editing == null ? '0' : editing.saved.toStringAsFixed(2),
   );
-  final months = TextEditingController(text: (editing?.months ?? 6).toString());
+  final months = TextEditingController(
+    text: (editing?.months ?? 6).toString(),
+  );
 
   String? errorText;
 
@@ -54,10 +56,7 @@ Future<void> showReserveEditor(
             children: [
               Text(
                 editing == null ? 'Nova reserva' : 'Editar reserva',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
               Text(
@@ -76,22 +75,17 @@ Future<void> showReserveEditor(
               const SizedBox(height: 9),
               TextField(
                 controller: target,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Valor alvo',
                   prefixText: 'R\$ ',
-                  helperText:
-                      'Pode ser alterado sem reduzir o valor já guardado.',
+                  helperText: 'Pode ser alterado sem reduzir o valor já guardado.',
                 ),
               ),
               const SizedBox(height: 9),
               TextField(
                 controller: saved,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: const InputDecoration(
                   labelText: 'Valor guardado atualmente',
                   prefixText: 'R\$ ',
@@ -126,33 +120,19 @@ Future<void> showReserveEditor(
                   final monthsValue = int.tryParse(months.text.trim());
 
                   if (name.text.trim().isEmpty) {
-                    setLocal(
-                      () => errorText = 'Informe um nome para a reserva.',
-                    );
+                    setLocal(() => errorText = 'Informe um nome para a reserva.');
                     return;
                   }
-                  if (targetValue == null ||
-                      !store.isValidAmount(targetValue)) {
-                    setLocal(
-                      () => errorText = 'Informe um valor alvo maior que zero.',
-                    );
+                  if (targetValue == null || !store.isValidAmount(targetValue)) {
+                    setLocal(() => errorText = 'Informe um valor alvo maior que zero.');
                     return;
                   }
-                  if (savedValue == null ||
-                      !savedValue.isFinite ||
-                      savedValue < 0) {
-                    setLocal(
-                      () =>
-                          errorText = 'O valor guardado não pode ser negativo.',
-                    );
+                  if (savedValue == null || !savedValue.isFinite || savedValue < 0) {
+                    setLocal(() => errorText = 'O valor guardado não pode ser negativo.');
                     return;
                   }
-                  if (monthsValue == null ||
-                      monthsValue < 1 ||
-                      monthsValue > 60) {
-                    setLocal(
-                      () => errorText = 'Use de 1 a 60 meses de proteção.',
-                    );
+                  if (monthsValue == null || monthsValue < 1 || monthsValue > 60) {
+                    setLocal(() => errorText = 'Use de 1 a 60 meses de proteção.');
                     return;
                   }
 
@@ -172,16 +152,12 @@ Future<void> showReserveEditor(
                         );
 
                   if (!ok) {
-                    setLocal(
-                      () => errorText = 'Não foi possível salvar essa reserva.',
-                    );
+                    setLocal(() => errorText = 'Não foi possível salvar essa reserva.');
                     return;
                   }
                   Navigator.pop(sheetContext);
                 },
-                child: Text(
-                  editing == null ? 'Criar reserva' : 'Salvar alterações',
-                ),
+                child: Text(editing == null ? 'Criar reserva' : 'Salvar alterações'),
               ),
             ],
           ),
@@ -242,9 +218,7 @@ Future<void> showReserveMovement(
             TextField(
               controller: controller,
               autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: adding ? 'Valor do aporte' : 'Valor da retirada',
                 prefixText: 'R\$ ',
@@ -289,10 +263,7 @@ Future<void> showReserveMovement(
               if (adding) {
                 store.contributeReserve(reserve.id, value);
               } else if (!store.withdrawReserve(reserve.id, value)) {
-                setLocal(
-                  () => errorText =
-                      'A retirada não pode ser maior que o valor guardado.',
-                );
+                setLocal(() => errorText = 'A retirada não pode ser maior que o valor guardado.');
                 return;
               }
               Navigator.pop(dialogContext);

@@ -26,8 +26,8 @@ extension FinanceStoreTransactions on FinanceStore {
       paymentKind: item.paymentKind,
       cardId: item.cardId,
       recurrenceId: item.recurrenceId,
-      recurrenceDate:
-          item.recurrenceDate ?? (item.recurrenceId == null ? null : item.date),
+      recurrenceDate: item.recurrenceDate ??
+          (item.recurrenceId == null ? null : item.date),
       installmentId: item.installmentId,
       installmentNumber: item.installmentNumber,
       installmentTotal: item.installmentTotal,
@@ -35,8 +35,7 @@ extension FinanceStoreTransactions on FinanceStore {
     );
   }
 
-  bool _hasEquivalentPlanned(TransactionItem item) =>
-      data.planned.any((planned) {
+  bool _hasEquivalentPlanned(TransactionItem item) => data.planned.any((planned) {
         if (planned.status != PlannedStatus.planned) return false;
         if (item.recurrenceId != null &&
             planned.recurrenceId == item.recurrenceId) {
@@ -200,21 +199,17 @@ extension FinanceStoreTransactions on FinanceStore {
     if (prefs.getBool(repairKey) == true) return;
 
     final future = data.transactions
-        .where(
-          (item) =>
-              item.type != TransactionType.transfer &&
-              _isFutureTransactionDate(item.date),
-        )
+        .where((item) =>
+            item.type != TransactionType.transfer &&
+            _isFutureTransactionDate(item.date))
         .toList();
 
     for (final item in future) {
       _applyTransactionEffect(item, reverse: true);
 
-      final recurrenceStillExists =
-          item.recurrenceId == null ||
+      final recurrenceStillExists = item.recurrenceId == null ||
           data.recurringRules.any((rule) => rule.id == item.recurrenceId);
-      final installmentStillExists =
-          item.installmentId == null ||
+      final installmentStillExists = item.installmentId == null ||
           data.installmentPlans.any((plan) => plan.id == item.installmentId);
 
       if (recurrenceStillExists &&
@@ -244,12 +239,10 @@ extension FinanceStoreTransactions on FinanceStore {
     if (prefs.getBool(repairKey) == true) return;
 
     final futureTransfers = data.transactions
-        .where(
-          (item) =>
-              item.type == TransactionType.transfer &&
-              !item.title.startsWith('Pagamento fatura') &&
-              _isFutureTransactionDate(item.date),
-        )
+        .where((item) =>
+            item.type == TransactionType.transfer &&
+            !item.title.startsWith('Pagamento fatura') &&
+            _isFutureTransactionDate(item.date))
         .toList();
     var changed = false;
 
@@ -334,5 +327,6 @@ extension FinanceStoreTransactions on FinanceStore {
   List<TransactionItem> cardTransactionsForMonth(
     String cardId,
     DateTime month,
-  ) => cardTransactionsForInvoiceMonth(cardId, month);
+  ) =>
+      cardTransactionsForInvoiceMonth(cardId, month);
 }

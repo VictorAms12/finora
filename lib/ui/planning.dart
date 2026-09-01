@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -177,7 +176,8 @@ class PlanningScreen extends StatelessWidget {
                 ? EmptyState(
                     icon: Icons.calendar_today_outlined,
                     title: 'Nenhum compromisso pendente',
-                    subtitle: 'Adicione um previsto ou use recorrências e parcelamentos.',
+                    subtitle:
+                        'Adicione um previsto ou use recorrências e parcelamentos.',
                     actionLabel: 'Novo previsto',
                     onAction: () => showPlannedForm(context),
                   )
@@ -206,10 +206,8 @@ class PlanningScreen extends StatelessWidget {
               ),
               children: [
                 SurfaceCard(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   child: Column(
                     children: history
                         .map(
@@ -240,8 +238,8 @@ class PlanningScreen extends StatelessWidget {
                       final duration = item.maxOccurrences != null
                           ? '${item.maxOccurrences}x'
                           : item.endDate != null
-                          ? 'até ${shortDate(item.endDate!)}'
-                          : 'contínua';
+                              ? 'até ${shortDate(item.endDate!)}'
+                              : 'contínua';
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: Container(
@@ -258,8 +256,8 @@ class PlanningScreen extends StatelessWidget {
                             color: item.active
                                 ? FinoraColors.goldBright
                                 : Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                    .colorScheme
+                                    .onSurfaceVariant,
                           ),
                         ),
                         title: Text(
@@ -296,7 +294,8 @@ class PlanningScreen extends StatelessWidget {
                 ? const EmptyState(
                     icon: Icons.credit_card_outlined,
                     title: 'Nenhum parcelamento',
-                    subtitle: 'Ao parcelar uma despesa, as próximas parcelas entram no planejamento.',
+                    subtitle:
+                        'Ao parcelar uma despesa, as próximas parcelas entram no planejamento.',
                   )
                 : Column(
                     children: store.data.installmentPlans.map((item) {
@@ -307,7 +306,8 @@ class PlanningScreen extends StatelessWidget {
                           width: 38,
                           height: 38,
                           decoration: BoxDecoration(
-                            color: FinoraColors.expense.withValues(alpha: .09),
+                            color:
+                                FinoraColors.expense.withValues(alpha: .09),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
@@ -342,29 +342,30 @@ class PlanningScreen extends StatelessWidget {
     String label,
     String value,
     Color color,
-  ) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 4),
-    child: Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 8.2,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
+  ) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 8.2,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 10.4,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: color,
-            fontSize: 10.4,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
-    ),
-  );
+      );
 }

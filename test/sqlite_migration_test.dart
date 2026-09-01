@@ -77,41 +77,38 @@ void main() {
     await database.close();
   });
 
-  test(
-    'SQLite válido repara espelho legado corrompido no próximo load',
-    () async {
-      SharedPreferences.setMockInitialValues({});
-      final database = FinoraDatabase(
-        factoryOverride: databaseFactoryFfi,
-        pathOverride: inMemoryDatabasePath,
-      );
-      final first = SqliteFinanceStore(database: database);
-      await first.load();
-      first.data.onboardingCompleted = true;
-      first.data.accounts.add(
-        AccountItem(
-          id: 'sqlite-account',
-          name: 'Conta do SQLite',
-          type: 'Conta',
-          balance: 99,
-        ),
-      );
-      first.commit();
-      await first.flushPersistence();
+  test('SQLite válido repara espelho legado corrompido no próximo load', () async {
+    SharedPreferences.setMockInitialValues({});
+    final database = FinoraDatabase(
+      factoryOverride: databaseFactoryFfi,
+      pathOverride: inMemoryDatabasePath,
+    );
+    final first = SqliteFinanceStore(database: database);
+    await first.load();
+    first.data.onboardingCompleted = true;
+    first.data.accounts.add(
+      AccountItem(
+        id: 'sqlite-account',
+        name: 'Conta do SQLite',
+        type: 'Conta',
+        balance: 99,
+      ),
+    );
+    first.commit();
+    await first.flushPersistence();
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('finora_data_v02', '{corrompido');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('finora_data_v02', '{corrompido');
 
-      final second = SqliteFinanceStore(database: database);
-      await second.load();
+    final second = SqliteFinanceStore(database: database);
+    await second.load();
 
-      expect(second.sqliteAvailable, isTrue);
-      expect(second.data.accounts.single.name, 'Conta do SQLite');
-      expect(_validJsonObject(prefs.getString('finora_data_v02')), isTrue);
+    expect(second.sqliteAvailable, isTrue);
+    expect(second.data.accounts.single.name, 'Conta do SQLite');
+    expect(_validJsonObject(prefs.getString('finora_data_v02')), isTrue);
 
-      await database.close();
-    },
-  );
+    await database.close();
+  });
 }
 
 bool _validJsonObject(String? raw) {

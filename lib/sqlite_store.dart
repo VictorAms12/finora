@@ -24,7 +24,7 @@ class SqliteFinanceStore extends FinanceStore {
   String? _storageError;
 
   SqliteFinanceStore({FinoraDatabase? database})
-    : database = database ?? FinoraDatabase();
+      : database = database ?? FinoraDatabase();
 
   bool get sqliteAvailable => _sqliteAvailable;
   String? get storageError => _storageError;
@@ -157,8 +157,7 @@ class SqliteFinanceStore extends FinanceStore {
 
 extension FinanceStoreStorageStatus on FinanceStore {
   bool get sqliteActive =>
-      this is SqliteFinanceStore &&
-      (this as SqliteFinanceStore).sqliteAvailable;
+      this is SqliteFinanceStore && (this as SqliteFinanceStore).sqliteAvailable;
 
   String? get sqliteFailure => this is SqliteFinanceStore
       ? (this as SqliteFinanceStore).storageError

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -14,14 +13,11 @@ class NotificationCenterScreen extends StatelessWidget {
     final store = context.watch<FinanceStore>();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final threshold = today.add(
-      Duration(days: store.data.notificationDaysBefore),
-    );
-    final pending =
-        store.data.planned
-            .where((item) => item.status == PlannedStatus.planned)
-            .toList()
-          ..sort((a, b) => a.date.compareTo(b.date));
+    final threshold = today.add(Duration(days: store.data.notificationDaysBefore));
+    final pending = store.data.planned
+        .where((item) => item.status == PlannedStatus.planned)
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
 
     final overdue = pending.where((item) => item.isOverdue).toList();
     final upcoming = pending.where((item) {
@@ -30,36 +26,30 @@ class NotificationCenterScreen extends StatelessWidget {
     }).toList();
 
     final notices = <_Notice>[
-      ...overdue.map(
-        (item) => _Notice(
-          icon: Icons.error_outline_rounded,
-          title: '${item.title} está atrasado',
-          subtitle: '${fullDate(item.date)} · ${money(context, item.amount)}',
-          color: FinoraColors.expense,
-        ),
-      ),
-      ...upcoming.map(
-        (item) => _Notice(
-          icon: Icons.schedule_rounded,
-          title: item.title,
-          subtitle:
-              'Previsto para ${fullDate(item.date)} · ${money(context, item.amount)}',
-          color: FinoraColors.warning,
-        ),
-      ),
+      ...overdue.map((item) => _Notice(
+            icon: Icons.error_outline_rounded,
+            title: '${item.title} está atrasado',
+            subtitle: '${fullDate(item.date)} · ${money(context, item.amount)}',
+            color: FinoraColors.expense,
+          )),
+      ...upcoming.map((item) => _Notice(
+            icon: Icons.schedule_rounded,
+            title: item.title,
+            subtitle:
+                'Previsto para ${fullDate(item.date)} · ${money(context, item.amount)}',
+            color: FinoraColors.warning,
+          )),
     ];
 
     for (final card in store.data.cards) {
       final amount = store.cardOutstandingDueForPlanningMonth(card.id, today);
       if (amount <= 0) continue;
-      notices.add(
-        _Notice(
-          icon: Icons.credit_card_rounded,
-          title: '${card.name} · fatura',
-          subtitle: 'Vence dia ${card.dueDay} · ${money(context, amount)}',
-          color: FinoraColors.expense,
-        ),
-      );
+      notices.add(_Notice(
+        icon: Icons.credit_card_rounded,
+        title: '${card.name} · fatura',
+        subtitle: 'Vence dia ${card.dueDay} · ${money(context, amount)}',
+        color: FinoraColors.expense,
+      ));
     }
 
     return Scaffold(
@@ -69,7 +59,8 @@ class NotificationCenterScreen extends StatelessWidget {
               child: EmptyState(
                 icon: Icons.notifications_none_rounded,
                 title: 'Tudo em dia',
-                subtitle: 'Contas próximas, atrasos e avisos de fatura aparecerão aqui.',
+                subtitle:
+                    'Contas próximas, atrasos e avisos de fatura aparecerão aqui.',
               ),
             )
           : ListView.separated(
