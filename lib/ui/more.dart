@@ -4,6 +4,7 @@ import 'accounts.dart';
 import 'categories_settings.dart';
 import 'common.dart';
 import 'goals_reserves.dart';
+import 'intelligence_center.dart';
 import 'reports.dart';
 
 class MoreScreen extends StatelessWidget {
@@ -18,6 +19,14 @@ class MoreScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Column(
           children: [
+            _item(
+              context,
+              Icons.auto_awesome_rounded,
+              'Finora Intelligence',
+              'Voz, comprovantes, recorrências e alertas inteligentes',
+              FinoraColors.investment,
+              const IntelligenceCenterScreen(),
+            ),
             _item(
               context,
               Icons.track_changes_rounded,
