@@ -435,7 +435,7 @@ class FinancialQueryEngine {
 
   double? _moneyFromText(String text) {
     final explicit = RegExp(
-      r'r\$\s*([0-9]{1,3}(?:\.[0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:[\.,][0-9]{1,2})?)',
+      r'r\$\s*([0-9][0-9.,]*)',
       caseSensitive: false,
     ).firstMatch(text);
     final candidates = <double>[];

@@ -716,8 +716,9 @@ ${jsonEncode(context)}
   AiAssistantIntent detectIntent(String question) {
     final clean = _fold(question);
     if (_looksLikeTransaction(clean)) return AiAssistantIntent.transaction;
-    if (_hasAny(clean, ['cartao', 'fatura', 'limite']))
+    if (_hasAny(clean, ['cartao', 'fatura', 'limite'])) {
       return AiAssistantIntent.cards;
+    }
     if (_hasAny(clean, ['conta', 'saldo', 'patrimonio', 'quanto tenho'])) {
       return AiAssistantIntent.balance;
     }
