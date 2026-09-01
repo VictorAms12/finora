@@ -18,17 +18,62 @@ jobs:
         with:
           ref: feature/finora-v050-copilot
 
-      - name: Corrigir lint final do roteador
+      - name: Corrigir parser monetário e lint final
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('lib/ai/finance_ai.dart')
-          s = p.read_text(encoding='utf-8')
+
+          finance = Path('lib/ai/finance_ai.dart')
+          s = finance.read_text(encoding='utf-8')
           old = "    if (_hasAny(clean, ['cartao', 'fatura', 'limite']))\n      return AiAssistantIntent.cards;"
           new = "    if (_hasAny(clean, ['cartao', 'fatura', 'limite'])) {\n      return AiAssistantIntent.cards;\n    }"
-          if old not in s:
-              raise SystemExit('trecho alvo não encontrado')
-          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          if old in s:
+              s = s.replace(old, new, 1)
+          finance.write_text(s, encoding='utf-8')
+
+          copilot = Path('lib/ai/copilot.dart')
+          s = copilot.read_text(encoding='utf-8')
+          old_regex = "      r'r\\$\\s*([0-9]{1,3}(?:\\.[0-9]{3})*(?:,[0-9]{1,2})?|[0-9]+(?:[\\.,][0-9]{1,2})?)',"
+          new_regex = "      r'r\\$\\s*([0-9][0-9.,]*)',"
+          if old_regex not in s:
+              raise SystemExit('regex monetária alvo não encontrada')
+          s = s.replace(old_regex, new_regex, 1)
+
+          old_parser = """  double? _parseNumber(String value) {
+    var clean = value.trim();
+    if (clean.contains(',') && clean.contains('.')) {
+      clean = clean.replaceAll('.', '').replaceAll(',', '.');
+    } else if (clean.contains(',')) {
+      clean = clean.replaceAll(',', '.');
+    }
+    return double.tryParse(clean);
+  }
+"""
+          new_parser = """  double? _parseNumber(String value) {
+    var clean = value.trim();
+    if (clean.isEmpty) return null;
+
+    if (clean.contains(',') && clean.contains('.')) {
+      // Formato pt-BR: 1.234,56.
+      clean = clean.replaceAll('.', '').replaceAll(',', '.');
+    } else if (clean.contains(',')) {
+      // Vírgula é separador decimal no formato brasileiro.
+      clean = clean.replaceAll(',', '.');
+    } else if (clean.contains('.')) {
+      final parts = clean.split('.');
+      if (parts.length > 2 ||
+          (parts.length == 2 && parts.last.length == 3 && parts.first.length <= 3)) {
+        // Pontos em 1.200 ou 1.234.567 são separadores de milhar.
+        clean = clean.replaceAll('.', '');
+      }
+    }
+    return double.tryParse(clean);
+  }
+"""
+          if old_parser not in s:
+              raise SystemExit('parser numérico alvo não encontrado')
+          s = s.replace(old_parser, new_parser, 1)
+          copilot.write_text(s, encoding='utf-8')
           PY
 
       - uses: subosito/flutter-action@v2
@@ -40,7 +85,7 @@ jobs:
         run: flutter pub get
 
       - name: Formatar
-        run: dart format lib/ai/finance_ai.dart
+        run: dart format lib/ai/copilot.dart lib/ai/finance_ai.dart
 
       - name: Analyzer
         run: flutter analyze
