@@ -88,13 +88,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          APK='dist/Finora-v0.5.0-ATUALIZA.apk'
+          EXPECTED='3B9F5735033F60F9B5FB286CF5240A3BFB8C91B2D801E352BA8E8EAFEFDE5F34'
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner | sort -V | tail -1)
           test -x "$APKSIGNER"
-          "$APKSIGNER" verify --verbose --print-certs dist/Finora-v0.5.0-ATUALIZA.apk > /tmp/apk-signing.txt
-          DIGEST=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' /tmp/apk-signing.txt | head -1 | tr '[:lower:]' '[:upper:]')
-          test "$DIGEST" = '3B9F5735033F60F9B5FB286CF5240A3BFB8C91B2D801E352BA8E8EAFEFDE5F34'
-          grep -q 'Verifies' /tmp/apk-signing.txt || true
-          rm -f /tmp/apk-signing.txt
+
+          set +e
+          "$APKSIGNER" verify --verbose --print-certs "$APK" 2>&1 | tee /tmp/apk-signing.txt
+          VERIFY_STATUS=${PIPESTATUS[0]}
+          set -e
+          if [[ "$VERIFY_STATUS" -ne 0 ]]; then
+            echo "apksigner não conseguiu validar o APK."
+            exit "$VERIFY_STATUS"
+          fi
+
+          DIGEST=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' /tmp/apk-signing.txt | head -1 | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')
+          echo "Fingerprint normalizado do APK: $DIGEST"
+          if [[ -z "$DIGEST" ]]; then
+            echo "Não foi possível extrair o SHA-256 do certificado do APK."
+            exit 1
+          fi
+          if [[ "$DIGEST" != "$EXPECTED" ]]; then
+            echo "Certificado incompatível com a linha instalada do Finora."
+            exit 1
+          fi
+          echo "APK assinado com o certificado histórico correto."
 
       - name: Publicar APK compatível
         uses: actions/upload-artifact@v4
