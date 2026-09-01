@@ -59,7 +59,11 @@ class CategoriesScreen extends StatelessWidget {
                             showCategoryForm(context, editing: item);
                           } else if (value == 'delete') {
                             final ok = await confirmAction(context, 'Excluir categoria?', 'Os lançamentos antigos continuarão com o nome atual.');
-                            if (ok) store.deleteCategory(item.id);
+                            if (ok && !store.deleteCategory(item.id) && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Esta categoria ainda é usada por orçamento, previsão ou recorrência ativa.')),
+                              );
+                            }
                           }
                         },
                         itemBuilder: (_) => const [

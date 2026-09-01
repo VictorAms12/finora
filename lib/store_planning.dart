@@ -57,15 +57,7 @@ extension FinanceStorePlanning on FinanceStore {
     return total;
   }
 
-  double get currentAvailableToSpend {
-    final now = DateTime.now();
-    return (cashBalance +
-            cashPlannedReceivableForMonth(now) -
-            cashPlannedPayableForMonth(now) -
-            suggestedGoalContribution)
-        .clamp(0.0, double.infinity)
-        .toDouble();
-  }
+  double get currentAvailableToSpend => availableToSpend;
 
   double get currentAvailablePerDay {
     final now = DateTime.now();
@@ -182,7 +174,8 @@ extension FinanceStorePlanning on FinanceStore {
     DateTime occurrence,
   ) =>
       data.transactions.any((tx) =>
-          tx.recurrenceId == rule.id && sameDay(tx.date, occurrence));
+          tx.recurrenceId == rule.id &&
+          sameDay(tx.recurrenceDate ?? tx.date, occurrence));
 
   void _updateRecurringPlannedItem(
     PlannedItem item,
@@ -362,6 +355,7 @@ extension FinanceStorePlanning on FinanceStore {
         paymentKind: paymentKind,
         cardId: cardId,
         recurrenceId: id,
+        recurrenceDate: startDate,
       ));
     }
 
@@ -425,6 +419,7 @@ extension FinanceStorePlanning on FinanceStore {
         account: sourceName,
         paymentKind: PaymentKind.account,
         recurrenceId: id,
+        recurrenceDate: firstDate,
       ));
     }
     _materializeRecurringFuture(rule);
@@ -604,6 +599,8 @@ extension FinanceStorePlanning on FinanceStore {
       paymentKind: item.paymentKind,
       cardId: item.cardId,
       recurrenceId: item.recurrenceId,
+      recurrenceDate:
+          item.recurrenceId == null ? null : item.canonicalRecurrenceDate,
       installmentId: item.installmentId,
       installmentNumber: item.installmentNumber,
       installmentTotal: item.installmentTotal,

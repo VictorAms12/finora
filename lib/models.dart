@@ -112,6 +112,7 @@ class TransactionItem {
   String? cardId;
   String note;
   String? recurrenceId;
+  DateTime? recurrenceDate;
   String? installmentId;
   int? installmentNumber;
   int? installmentTotal;
@@ -129,6 +130,7 @@ class TransactionItem {
     this.cardId,
     this.note = '',
     this.recurrenceId,
+    this.recurrenceDate,
     this.installmentId,
     this.installmentNumber,
     this.installmentTotal,
@@ -147,6 +149,7 @@ class TransactionItem {
         'cardId': cardId,
         'note': note,
         'recurrenceId': recurrenceId,
+        'recurrenceDate': recurrenceDate?.toIso8601String(),
         'installmentId': installmentId,
         'installmentNumber': installmentNumber,
         'installmentTotal': installmentTotal,
@@ -171,6 +174,8 @@ class TransactionItem {
         cardId: j['cardId'] as String?,
         note: j['note'] as String? ?? '',
         recurrenceId: j['recurrenceId'] as String?,
+        recurrenceDate:
+            DateTime.tryParse(j['recurrenceDate'] as String? ?? ''),
         installmentId: j['installmentId'] as String?,
         installmentNumber: (j['installmentNumber'] as num?)?.toInt(),
         installmentTotal: (j['installmentTotal'] as num?)?.toInt(),

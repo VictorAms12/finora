@@ -5,9 +5,13 @@ import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
 import 'forms_v035.dart' as v035;
+import 'reserve_forms.dart' as reserve_ui;
 
 export 'forms_v035.dart'
-    hide showPlannedDetails, showQuickActions, showPlannedForm;
+    hide showPlannedDetails, showQuickActions, showPlannedForm, showReserveForm;
+
+Future<void> showReserveForm(BuildContext context, {ReserveItem? editing}) =>
+    reserve_ui.showReserveEditor(context, editing: editing);
 
 Future<void> showQuickActions(BuildContext context) async {
   await showModalBottomSheet<void>(
@@ -195,7 +199,7 @@ Future<void> showQuickActions(BuildContext context) async {
                     FinoraColors.warning,
                     () {
                       Navigator.pop(sheetContext);
-                      v035.showReserveForm(context);
+                      showReserveForm(context);
                     },
                   ),
                   _smallQuickAction(

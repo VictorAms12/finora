@@ -134,10 +134,15 @@ class FinanceStore extends ChangeNotifier {
     _expensesByCategoryByMonth.clear();
   }
 
+  @protected
+  void onStateCommitted(String raw) {}
+
   void commit() {
     _invalidateCaches();
     _ensureMonthlyTracking();
-    _queueSave(data.encode());
+    final raw = data.encode();
+    _queueSave(raw);
+    onStateCommitted(raw);
     notifyListeners();
   }
 
@@ -370,14 +375,18 @@ class FinanceStore extends ChangeNotifier {
             sum + (goal.target - goal.saved).clamp(0.0, 200.0).toDouble(),
       );
 
-  double get availableToSpend {
+  double get cashAfterCommitments {
     final now = DateTime.now();
-    final receivable = cashPlannedReceivableForMonth(now);
-    final payable = cashPlannedPayableForMonth(now);
-    return (cashBalance + receivable - payable - suggestedGoalContribution)
-        .clamp(0.0, double.infinity)
-        .toDouble();
+    return cashBalance +
+        cashPlannedReceivableForMonth(now) -
+        cashPlannedPayableForMonth(now);
   }
+
+  double get currentCashShortfall =>
+      (-cashAfterCommitments).clamp(0.0, double.infinity).toDouble();
+
+  double get availableToSpend =>
+      cashAfterCommitments.clamp(0.0, double.infinity).toDouble();
 
   double get availablePerDay {
     final now = DateTime.now();
@@ -604,6 +613,14 @@ class FinanceStore extends ChangeNotifier {
       (invoiceTotalForMonth(cardId, month) - invoicePaidForMonth(cardId, month))
           .clamp(0.0, double.infinity)
           .toDouble();
+
+  double invoiceDisplayOutstandingForMonth(String cardId, DateTime month) {
+    var amount = invoiceOutstandingForMonth(cardId, month);
+    if (sameMonth(month, DateTime.now())) {
+      amount += manualCardOutstanding(cardId);
+    }
+    return amount;
+  }
 
   double trackedCardOutstanding(String cardId) {
     final months = <String, DateTime>{};

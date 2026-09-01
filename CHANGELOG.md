@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.4.5] - 2026-09-01
+
+### Integridade e comportamento
+- auditoria geral das regras de conta, cartão, fatura, planejamento, recorrências, parcelas, metas, SQLite e IA;
+- editar fechamento/vencimento de cartão deixa de reclassificar compras históricas em outras faturas;
+- cartões não aceitam valor usado abaixo da dívida já rastreada;
+- contas/cartões/categorias com compromissos ativos deixam de ser excluídos de forma a criar referências órfãs;
+- nomes de contas removidas permanecem reservados enquanto existirem lançamentos históricos, evitando que operações antigas alterem uma nova conta homônima;
+- apagar ocorrência recorrente realizada mantém uma marca de ignorada e impede reaparecimento;
+- apagar parcela realizada devolve a obrigação ao planejamento quando o parcelamento ainda existe;
+- metas passam a preservar valores acumulados acima do alvo, inclusive após redução da meta;
+- transferências e pagamentos de fatura podem ser excluídos pela interface e têm os efeitos revertidos;
+- realizar previsto inválido deixa de fechar a tela silenciosamente.
+
+### Cálculos e consistência
+- “Disponível para gastar” passa a considerar apenas saldo, entradas e compromissos reais; sugestão de aporte em metas deixa de ser descontada como se fosse dívida;
+- déficit de caixa previsto passa a ser exposto separadamente;
+- IA, tela de cartão e pagamento de fatura compartilham o mesmo cálculo de fatura atual;
+- meses históricos sem snapshot são identificados como resultado do mês, não como saldo final conhecido.
+
+### Persistência e desempenho
+- commits serializam o estado uma vez e reutilizam o mesmo snapshot para SQLite e espelho legado;
+- SQLite marca gravações incompletas e, após falha, prefere o espelho mais novo no próximo início antes de ressincronizar o banco;
+- índice SQLite de movimentações só é reconstruído quando transações/planejamento mudam, evitando trabalho pesado em alterações de tema, reserva ou configurações.
+
+### UX e manutenção
+- entradas numéricas passam a aceitar melhor formatos brasileiros como `1.234,56`;
+- atalhos de reserva usam o editor corrigido;
+- formulários críticos mostram falha em vez de fechar como se tivessem salvo;
+- versão exibida foi centralizada para evitar rodapés desatualizados;
+- adicionada suíte de regressão específica para os problemas encontrados na auditoria.
+
 As mudanças relevantes do Finora são registradas aqui por versão.
 
 ## [0.4.4] - 2026-09-01

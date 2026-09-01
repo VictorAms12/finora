@@ -10,6 +10,21 @@ extension FinanceStoreEntities on FinanceStore {
         account.id != exceptId && _normalizedName(account.name) == normalized);
   }
 
+  bool _historicalAccountNameUsed(String name) {
+    final normalized = _normalizedName(name);
+    for (final tx in data.transactions) {
+      if (tx.type == TransactionType.transfer) {
+        final pair = transferAccounts(tx);
+        if (pair != null && pair.any((value) => _normalizedName(value) == normalized)) {
+          return true;
+        }
+      } else if (_normalizedName(tx.account) == normalized) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool _categoryNameExists(String name, bool income, {String? exceptId}) {
     final normalized = _normalizedName(name);
     final defaults = income
@@ -71,6 +86,14 @@ extension FinanceStoreEntities on FinanceStore {
     }
 
     final oldName = item.name;
+    if (income != item.income) {
+      final referenced = data.transactions.any((e) => e.category == oldName) ||
+          data.planned.any((e) => e.category == oldName) ||
+          data.recurringRules.any((e) => e.category == oldName) ||
+          data.installmentPlans.any((e) => e.category == oldName) ||
+          data.budgets.any((e) => e.category == oldName);
+      if (referenced) return false;
+    }
     item.name = clean;
     item.income = income;
     for (final tx in data.transactions.where((e) => e.category == oldName)) {
@@ -97,9 +120,18 @@ extension FinanceStoreEntities on FinanceStore {
     return true;
   }
 
-  void deleteCategory(String id) {
-    data.categories.removeWhere((e) => e.id == id);
+  bool deleteCategory(String id) {
+    final index = data.categories.indexWhere((e) => e.id == id);
+    if (index == -1) return false;
+    final name = data.categories[index].name;
+    final inUse = data.budgets.any((e) => e.category == name) ||
+        data.planned.any((e) =>
+            e.status == PlannedStatus.planned && e.category == name) ||
+        data.recurringRules.any((e) => e.active && e.category == name);
+    if (inUse) return false;
+    data.categories.removeAt(index);
     commit();
+    return true;
   }
 
   bool addGoal(String name, double target, double saved, DateTime deadline) {
@@ -110,7 +142,7 @@ extension FinanceStoreEntities on FinanceStore {
       name: clean,
       target: target,
       saved: saved.isFinite
-          ? saved.clamp(0.0, target).toDouble()
+          ? saved.clamp(0.0, double.infinity).toDouble()
           : 0,
       deadline: deadline,
     ));
@@ -130,7 +162,7 @@ extension FinanceStoreEntities on FinanceStore {
     item.name = clean;
     item.target = target;
     item.saved = saved.isFinite
-        ? saved.clamp(0.0, target).toDouble()
+        ? saved.clamp(0.0, double.infinity).toDouble()
         : 0;
     item.deadline = deadline;
     commit();
@@ -238,7 +270,10 @@ extension FinanceStoreEntities on FinanceStore {
     String type = 'Conta digital',
   }) {
     final clean = name.trim();
-    if (clean.isEmpty || accountNameExists(clean) || !balance.isFinite) {
+    if (clean.isEmpty ||
+        accountNameExists(clean) ||
+        _historicalAccountNameUsed(clean) ||
+        !balance.isFinite) {
       return false;
     }
     data.accounts.add(AccountItem(
@@ -298,16 +333,25 @@ extension FinanceStoreEntities on FinanceStore {
     return true;
   }
 
-  void deleteAccount(String id) {
+  bool deleteAccount(String id) {
     final index = data.accounts.indexWhere((e) => e.id == id);
-    if (index == -1) return;
+    if (index == -1) return false;
     final removedName = data.accounts[index].name;
-    data.accounts.removeAt(index);
+    final hasPending = data.planned.any((item) =>
+        item.status == PlannedStatus.planned &&
+        (item.sourceName == removedName || item.destinationName == removedName));
+    final hasRecurring = data.recurringRules.any((rule) =>
+        rule.active &&
+        rule.paymentKind == PaymentKind.account &&
+        rule.sourceName == removedName);
+    if (hasPending || hasRecurring) return false;
 
+    data.accounts.removeAt(index);
     for (final card in data.cards.where((e) => e.defaultAccountName == removedName)) {
       card.defaultAccountName = '';
     }
     commit();
+    return true;
   }
 
   bool addCard(
@@ -344,6 +388,8 @@ extension FinanceStoreEntities on FinanceStore {
   ) {
     final clean = name.trim();
     if (clean.isEmpty || !isValidAmount(limit) || !used.isFinite) return false;
+    final tracked = trackedCardOutstanding(item.id);
+    if (used < -0.005 || used + 0.005 < tracked) return false;
 
     final oldName = item.name;
     item.name = clean;
@@ -353,15 +399,25 @@ extension FinanceStoreEntities on FinanceStore {
     item.dueDay = dueDay.clamp(1, 31);
     item.defaultAccountName = defaultAccountName;
 
+    // Faturas históricas são fatos. Alterar fechamento/vencimento só afeta
+    // compromissos ainda pendentes; compras já realizadas mantêm competência.
     for (final tx in data.transactions.where((e) =>
         e.paymentKind == PaymentKind.card && e.cardId == item.id)) {
       tx.account = clean;
-      tx.invoiceMonth = invoiceMonthForPurchase(item, tx.date);
     }
-    for (final planned in data.planned.where((e) =>
-        e.paymentKind == PaymentKind.card && e.cardId == item.id)) {
+    for (final tx in data.transactions.where((e) =>
+        e.type == TransactionType.transfer &&
+        e.cardId == item.id &&
+        e.title.startsWith('Pagamento fatura'))) {
+      final pair = transferAccounts(tx);
+      if (pair != null) tx.account = '${pair[0]} → $clean';
+      tx.title = 'Pagamento fatura $clean';
+    }
+    for (final planned in data.planned.where((e) => e.cardId == item.id)) {
       planned.sourceName = clean;
-      planned.invoiceMonth = invoiceMonthForPurchase(item, planned.date);
+      if (planned.status == PlannedStatus.planned) {
+        planned.invoiceMonth = invoiceMonthForPurchase(item, planned.date);
+      }
     }
     for (final rule in data.recurringRules.where((e) => e.cardId == item.id)) {
       rule.sourceName = clean;
@@ -376,9 +432,17 @@ extension FinanceStoreEntities on FinanceStore {
     return true;
   }
 
-  void deleteCard(String id) {
+  bool deleteCard(String id) {
+    final exists = data.cards.any((e) => e.id == id);
+    if (!exists) return false;
+    final hasPending = data.planned.any((item) =>
+        item.status == PlannedStatus.planned && item.cardId == id);
+    final hasRecurring =
+        data.recurringRules.any((rule) => rule.active && rule.cardId == id);
+    if (hasPending || hasRecurring) return false;
     data.cards.removeWhere((e) => e.id == id);
     commit();
+    return true;
   }
 
   void contributeGoal(String id, double value) {
@@ -386,7 +450,7 @@ extension FinanceStoreEntities on FinanceStore {
     final index = data.goals.indexWhere((e) => e.id == id);
     if (index == -1) return;
     final item = data.goals[index];
-    item.saved = (item.saved + value).clamp(0.0, item.target).toDouble();
+    item.saved = (item.saved + value).clamp(0.0, double.infinity).toDouble();
     commit();
   }
 

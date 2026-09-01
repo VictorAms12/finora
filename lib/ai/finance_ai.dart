@@ -109,7 +109,7 @@ class AiTransactionSuggestion {
     if (isCard && card == null) return false;
     if (!isCard && account == null) return false;
 
-    store.addTransaction(
+    return store.addTransaction(
       TransactionItem(
         id: FinanceStore.newId(),
         type: type,
@@ -123,7 +123,6 @@ class AiTransactionSuggestion {
         note: note.isEmpty ? 'Criado via Finora IA' : '$note · Finora IA',
       ),
     );
-    return true;
   }
 }
 
@@ -329,7 +328,10 @@ $clean
         ? 'Transferência'
         : _resolveCategory(categories, result['category']?.toString() ?? '');
     final date = DateTime.tryParse(result['date']?.toString() ?? '') ?? DateTime.now();
-    final titleValue = result['title']?.toString().trim() ?? '';
+    if (date.year < 2020 || date.year > 2100) {
+      return const AiTransactionInterpretation.clarify('Qual é a data desse lançamento?');
+    }
+    final titleValue = _truncate(result['title']?.toString().trim() ?? '', 120);
     final title = titleValue.isNotEmpty
         ? titleValue
         : type == TransactionType.income
@@ -349,7 +351,7 @@ $clean
         accountName: accountName,
         destinationAccountName: destination,
         cardId: cardId,
-        note: result['note']?.toString().trim() ?? '',
+        note: _truncate(result['note']?.toString().trim() ?? '', 500),
         confidence: ((result['confidence'] as num?)?.toDouble() ?? .5)
             .clamp(0.0, 1.0)
             .toDouble(),
@@ -489,8 +491,9 @@ ${jsonEncode(context)}
       'disponível para gastar',
       'quanto ainda posso gastar',
     ])) {
-      final payable = store.plannedPayableForMonth(selected);
-      final receivable = store.plannedReceivableForMonth(selected);
+      final now = DateTime.now();
+      final payable = store.cashPlannedPayableForMonth(now);
+      final receivable = store.cashPlannedReceivableForMonth(now);
       var message = 'Hoje você tem ${_money(store.availableToSpend)} disponíveis para gastar.';
       if (payable > 0 || receivable > 0) {
         message +=
@@ -524,7 +527,8 @@ ${jsonEncode(context)}
       final cardName = _fold(card.name);
       if (cardName.isEmpty || !clean.contains(cardName)) continue;
       if (_hasAny(clean, ['fatura', 'cartao', 'cartão', 'limite', 'quanto devo'])) {
-        final invoice = store.invoiceOutstandingForMonth(card.id, selected);
+        final invoice =
+            store.invoiceDisplayOutstandingForMonth(card.id, DateTime.now());
         final availableLimit = (card.limit - card.used).clamp(0, double.infinity);
         return AiAssistantReply(
           message:
@@ -604,7 +608,8 @@ ${jsonEncode(context)}
               'nome': e.name,
               'limite': e.limit,
               'usado': e.used,
-              'faturaAtual': store.invoiceOutstandingForMonth(e.id, selected),
+              'faturaAtual':
+                  store.invoiceDisplayOutstandingForMonth(e.id, selected),
               'limiteDisponivel': (e.limit - e.used).clamp(0, double.infinity),
             },
           )
@@ -756,6 +761,9 @@ ${jsonEncode(context)}
     replacements.forEach((from, to) => text = text.replaceAll(from, to));
     return text;
   }
+
+  String _truncate(String value, int max) =>
+      value.length <= max ? value : value.substring(0, max).trimRight();
 
   String _money(double value) {
     final fixed = value.abs().toStringAsFixed(2);

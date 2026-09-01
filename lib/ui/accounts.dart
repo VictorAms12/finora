@@ -144,7 +144,11 @@ class AccountsScreen extends StatelessWidget {
                                   'Excluir cartão?',
                                   'O cartão será removido. Lançamentos históricos serão mantidos.',
                                 );
-                                if (ok) store.deleteCard(card.id);
+                                if (ok && !store.deleteCard(card.id) && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Este cartão ainda possui previsões ou recorrências ativas. Resolva esses vínculos antes de excluí-lo.')),
+                                  );
+                                }
                               }
                             },
                             itemBuilder: (_) => const [
@@ -244,7 +248,13 @@ class AccountsScreen extends StatelessWidget {
                           'O saldo deixará de compor o patrimônio. O histórico será mantido.',
                         );
                         if (!ok || !context.mounted) return;
-                        context.read<FinanceStore>().deleteAccount(account.id);
+                        final deleted = context.read<FinanceStore>().deleteAccount(account.id);
+                        if (!deleted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Esta conta ainda é usada por previsões ou recorrências ativas.')),
+                          );
+                          return;
+                        }
                         if (sheetContext.mounted) Navigator.pop(sheetContext);
                       },
                       icon: const Icon(Icons.delete_outline_rounded),
@@ -279,11 +289,8 @@ class CardInvoiceScreen extends StatelessWidget {
 
     final transactions =
         store.cardTransactionsForInvoiceMonth(card.id, store.selectedMonth);
-    var outstanding =
-        store.invoiceOutstandingForMonth(card.id, store.selectedMonth);
-    if (store.selectedIsCurrent) {
-      outstanding += store.manualCardOutstanding(card.id);
-    }
+    final outstanding =
+        store.invoiceDisplayOutstandingForMonth(card.id, store.selectedMonth);
 
     final nextMonth =
         DateTime(store.selectedMonth.year, store.selectedMonth.month + 1);
