@@ -2,6 +2,21 @@
 
 As mudanças relevantes do Finora são registradas aqui por versão.
 
+## [0.4.4] - 2026-09-01
+
+### Reserva de emergência
+- reduzir o valor-alvo não reduz mais silenciosamente o valor já guardado;
+- o valor guardado passa a ser independente da meta e pode permanecer acima dela;
+- aportes deixam de ser truncados ao atingir o alvo;
+- novo fluxo `Movimentar` permite aportar e retirar valores do acompanhamento da reserva;
+- retiradas maiores que o valor guardado são bloqueadas para impedir saldo negativo;
+- edição passa a validar nome, valor-alvo, valor guardado e meses de proteção com mensagens claras;
+- meses de proteção são limitados a inteiros entre 1 e 60;
+- tela passa a mostrar cobertura estimada, valor restante ou excedente e referência mensal;
+- fica explícito que a reserva é um acompanhamento e não movimenta automaticamente o saldo das contas;
+- adicionados testes para redução de meta, excedente, aporte, retirada e validações;
+- versão incrementada para `0.4.4+16`, sem alteração destrutiva no SQLite.
+
 ## [0.4.3] - 2026-08-30
 
 ### Finora Assistant Engine
