@@ -7,9 +7,9 @@ class FinoraLogoMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox.square(
-        dimension: size,
-        child: CustomPaint(painter: _FinoraLogoPainter()),
-      );
+    dimension: size,
+    child: CustomPaint(painter: _FinoraLogoPainter()),
+  );
 }
 
 class _FinoraLogoPainter extends CustomPainter {
@@ -24,11 +24,7 @@ class _FinoraLogoPainter extends CustomPainter {
       ..shader = const LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFFFE58A),
-          Color(0xFFF4C84A),
-          Color(0xFFB97A0C),
-        ],
+        colors: [Color(0xFFFFE58A), Color(0xFFF4C84A), Color(0xFFB97A0C)],
       ).createShader(Offset.zero & size);
 
     final border = Paint()

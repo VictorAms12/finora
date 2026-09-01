@@ -64,8 +64,8 @@ class GeminiService {
     required String input,
     int maxOutputTokens = 900,
   }) async => cleanAssistantText(
-        await _interaction(input: input, maxOutputTokens: maxOutputTokens),
-      );
+    await _interaction(input: input, maxOutputTokens: maxOutputTokens),
+  );
 
   Future<Map<String, dynamic>> generateStructured({
     required String input,
@@ -119,7 +119,8 @@ class GeminiService {
         },
     };
 
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 12);
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 12);
     try {
       final request = await client
           .postUrl(
@@ -132,7 +133,9 @@ class GeminiService {
       request.headers.set('x-goog-api-key', apiKey);
       request.write(jsonEncode(body));
 
-      final response = await request.close().timeout(const Duration(seconds: 35));
+      final response = await request.close().timeout(
+        const Duration(seconds: 35),
+      );
       final raw = await utf8.decoder.bind(response).join();
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw GeminiApiException(
@@ -178,7 +181,9 @@ class GeminiService {
         'Não consegui estabelecer uma conexão segura com o Gemini.',
       );
     } on HttpException {
-      throw const GeminiApiException('Houve uma falha de comunicação com o Gemini.');
+      throw const GeminiApiException(
+        'Houve uma falha de comunicação com o Gemini.',
+      );
     } on FormatException {
       throw const GeminiApiException('Recebi uma resposta inválida do Gemini.');
     } catch (error) {
@@ -240,7 +245,10 @@ class GeminiService {
     var text = input.trim();
     if (text.isEmpty) return '';
 
-    text = text.replaceAll(RegExp(r'```(?:json|markdown|md|text)?', caseSensitive: false), '');
+    text = text.replaceAll(
+      RegExp(r'```(?:json|markdown|md|text)?', caseSensitive: false),
+      '',
+    );
     text = text.replaceAll('```', '');
     text = text.replaceAll(
       RegExp(
@@ -249,10 +257,7 @@ class GeminiService {
       ),
       '',
     );
-    text = text.replaceAll(
-      RegExp(r'^\s{0,3}#{1,6}\s*', multiLine: true),
-      '',
-    );
+    text = text.replaceAll(RegExp(r'^\s{0,3}#{1,6}\s*', multiLine: true), '');
     text = text.replaceAll(
       RegExp(
         r'^\s*(?:assistant|finora\s*ia|resposta)\s*:\s*',

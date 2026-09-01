@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -94,7 +95,9 @@ Future<void> showQuickActions(BuildContext context) async {
                           width: 42,
                           height: 42,
                           decoration: BoxDecoration(
-                            color: FinoraColors.goldBright.withValues(alpha: .14),
+                            color: FinoraColors.goldBright.withValues(
+                              alpha: .14,
+                            ),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: const Icon(
@@ -259,55 +262,54 @@ Widget _primaryQuickAction(
   required String subtitle,
   required Color color,
   required VoidCallback onTap,
-}) =>
-    InkWell(
-      onTap: onTap,
+}) => InkWell(
+  onTap: onTap,
+  borderRadius: BorderRadius.circular(19),
+  child: Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .08),
       borderRadius: BorderRadius.circular(19),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: .08),
-          borderRadius: BorderRadius.circular(19),
-          border: Border.all(color: color.withValues(alpha: .24)),
+      border: Border.all(color: color.withValues(alpha: .24)),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: .13),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(icon, color: color, size: 21),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: .13),
-                borderRadius: BorderRadius.circular(14),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-              child: Icon(icon, color: color, size: 21),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 8.3,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 8.3,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      ],
+    ),
+  ),
+);
 
 Widget _smallQuickAction(
   BuildContext context,
@@ -315,33 +317,29 @@ Widget _smallQuickAction(
   String label,
   Color color,
   VoidCallback onTap,
-) =>
-    InkWell(
-      onTap: onTap,
+) => InkWell(
+  onTap: onTap,
+  borderRadius: BorderRadius.circular(16),
+  child: Container(
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      border: Border.all(color: Theme.of(context).dividerColor),
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).dividerColor),
-          borderRadius: BorderRadius.circular(16),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: color, size: 21),
+        const SizedBox(height: 6),
+        Text(
+          label,
+          maxLines: 1,
+          style: const TextStyle(fontSize: 9.3, fontWeight: FontWeight.w800),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 21),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              maxLines: 1,
-              style: const TextStyle(
-                fontSize: 9.3,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+      ],
+    ),
+  ),
+);
 
 Future<void> showPlannedForm(BuildContext context) async {
   final store = context.read<FinanceStore>();
@@ -368,10 +366,9 @@ Future<void> showPlannedForm(BuildContext context) async {
   List<MapEntry<String, String>> sourceOptions() {
     final entries = <MapEntry<String, String>>[];
     for (final account in store.data.accounts) {
-      entries.add(MapEntry(
-        'account:${account.name}',
-        'Conta • ${account.name}',
-      ));
+      entries.add(
+        MapEntry('account:${account.name}', 'Conta • ${account.name}'),
+      );
     }
     if (type == TransactionType.expense) {
       for (final card in store.data.cards) {
@@ -446,8 +443,9 @@ Future<void> showPlannedForm(BuildContext context) async {
                 const SizedBox(height: 10),
                 TextField(
                   controller: amount,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Valor',
                     prefixText: 'R\$ ',
@@ -464,10 +462,10 @@ Future<void> showPlannedForm(BuildContext context) async {
                   initialValue: category,
                   decoration: const InputDecoration(labelText: 'Categoria'),
                   items: categories
-                      .map((value) => DropdownMenuItem(
-                            value: value,
-                            child: Text(value),
-                          ))
+                      .map(
+                        (value) =>
+                            DropdownMenuItem(value: value, child: Text(value)),
+                      )
                       .toList(),
                   onChanged: (value) {
                     if (value != null) setLocal(() => category = value);
@@ -477,12 +475,16 @@ Future<void> showPlannedForm(BuildContext context) async {
                 DropdownButtonFormField<String>(
                   key: ValueKey('source-${type.name}-$sourceKey'),
                   initialValue: sourceKey,
-                  decoration: const InputDecoration(labelText: 'Conta ou cartão'),
+                  decoration: const InputDecoration(
+                    labelText: 'Conta ou cartão',
+                  ),
                   items: sources
-                      .map((entry) => DropdownMenuItem(
-                            value: entry.key,
-                            child: Text(entry.value),
-                          ))
+                      .map(
+                        (entry) => DropdownMenuItem(
+                          value: entry.key,
+                          child: Text(entry.value),
+                        ),
+                      )
                       .toList(),
                   onChanged: (value) {
                     if (value != null) setLocal(() => sourceKey = value);
@@ -491,11 +493,16 @@ Future<void> showPlannedForm(BuildContext context) async {
                 const SizedBox(height: 9),
                 InkWell(
                   onTap: () async {
-                    final picked = await v035.pickFinoraDate(sheetContext, date);
+                    final picked = await v035.pickFinoraDate(
+                      sheetContext,
+                      date,
+                    );
                     if (picked != null) setLocal(() => date = picked);
                   },
                   child: InputDecorator(
-                    decoration: const InputDecoration(labelText: 'Data prevista'),
+                    decoration: const InputDecoration(
+                      labelText: 'Data prevista',
+                    ),
                     child: Text(fullDate(date)),
                   ),
                 ),
@@ -506,7 +513,8 @@ Future<void> showPlannedForm(BuildContext context) async {
                     onPressed: sources.isEmpty
                         ? null
                         : () {
-                            final value = double.tryParse(
+                            final value =
+                                double.tryParse(
                                   amount.text.replaceAll(',', '.'),
                                 ) ??
                                 0;
@@ -516,7 +524,9 @@ Future<void> showPlannedForm(BuildContext context) async {
                             }
 
                             final isCard = sourceKey.startsWith('card:');
-                            final cardId = isCard ? sourceKey.substring(5) : null;
+                            final cardId = isCard
+                                ? sourceKey.substring(5)
+                                : null;
                             final sourceName = isCard
                                 ? store.findCard(cardId)?.name ?? ''
                                 : sourceKey.substring('account:'.length);
@@ -526,24 +536,28 @@ Future<void> showPlannedForm(BuildContext context) async {
                             if (isCard) {
                               final card = store.findCard(cardId);
                               if (card == null) return;
-                              invoiceMonth =
-                                  store.invoiceMonthForPurchase(card, date);
+                              invoiceMonth = store.invoiceMonthForPurchase(
+                                card,
+                                date,
+                              );
                             }
 
-                            store.data.planned.add(PlannedItem(
-                              id: FinanceStore.newId(),
-                              type: type,
-                              title: title.text.trim(),
-                              category: category,
-                              amount: value,
-                              date: date,
-                              sourceName: sourceName,
-                              paymentKind: isCard
-                                  ? PaymentKind.card
-                                  : PaymentKind.account,
-                              cardId: cardId,
-                              invoiceMonth: invoiceMonth,
-                            ));
+                            store.data.planned.add(
+                              PlannedItem(
+                                id: FinanceStore.newId(),
+                                type: type,
+                                title: title.text.trim(),
+                                category: category,
+                                amount: value,
+                                date: date,
+                                sourceName: sourceName,
+                                paymentKind: isCard
+                                    ? PaymentKind.card
+                                    : PaymentKind.account,
+                                cardId: cardId,
+                                invoiceMonth: invoiceMonth,
+                              ),
+                            );
                             store.commit();
                             Navigator.pop(sheetContext);
                           },
@@ -628,8 +642,9 @@ Future<void> showSalaryForm(BuildContext context) async {
                 const SizedBox(height: 14),
                 TextField(
                   controller: amount,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 28,
@@ -676,10 +691,8 @@ Future<void> showSalaryForm(BuildContext context) async {
                   ),
                   items: store.incomeCategories
                       .map(
-                        (value) => DropdownMenuItem(
-                          value: value,
-                          child: Text(value),
-                        ),
+                        (value) =>
+                            DropdownMenuItem(value: value, child: Text(value)),
                       )
                       .toList(),
                   onChanged: (value) {
@@ -689,10 +702,14 @@ Future<void> showSalaryForm(BuildContext context) async {
                 const SizedBox(height: 9),
                 InkWell(
                   onTap: () async {
-                    final picked =
-                        await v035.pickFinoraDate(sheetContext, startMonth);
+                    final picked = await v035.pickFinoraDate(
+                      sheetContext,
+                      startMonth,
+                    );
                     if (picked != null) {
-                      setLocal(() => startMonth = DateTime(picked.year, picked.month));
+                      setLocal(
+                        () => startMonth = DateTime(picked.year, picked.month),
+                      );
                     }
                   },
                   child: InputDecorator(
@@ -745,12 +762,16 @@ Future<void> showSalaryForm(BuildContext context) async {
                   const SizedBox(height: 9),
                   InkWell(
                     onTap: () async {
-                      final picked =
-                          await v035.pickFinoraDate(sheetContext, endDate);
+                      final picked = await v035.pickFinoraDate(
+                        sheetContext,
+                        endDate,
+                      );
                       if (picked != null) setLocal(() => endDate = picked);
                     },
                     child: InputDecorator(
-                      decoration: const InputDecoration(labelText: 'Repetir até'),
+                      decoration: const InputDecoration(
+                        labelText: 'Repetir até',
+                      ),
                       child: Text(fullDate(endDate)),
                     ),
                   ),
@@ -774,7 +795,8 @@ Future<void> showSalaryForm(BuildContext context) async {
                   child: FilledButton.icon(
                     onPressed: () {
                       final value =
-                          double.tryParse(amount.text.replaceAll(',', '.')) ?? 0;
+                          double.tryParse(amount.text.replaceAll(',', '.')) ??
+                          0;
                       if (value <= 0 || title.text.trim().isEmpty) return;
                       final maxOccurrences = duration == 'quantidade'
                           ? int.tryParse(count.text)
@@ -813,10 +835,7 @@ Future<void> showSalaryForm(BuildContext context) async {
   count.dispose();
 }
 
-Future<void> showPlannedDetails(
-  BuildContext context,
-  PlannedItem item,
-) async {
+Future<void> showPlannedDetails(BuildContext context, PlannedItem item) async {
   await showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -850,8 +869,8 @@ Future<void> showPlannedDetails(
                 color: item.type == TransactionType.income
                     ? FinoraColors.income
                     : item.type == TransactionType.transfer
-                        ? FinoraColors.balance
-                        : FinoraColors.expense,
+                    ? FinoraColors.balance
+                    : FinoraColors.expense,
               ),
             ),
             const SizedBox(height: 12),
@@ -862,11 +881,7 @@ Future<void> showPlannedDetails(
             if (item.destinationName != null)
               v035.detailRow(context, 'Destino', item.destinationName!),
             if (item.invoiceMonth != null)
-              v035.detailRow(
-                context,
-                'Fatura',
-                monthLabel(item.invoiceMonth!),
-              ),
+              v035.detailRow(context, 'Fatura', monthLabel(item.invoiceMonth!)),
             if (item.status == PlannedStatus.planned) ...[
               const SizedBox(height: 12),
               Row(
@@ -888,12 +903,15 @@ Future<void> showPlannedDetails(
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        final picked =
-                            await v035.pickFinoraDate(context, item.date);
+                        final picked = await v035.pickFinoraDate(
+                          context,
+                          item.date,
+                        );
                         if (picked == null || !context.mounted) return;
-                        context
-                            .read<FinanceStore>()
-                            .postponePlanned(item, picked);
+                        context.read<FinanceStore>().postponePlanned(
+                          item,
+                          picked,
+                        );
                         if (sheetContext.mounted) Navigator.pop(sheetContext);
                       },
                       icon: const Icon(Icons.event_repeat_rounded),
@@ -907,8 +925,9 @@ Future<void> showPlannedDetails(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () {
-                    final settled =
-                        context.read<FinanceStore>().settlePlanned(item);
+                    final settled = context.read<FinanceStore>().settlePlanned(
+                      item,
+                    );
                     if (!settled) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -926,8 +945,8 @@ Future<void> showPlannedDetails(
                     item.type == TransactionType.income
                         ? 'Marcar como recebido'
                         : item.type == TransactionType.transfer
-                            ? 'Realizar transferência'
-                            : 'Marcar como pago',
+                        ? 'Realizar transferência'
+                        : 'Marcar como pago',
                   ),
                 ),
               ),
@@ -950,11 +969,9 @@ Future<void> showPlannedDetails(
   );
 }
 
-Future<void> showPlannedEditForm(
-  BuildContext context,
-  PlannedItem item,
-) async {
-  if (item.type == TransactionType.transfer || item.recurrenceId != null) return;
+Future<void> showPlannedEditForm(BuildContext context, PlannedItem item) async {
+  if (item.type == TransactionType.transfer || item.recurrenceId != null)
+    return;
 
   final store = context.read<FinanceStore>();
   final title = TextEditingController(text: item.title);
@@ -1010,8 +1027,9 @@ Future<void> showPlannedEditForm(
               const SizedBox(height: 13),
               TextField(
                 controller: amount,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(
                   labelText: 'Valor',
                   prefixText: 'R\$ ',
@@ -1028,10 +1046,8 @@ Future<void> showPlannedEditForm(
                 decoration: const InputDecoration(labelText: 'Categoria'),
                 items: categories
                     .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(value),
-                      ),
+                      (value) =>
+                          DropdownMenuItem(value: value, child: Text(value)),
                     )
                     .toList(),
                 onChanged: (value) {
@@ -1041,8 +1057,7 @@ Future<void> showPlannedEditForm(
               const SizedBox(height: 9),
               DropdownButtonFormField<String>(
                 initialValue: sourceKey,
-                decoration:
-                    const InputDecoration(labelText: 'Conta ou cartão'),
+                decoration: const InputDecoration(labelText: 'Conta ou cartão'),
                 items: sources.entries
                     .map(
                       (entry) => DropdownMenuItem(
@@ -1058,8 +1073,7 @@ Future<void> showPlannedEditForm(
               const SizedBox(height: 9),
               InkWell(
                 onTap: () async {
-                  final picked =
-                      await v035.pickFinoraDate(sheetContext, date);
+                  final picked = await v035.pickFinoraDate(sheetContext, date);
                   if (picked != null) setLocal(() => date = picked);
                 },
                 child: InputDecorator(
@@ -1090,8 +1104,9 @@ Future<void> showPlannedEditForm(
                     item.category = category;
                     item.date = date;
                     item.sourceName = sourceName;
-                    item.paymentKind =
-                        isCard ? PaymentKind.card : PaymentKind.account;
+                    item.paymentKind = isCard
+                        ? PaymentKind.card
+                        : PaymentKind.account;
                     item.cardId = cardId;
                     if (isCard) {
                       final card = store.findCard(cardId);

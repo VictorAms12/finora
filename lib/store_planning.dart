@@ -23,11 +23,13 @@ extension FinanceStorePlanning on FinanceStore {
   }
 
   double cashPlannedReceivableForMonth(DateTime month) => data.planned
-      .where((e) =>
-          e.status == PlannedStatus.planned &&
-          e.type == TransactionType.income &&
-          e.paymentKind == PaymentKind.account &&
-          _plannedDueInMonth(e.date, month))
+      .where(
+        (e) =>
+            e.status == PlannedStatus.planned &&
+            e.type == TransactionType.income &&
+            e.paymentKind == PaymentKind.account &&
+            _plannedDueInMonth(e.date, month),
+      )
       .fold<double>(0, (sum, item) => sum + item.amount);
 
   double cashPlannedPayableForMonth(DateTime month) {
@@ -42,7 +44,8 @@ extension FinanceStorePlanning on FinanceStore {
           _plannedDueInMonth(item.date, month)) {
         total += item.amount;
       } else if (item.paymentKind == PaymentKind.card) {
-        final invoice = item.invoiceMonth ??
+        final invoice =
+            item.invoiceMonth ??
             _plannedInvoiceMonth(item.paymentKind, item.cardId, item.date);
         if (invoice != null && _plannedDueInMonth(invoice, month)) {
           total += item.amount;
@@ -94,7 +97,9 @@ extension FinanceStorePlanning on FinanceStore {
       return snapshotForMonth(target)?.openingBalance ?? 0;
     }
     if (sameMonth(target, current)) return cashBalance;
-    return cashProjectedClosingForMonth(DateTime(target.year, target.month - 1));
+    return cashProjectedClosingForMonth(
+      DateTime(target.year, target.month - 1),
+    );
   }
 
   double get selectedCashProjectedOpening =>
@@ -172,10 +177,11 @@ extension FinanceStorePlanning on FinanceStore {
   bool _transactionRepresentsOccurrence(
     RecurringRule rule,
     DateTime occurrence,
-  ) =>
-      data.transactions.any((tx) =>
-          tx.recurrenceId == rule.id &&
-          sameDay(tx.recurrenceDate ?? tx.date, occurrence));
+  ) => data.transactions.any(
+    (tx) =>
+        tx.recurrenceId == rule.id &&
+        sameDay(tx.recurrenceDate ?? tx.date, occurrence),
+  );
 
   void _updateRecurringPlannedItem(
     PlannedItem item,
@@ -190,8 +196,11 @@ extension FinanceStorePlanning on FinanceStore {
     item.paymentKind = rule.paymentKind;
     item.cardId = rule.cardId;
     item.recurrenceDate = canonicalDate;
-    item.invoiceMonth =
-        _plannedInvoiceMonth(rule.paymentKind, rule.cardId, item.date);
+    item.invoiceMonth = _plannedInvoiceMonth(
+      rule.paymentKind,
+      rule.cardId,
+      item.date,
+    );
   }
 
   void _materializeRecurringFuture(RecurringRule rule) {
@@ -200,9 +209,11 @@ extension FinanceStorePlanning on FinanceStore {
         .toList();
 
     if (!rule.active) {
-      data.planned.removeWhere((item) =>
-          item.recurrenceId == rule.id &&
-          item.status == PlannedStatus.planned);
+      data.planned.removeWhere(
+        (item) =>
+            item.recurrenceId == rule.id &&
+            item.status == PlannedStatus.planned,
+      );
       return;
     }
 
@@ -235,8 +246,10 @@ extension FinanceStorePlanning on FinanceStore {
       final key = _occurrenceKey(canonical);
       final item = byOccurrence[key];
       final future = canonical.isAfter(today);
-      final representedByTransaction =
-          _transactionRepresentsOccurrence(rule, canonical);
+      final representedByTransaction = _transactionRepresentsOccurrence(
+        rule,
+        canonical,
+      );
 
       if (item != null) {
         if (item.status == PlannedStatus.planned) {
@@ -257,8 +270,11 @@ extension FinanceStorePlanning on FinanceStore {
           cardId: rule.cardId,
           recurrenceId: rule.id,
           recurrenceDate: canonical,
-          invoiceMonth:
-              _plannedInvoiceMonth(rule.paymentKind, rule.cardId, canonical),
+          invoiceMonth: _plannedInvoiceMonth(
+            rule.paymentKind,
+            rule.cardId,
+            canonical,
+          ),
         );
         data.planned.add(planned);
         retainedPendingIds.add(planned.id);
@@ -278,10 +294,12 @@ extension FinanceStorePlanning on FinanceStore {
       safety++;
     }
 
-    data.planned.removeWhere((item) =>
-        item.recurrenceId == rule.id &&
-        item.status == PlannedStatus.planned &&
-        !retainedPendingIds.contains(item.id));
+    data.planned.removeWhere(
+      (item) =>
+          item.recurrenceId == rule.id &&
+          item.status == PlannedStatus.planned &&
+          !retainedPendingIds.contains(item.id),
+    );
   }
 
   void refreshRecurringPlanning({bool persist = true}) {
@@ -344,19 +362,21 @@ extension FinanceStorePlanning on FinanceStore {
     data.recurringRules.add(rule);
 
     if (!_isFutureTransactionDate(startDate)) {
-      _addTransactionInternal(TransactionItem(
-        id: FinanceStore.newId(),
-        type: type,
-        title: rule.title,
-        category: category,
-        amount: amount,
-        date: startDate,
-        account: sourceName,
-        paymentKind: paymentKind,
-        cardId: cardId,
-        recurrenceId: id,
-        recurrenceDate: startDate,
-      ));
+      _addTransactionInternal(
+        TransactionItem(
+          id: FinanceStore.newId(),
+          type: type,
+          title: rule.title,
+          category: category,
+          amount: amount,
+          date: startDate,
+          account: sourceName,
+          paymentKind: paymentKind,
+          cardId: cardId,
+          recurrenceId: id,
+          recurrenceDate: startDate,
+        ),
+      );
     }
 
     _materializeRecurringFuture(rule);
@@ -409,18 +429,20 @@ extension FinanceStorePlanning on FinanceStore {
 
     data.recurringRules.add(rule);
     if (!_isFutureTransactionDate(firstDate)) {
-      _addTransactionInternal(TransactionItem(
-        id: FinanceStore.newId(),
-        type: TransactionType.income,
-        title: rule.title,
-        category: category,
-        amount: amount,
-        date: firstDate,
-        account: sourceName,
-        paymentKind: PaymentKind.account,
-        recurrenceId: id,
-        recurrenceDate: firstDate,
-      ));
+      _addTransactionInternal(
+        TransactionItem(
+          id: FinanceStore.newId(),
+          type: TransactionType.income,
+          title: rule.title,
+          category: category,
+          amount: amount,
+          date: firstDate,
+          account: sourceName,
+          paymentKind: PaymentKind.account,
+          recurrenceId: id,
+          recurrenceDate: firstDate,
+        ),
+      );
     }
     _materializeRecurringFuture(rule);
     commit();
@@ -494,63 +516,68 @@ extension FinanceStorePlanning on FinanceStore {
 
     final planId = FinanceStore.newId();
     final part = totalAmount / installments;
-    data.installmentPlans.add(InstallmentPlan(
-      id: planId,
-      title: title.trim(),
-      category: category,
-      sourceName: sourceName,
-      paymentKind: paymentKind,
-      cardId: cardId,
-      totalAmount: totalAmount,
-      installments: installments,
-      startDate: startDate,
-    ));
-
-    _addTransactionInternal(TransactionItem(
-      id: FinanceStore.newId(),
-      type: TransactionType.expense,
-      title: '${title.trim()} (1/$installments)',
-      category: category,
-      amount: part,
-      date: startDate,
-      account: sourceName,
-      paymentKind: paymentKind,
-      cardId: cardId,
-      installmentId: planId,
-      installmentNumber: 1,
-      installmentTotal: installments,
-    ));
-
-    for (var i = 2; i <= installments; i++) {
-      final purchaseDate = FinanceStore.addMonths(startDate, i - 1);
-      data.planned.add(PlannedItem(
-        id: FinanceStore.newId(),
-        type: TransactionType.expense,
-        title: '${title.trim()} ($i/$installments)',
+    data.installmentPlans.add(
+      InstallmentPlan(
+        id: planId,
+        title: title.trim(),
         category: category,
-        amount: part,
-        date: purchaseDate,
         sourceName: sourceName,
         paymentKind: paymentKind,
         cardId: cardId,
+        totalAmount: totalAmount,
+        installments: installments,
+        startDate: startDate,
+      ),
+    );
+
+    _addTransactionInternal(
+      TransactionItem(
+        id: FinanceStore.newId(),
+        type: TransactionType.expense,
+        title: '${title.trim()} (1/$installments)',
+        category: category,
+        amount: part,
+        date: startDate,
+        account: sourceName,
+        paymentKind: paymentKind,
+        cardId: cardId,
         installmentId: planId,
-        installmentNumber: i,
+        installmentNumber: 1,
         installmentTotal: installments,
-        invoiceMonth:
-            _plannedInvoiceMonth(paymentKind, cardId, purchaseDate),
-      ));
+      ),
+    );
+
+    for (var i = 2; i <= installments; i++) {
+      final purchaseDate = FinanceStore.addMonths(startDate, i - 1);
+      data.planned.add(
+        PlannedItem(
+          id: FinanceStore.newId(),
+          type: TransactionType.expense,
+          title: '${title.trim()} ($i/$installments)',
+          category: category,
+          amount: part,
+          date: purchaseDate,
+          sourceName: sourceName,
+          paymentKind: paymentKind,
+          cardId: cardId,
+          installmentId: planId,
+          installmentNumber: i,
+          installmentTotal: installments,
+          invoiceMonth: _plannedInvoiceMonth(paymentKind, cardId, purchaseDate),
+        ),
+      );
     }
     commit();
     return true;
   }
 
-  int paidInstallments(String planId) => data.transactions
-      .where((e) => e.installmentId == planId)
-      .length;
+  int paidInstallments(String planId) =>
+      data.transactions.where((e) => e.installmentId == planId).length;
 
   int pendingInstallments(String planId) => data.planned
-      .where((e) =>
-          e.installmentId == planId && e.status == PlannedStatus.planned)
+      .where(
+        (e) => e.installmentId == planId && e.status == PlannedStatus.planned,
+      )
       .length;
 
   void cancelInstallmentFuture(String planId) {
@@ -599,8 +626,9 @@ extension FinanceStorePlanning on FinanceStore {
       paymentKind: item.paymentKind,
       cardId: item.cardId,
       recurrenceId: item.recurrenceId,
-      recurrenceDate:
-          item.recurrenceId == null ? null : item.canonicalRecurrenceDate,
+      recurrenceDate: item.recurrenceId == null
+          ? null
+          : item.canonicalRecurrenceDate,
       installmentId: item.installmentId,
       installmentNumber: item.installmentNumber,
       installmentTotal: item.installmentTotal,
@@ -622,8 +650,11 @@ extension FinanceStorePlanning on FinanceStore {
     if (item.status != PlannedStatus.planned) return;
     item.date = newDate;
     if (item.paymentKind == PaymentKind.card) {
-      item.invoiceMonth =
-          _plannedInvoiceMonth(item.paymentKind, item.cardId, newDate);
+      item.invoiceMonth = _plannedInvoiceMonth(
+        item.paymentKind,
+        item.cardId,
+        newDate,
+      );
     }
     commit();
   }

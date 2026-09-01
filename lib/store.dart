@@ -1,12 +1,17 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'models.dart';
 
 part 'store_transactions.dart';
 part 'store_planning.dart';
 part 'store_entities.dart';
 part 'store_backup.dart';
+part 'store_copilot.dart';
+part 'store_diagnostics.dart';
+part 'store_insights.dart';
 
 class FinanceStore extends ChangeNotifier {
   static const _key = 'finora_data_v02';
@@ -92,10 +97,7 @@ class FinanceStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _persistRaw(
-    String raw, {
-    bool rotateBackup = true,
-  }) async {
+  Future<void> _persistRaw(String raw, {bool rotateBackup = true}) async {
     final prefs = await _preferences();
     if (rotateBackup) {
       final previous = prefs.getString(_key);
@@ -111,9 +113,10 @@ class FinanceStore extends ChangeNotifier {
   void _queueSave(String raw) {
     if (_lastQueuedRaw == raw) return;
     _lastQueuedRaw = raw;
-    _saveChain = _saveChain
-        .then((_) => _persistRaw(raw))
-        .catchError((Object error, StackTrace stackTrace) {
+    _saveChain = _saveChain.then((_) => _persistRaw(raw)).catchError((
+      Object error,
+      StackTrace stackTrace,
+    ) {
       debugPrint('Finora: falha ao persistir dados: $error');
     });
   }
@@ -235,12 +238,14 @@ class FinanceStore extends ChangeNotifier {
     data.primaryGoal = primaryGoal;
     final cleanName = accountName.trim();
     if (cleanName.isNotEmpty && !accountNameExists(cleanName)) {
-      data.accounts.add(AccountItem(
-        id: newId(),
-        name: cleanName,
-        type: 'Conta principal',
-        balance: initialBalance.isFinite ? initialBalance : 0,
-      ));
+      data.accounts.add(
+        AccountItem(
+          id: newId(),
+          name: cleanName,
+          type: 'Conta principal',
+          balance: initialBalance.isFinite ? initialBalance : 0,
+        ),
+      );
     }
     final now = DateTime.now();
     data.trackingMonth = DateTime(now.year, now.month);
@@ -307,9 +312,10 @@ class FinanceStore extends ChangeNotifier {
     final key = _monthKey(month);
     return _incomeByMonth.putIfAbsent(
       key,
-      () => transactionsForMonth(month)
-          .where((e) => e.type == TransactionType.income)
-          .fold<double>(0, (sum, item) => sum + item.amount),
+      () =>
+          transactionsForMonth(month)
+              .where((e) => e.type == TransactionType.income)
+              .fold<double>(0, (sum, item) => sum + item.amount),
     );
   }
 
@@ -317,9 +323,10 @@ class FinanceStore extends ChangeNotifier {
     final key = _monthKey(month);
     return _expenseByMonth.putIfAbsent(
       key,
-      () => transactionsForMonth(month)
-          .where((e) => e.type == TransactionType.expense)
-          .fold<double>(0, (sum, item) => sum + item.amount),
+      () =>
+          transactionsForMonth(month)
+              .where((e) => e.type == TransactionType.expense)
+              .fold<double>(0, (sum, item) => sum + item.amount),
     );
   }
 
@@ -337,30 +344,38 @@ class FinanceStore extends ChangeNotifier {
     return items;
   }
 
-  List<PlannedItem> plannedForMonth(DateTime month) => allPlannedForMonth(month)
-      .where((e) => e.status == PlannedStatus.planned)
-      .toList();
+  List<PlannedItem> plannedForMonth(DateTime month) =>
+      allPlannedForMonth(month)
+          .where((e) => e.status == PlannedStatus.planned)
+          .toList();
 
   List<PlannedItem> get selectedPlanned {
     if (!selectedIsCurrent) return plannedForMonth(selectedMonth);
     final nextMonth = DateTime(selectedMonth.year, selectedMonth.month + 1);
-    final items = data.planned
-        .where((e) =>
-            e.status == PlannedStatus.planned && e.date.isBefore(nextMonth))
-        .toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
+    final items =
+        data.planned
+            .where(
+              (e) =>
+                  e.status == PlannedStatus.planned &&
+                  e.date.isBefore(nextMonth),
+            )
+            .toList()
+          ..sort((a, b) => a.date.compareTo(b.date));
     return items;
   }
 
-  List<PlannedItem> get selectedPlannedHistory => allPlannedForMonth(selectedMonth);
+  List<PlannedItem> get selectedPlannedHistory =>
+      allPlannedForMonth(selectedMonth);
 
-  double plannedReceivableForMonth(DateTime month) => plannedForMonth(month)
-      .where((e) => e.type == TransactionType.income)
-      .fold<double>(0, (sum, item) => sum + item.amount);
+  double plannedReceivableForMonth(DateTime month) =>
+      plannedForMonth(month)
+          .where((e) => e.type == TransactionType.income)
+          .fold<double>(0, (sum, item) => sum + item.amount);
 
-  double plannedPayableForMonth(DateTime month) => plannedForMonth(month)
-      .where((e) => e.type == TransactionType.expense)
-      .fold<double>(0, (sum, item) => sum + item.amount);
+  double plannedPayableForMonth(DateTime month) =>
+      plannedForMonth(month)
+          .where((e) => e.type == TransactionType.expense)
+          .fold<double>(0, (sum, item) => sum + item.amount);
 
   double get plannedReceivable => plannedReceivableForMonth(selectedMonth);
   double get plannedPayable => plannedPayableForMonth(selectedMonth);
@@ -370,10 +385,10 @@ class FinanceStore extends ChangeNotifier {
       .length;
 
   double get suggestedGoalContribution => data.goals.fold<double>(
-        0,
-        (sum, goal) =>
-            sum + (goal.target - goal.saved).clamp(0.0, 200.0).toDouble(),
-      );
+    0,
+    (sum, goal) =>
+        sum + (goal.target - goal.saved).clamp(0.0, 200.0).toDouble(),
+  );
 
   double get cashAfterCommitments {
     final now = DateTime.now();
@@ -469,15 +484,17 @@ class FinanceStore extends ChangeNotifier {
       final existing = snapshotForMonth(cursor);
       if (existing == null) {
         final closing = opening + cashMovementForMonth(cursor);
-        data.snapshots.add(MonthlySnapshot(
-          id: newId(),
-          month: cursor,
-          openingBalance: opening,
-          closingBalance: closing,
-          income: incomeForMonth(cursor),
-          expense: expenseForMonth(cursor),
-          createdAt: DateTime.now(),
-        ));
+        data.snapshots.add(
+          MonthlySnapshot(
+            id: newId(),
+            month: cursor,
+            openingBalance: opening,
+            closingBalance: closing,
+            income: incomeForMonth(cursor),
+            expense: expenseForMonth(cursor),
+            createdAt: DateTime.now(),
+          ),
+        );
         opening = closing;
       } else {
         opening = existing.closingBalance;
@@ -499,27 +516,33 @@ class FinanceStore extends ChangeNotifier {
     }
 
     final targetSnapshot = snapshotForMonth(target);
-    final previousSnapshot =
-        snapshotForMonth(DateTime(target.year, target.month - 1));
-    final opening = targetSnapshot?.openingBalance ?? previousSnapshot?.closingBalance;
+    final previousSnapshot = snapshotForMonth(
+      DateTime(target.year, target.month - 1),
+    );
+    final opening =
+        targetSnapshot?.openingBalance ?? previousSnapshot?.closingBalance;
     if (opening == null) return;
 
-    data.snapshots.removeWhere((snapshot) =>
-        !snapshot.month.isBefore(target) && snapshot.month.isBefore(current));
+    data.snapshots.removeWhere(
+      (snapshot) =>
+          !snapshot.month.isBefore(target) && snapshot.month.isBefore(current),
+    );
 
     var cursor = target;
     var rollingOpening = opening;
     while (cursor.isBefore(current)) {
       final closing = rollingOpening + cashMovementForMonth(cursor);
-      data.snapshots.add(MonthlySnapshot(
-        id: newId(),
-        month: cursor,
-        openingBalance: rollingOpening,
-        closingBalance: closing,
-        income: incomeForMonth(cursor),
-        expense: expenseForMonth(cursor),
-        createdAt: DateTime.now(),
-      ));
+      data.snapshots.add(
+        MonthlySnapshot(
+          id: newId(),
+          month: cursor,
+          openingBalance: rollingOpening,
+          closingBalance: closing,
+          income: incomeForMonth(cursor),
+          expense: expenseForMonth(cursor),
+          createdAt: DateTime.now(),
+        ),
+      );
       rollingOpening = closing;
       cursor = DateTime(cursor.year, cursor.month + 1);
     }
@@ -560,8 +583,10 @@ class FinanceStore extends ChangeNotifier {
     return balance;
   }
 
-  double get selectedProjectedOpening => projectedOpeningForMonth(selectedMonth);
-  double get selectedProjectedClosing => projectedClosingForMonth(selectedMonth);
+  double get selectedProjectedOpening =>
+      projectedOpeningForMonth(selectedMonth);
+  double get selectedProjectedClosing =>
+      projectedClosingForMonth(selectedMonth);
 
   DateTime invoiceMonthForPurchase(CardItem card, DateTime purchaseDate) {
     var closeMonth = DateTime(purchaseDate.year, purchaseDate.month);
@@ -597,16 +622,20 @@ class FinanceStore extends ChangeNotifier {
   }
 
   double invoiceTotalForMonth(String cardId, DateTime month) =>
-      cardTransactionsForInvoiceMonth(cardId, month)
-          .fold<double>(0, (sum, item) => sum + item.amount);
+      cardTransactionsForInvoiceMonth(
+        cardId,
+        month,
+      ).fold<double>(0, (sum, item) => sum + item.amount);
 
   double invoicePaidForMonth(String cardId, DateTime month) => data.transactions
-      .where((tx) =>
-          tx.type == TransactionType.transfer &&
-          tx.cardId == cardId &&
-          tx.invoiceMonth != null &&
-          sameMonth(tx.invoiceMonth!, month) &&
-          tx.title.startsWith('Pagamento fatura'))
+      .where(
+        (tx) =>
+            tx.type == TransactionType.transfer &&
+            tx.cardId == cardId &&
+            tx.invoiceMonth != null &&
+            sameMonth(tx.invoiceMonth!, month) &&
+            tx.title.startsWith('Pagamento fatura'),
+      )
       .fold<double>(0, (sum, item) => sum + item.amount);
 
   double invoiceOutstandingForMonth(String cardId, DateTime month) =>
@@ -738,10 +767,7 @@ class FinanceStore extends ChangeNotifier {
     }
   }
 
-  static DateTime nextOccurrence(
-    DateTime date,
-    RecurrenceFrequency frequency,
-  ) {
+  static DateTime nextOccurrence(DateTime date, RecurrenceFrequency frequency) {
     if (frequency == RecurrenceFrequency.weekly) {
       return date.add(const Duration(days: 7));
     }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'store.dart';
 import 'theme.dart';
 
@@ -49,10 +50,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
     final value = double.tryParse(balance.text.replaceAll(',', '.')) ?? 0;
     context.read<FinanceStore>().finishOnboarding(
-          accountName: account.text,
-          initialBalance: value,
-          primaryGoal: goal,
-        );
+      accountName: account.text,
+      initialBalance: value,
+      primaryGoal: goal,
+    );
   }
 
   @override

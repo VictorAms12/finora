@@ -1,3 +1,22 @@
+## v0.5.2 — Stateful Copilot + Stability Pack
+
+### v0.5.1 incorporada
+- conversa da Finora passa a persistir localmente no FinanceData/SQLite e no backup;
+- troca de aba e rotação deixam de destruir o estado da IA graças ao shell com IndexedStack;
+- rascunho, modo Conversar/Registrar e clarificação pendente são restaurados;
+- virada de mês ganha aviso explícito e atalho para o mês anterior;
+- Movimentações passa a oferecer pesquisa em todos os meses;
+- novo Diagnóstico dos dados verifica SQLite, referências órfãs, IDs, snapshots e valores inválidos;
+- orçamento mostra percentual usado, valor restante e projeção pelo ritmo atual.
+
+### v0.5.2
+- histórico persistido passa a alimentar a continuidade real das conversas;
+- Copilot local ganha resposta determinística de insights sem exigir Gemini;
+- novo motor de insights destaca atrasos, próximos 7 dias, aceleração de despesas, concentração por categoria, risco de orçamento e uso alto do cartão;
+- tela inicial exibe até três insights relevantes do período;
+- chat fica mais resistente a teclado/orientação e reduz elementos secundários em altura compacta;
+- sessão do chat é limitada e normalizada para evitar crescimento indefinido do estado.
+
 ## v0.5.0 — Finora Copilot
 
 - Memória contextual persistente, opcional e totalmente editável pelo usuário.

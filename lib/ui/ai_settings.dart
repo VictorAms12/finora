@@ -244,29 +244,25 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                 _InfoLine(
                   icon: Icons.lock_outline_rounded,
                   title: 'A chave não vai para o GitHub',
-                  body:
-                      'Ela é informada por você e armazenada pelo cofre seguro do sistema operacional.',
+                  body: 'Ela é informada por você e armazenada pelo cofre seguro do sistema operacional.',
                 ),
                 Divider(),
                 _InfoLine(
                   icon: Icons.visibility_off_outlined,
                   title: 'IA desligada por padrão',
-                  body:
-                      'O Finora só envia dados quando você toca em interpretar, analisar ou perguntar.',
+                  body: 'O Finora só envia dados quando você toca em interpretar, analisar ou perguntar.',
                 ),
                 Divider(),
                 _InfoLine(
                   icon: Icons.filter_alt_outlined,
                   title: 'Contexto reduzido',
-                  body:
-                      'O assistente envia agregados, até 35 movimentações recentes e 25 previstos. O backup completo e notas privadas não são enviados.',
+                  body: 'O assistente envia agregados, até 35 movimentações recentes e 25 previstos. O backup completo e notas privadas não são enviados.',
                 ),
                 Divider(),
                 _InfoLine(
                   icon: Icons.info_outline_rounded,
                   title: 'Free Tier do Gemini',
-                  body:
-                      'O nível gratuito pode usar o conteúdo enviado para melhorar produtos do Google. Não use a IA para dados que você não queira transmitir.',
+                  body: 'O nível gratuito pode usar o conteúdo enviado para melhorar produtos do Google. Não use a IA para dados que você não queira transmitir.',
                 ),
               ],
             ),

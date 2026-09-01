@@ -29,15 +29,17 @@ void main() {
 
     // Simula o estado legado: R$ 200 já saíram da origem e entraram no
     // destino, embora a transferência esteja programada para o futuro.
-    store.data.transactions.add(TransactionItem(
-      id: 'legacy-future-transfer',
-      type: TransactionType.transfer,
-      title: 'Transferência',
-      category: 'Transferência',
-      amount: 200,
-      date: DateTime.now().add(const Duration(days: 15)),
-      account: 'Principal → Reserva',
-    ));
+    store.data.transactions.add(
+      TransactionItem(
+        id: 'legacy-future-transfer',
+        type: TransactionType.transfer,
+        title: 'Transferência',
+        category: 'Transferência',
+        amount: 200,
+        date: DateTime.now().add(const Duration(days: 15)),
+        account: 'Principal → Reserva',
+      ),
+    );
     store.commit();
     await store.flushPersistence();
 

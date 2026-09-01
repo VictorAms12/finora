@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'notification_service.dart';
 import 'onboarding.dart';
 import 'screens.dart';
@@ -40,14 +41,13 @@ class FinoraApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.select<
-        FinanceStore,
-        ({bool darkMode, bool onboardingCompleted})>(
-      (store) => (
-        darkMode: store.data.darkMode,
-        onboardingCompleted: store.data.onboardingCompleted,
-      ),
-    );
+    final state = context
+        .select<FinanceStore, ({bool darkMode, bool onboardingCompleted})>(
+          (store) => (
+            darkMode: store.data.darkMode,
+            onboardingCompleted: store.data.onboardingCompleted,
+          ),
+        );
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,

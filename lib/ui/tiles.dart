@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -19,20 +20,20 @@ class TransactionTile extends StatelessWidget {
     final color = income
         ? FinoraColors.income
         : expense
-            ? FinoraColors.expense
-            : FinoraColors.balance;
+        ? FinoraColors.expense
+        : FinoraColors.balance;
     final icon = income
         ? Icons.south_west_rounded
         : expense
-            ? (item.paymentKind == PaymentKind.card
-                ? Icons.credit_card_rounded
-                : Icons.north_east_rounded)
-            : Icons.swap_horiz_rounded;
+        ? (item.paymentKind == PaymentKind.card
+              ? Icons.credit_card_rounded
+              : Icons.north_east_rounded)
+        : Icons.swap_horiz_rounded;
     final prefix = income
         ? '+ '
         : expense
-            ? '− '
-            : '';
+        ? '− '
+        : '';
     final extra = item.paymentKind == PaymentKind.card && expense
         ? ' · fatura ${monthShort[store.transactionInvoiceMonth(item).month - 1]}'
         : '';
@@ -122,8 +123,8 @@ class PlannedTile extends StatelessWidget {
       color = transfer
           ? FinoraColors.balance
           : income
-              ? FinoraColors.income
-              : FinoraColors.warning;
+          ? FinoraColors.income
+          : FinoraColors.warning;
       icon = transfer ? Icons.swap_horiz_rounded : Icons.schedule_rounded;
       state = 'previsto';
     }
@@ -131,8 +132,8 @@ class PlannedTile extends StatelessWidget {
     final prefix = transfer
         ? ''
         : income
-            ? '+ '
-            : '− ';
+        ? '+ '
+        : '− ';
 
     return InkWell(
       onTap: onTap,
@@ -248,11 +249,20 @@ class BudgetProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final used = context.select<FinanceStore, double>(
-      (store) => store.expensesByCategory[item.category] ?? 0,
-    );
+    final store = context.watch<FinanceStore>();
+    final used = store.expensesByCategory[item.category] ?? 0;
     final ratio = item.limit <= 0 ? 0.0 : used / item.limit;
     final over = ratio > 1;
+    final remaining = (item.limit - used)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+    final now = DateTime.now();
+    double? projected;
+    if (store.selectedIsCurrent && now.day > 0 && used > 0) {
+      final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+      projected = used / now.day * daysInMonth;
+    }
+    final projectedOver = projected != null && projected > item.limit && !over;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -279,6 +289,35 @@ class BudgetProgress extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              over
+                  ? '${(ratio * 100).round()}% usado · excedeu em ${money(context, used - item.limit)}'
+                  : '${(ratio * 100).round()}% usado · ${money(context, remaining)} restantes',
+              style: TextStyle(
+                fontSize: 8.2,
+                color: over
+                    ? FinoraColors.expense
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          if (projectedOver) ...[
+            const SizedBox(height: 3),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Ritmo atual: cerca de ${money(context, projected!)} até o fim do mês',
+                style: const TextStyle(
+                  fontSize: 8.2,
+                  color: FinoraColors.warning,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           LinearProgressIndicator(
             value: ratio.clamp(0.0, 1.0).toDouble(),

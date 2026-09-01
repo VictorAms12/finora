@@ -399,7 +399,11 @@ $clean
       throw const GeminiApiException('O que você quer saber?');
     }
 
-    final local = tryLocalAnswer(store, clean);
+    final local = tryLocalAnswer(
+      store,
+      clean,
+      conversationContext: conversationContext,
+    );
     if (local != null) return local;
 
     final intent = detectIntent(clean);
@@ -601,8 +605,42 @@ ${jsonEncode(context)}
   Future<String> ask(FinanceStore store, String question) async =>
       (await askAssistant(store, question)).message;
 
-  AiAssistantReply? tryLocalAnswer(FinanceStore store, String question) {
-    final query = const FinancialQueryEngine().answer(store, question);
+  AiAssistantReply? tryLocalAnswer(
+    FinanceStore store,
+    String question, {
+    String conversationContext = '',
+  }) {
+    final contextual = _contextualLocalQuestion(question, conversationContext);
+    final clean = _fold(contextual);
+
+    if (_hasAny(clean, [
+      'insight',
+      'merece minha atencao',
+      'merece atenção',
+      'o que devo observar',
+    ])) {
+      final insights = store.smartInsights;
+      if (insights.isEmpty) {
+        return const AiAssistantReply(
+          message: 'Não encontrei nenhum alerta relevante agora. Seus dados atuais não mostram um desvio que mereça destaque.',
+          local: true,
+        );
+      }
+      final message = insights
+          .take(3)
+          .map((item) => '${item.title}: ${item.message}')
+          .join('\n');
+      return AiAssistantReply(
+        message: message,
+        followUps: insights
+            .take(3)
+            .map((item) => item.question)
+            .toList(growable: false),
+        local: true,
+      );
+    }
+
+    final query = const FinancialQueryEngine().answer(store, contextual);
     if (query != null) {
       return AiAssistantReply(
         message: query.message,
@@ -610,8 +648,6 @@ ${jsonEncode(context)}
         local: true,
       );
     }
-
-    final clean = _fold(question);
 
     if (_hasAny(clean, ['patrimonio', 'patrimônio', 'quanto tenho no total'])) {
       return AiAssistantReply(
@@ -711,6 +747,33 @@ ${jsonEncode(context)}
     }
 
     return null;
+  }
+
+  String _contextualLocalQuestion(String question, String conversationContext) {
+    final clean = _fold(question);
+    if (conversationContext.trim().isEmpty || clean.length > 45)
+      return question;
+    final continuation = _hasAny(clean, [
+      'e mes passado',
+      'e mês passado',
+      'e antes',
+      'e esse',
+      'e essa',
+      'e o outro',
+      'e a outra',
+      'por que',
+      'por quê',
+    ]);
+    if (!continuation) return question;
+    final lines = conversationContext.split('\n').reversed;
+    for (final line in lines) {
+      if (!line.startsWith('Usuário:')) continue;
+      final previous = line.substring('Usuário:'.length).trim();
+      if (previous.isNotEmpty && previous != question.trim()) {
+        return '$previous. Continuação: ${question.trim()}';
+      }
+    }
+    return question;
   }
 
   AiAssistantIntent detectIntent(String question) {

@@ -37,7 +37,8 @@ class FinoraDatabase {
     if (existing != null && existing.isOpen) return existing;
 
     final factory = _factory();
-    final path = pathOverride ?? p.join(await factory.getDatabasesPath(), _databaseName);
+    final path =
+        pathOverride ?? p.join(await factory.getDatabasesPath(), _databaseName);
     final database = await factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
@@ -102,7 +103,11 @@ class FinoraDatabase {
 
   Future<String?> readPrimaryRaw() async {
     final db = await _database();
-    final rows = await db.query('app_state', columns: ['json'], where: 'id = 1');
+    final rows = await db.query(
+      'app_state',
+      columns: ['json'],
+      where: 'id = 1',
+    );
     return rows.isEmpty ? null : rows.first['json'] as String?;
   }
 
@@ -127,7 +132,9 @@ class FinoraDatabase {
   Future<void> saveRaw(String raw, {bool rotateBackup = true}) async {
     final decoded = jsonDecode(raw);
     if (decoded is! Map) {
-      throw const FormatException('Estado financeiro precisa ser um objeto JSON.');
+      throw const FormatException(
+        'Estado financeiro precisa ser um objeto JSON.',
+      );
     }
 
     final root = Map<String, dynamic>.from(decoded);
@@ -144,20 +151,20 @@ class FinoraDatabase {
         if (current.isNotEmpty) {
           final previous = current.first['json'] as String?;
           if (previous != null && previous != raw && _isJsonObject(previous)) {
-            await txn.insert(
-              'app_state_backup',
-              {'id': 1, 'json': previous, 'updated_at': now},
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+            await txn.insert('app_state_backup', {
+              'id': 1,
+              'json': previous,
+              'updated_at': now,
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
           }
         }
       }
 
-      await txn.insert(
-        'app_state',
-        {'id': 1, 'json': raw, 'updated_at': now},
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await txn.insert('app_state', {
+        'id': 1,
+        'json': raw,
+        'updated_at': now,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
       final signatureRows = await txn.query(
         'metadata',
         columns: ['value'],
@@ -169,22 +176,23 @@ class FinoraDatabase {
           : signatureRows.first['value']?.toString();
       if (previousSignature != indexSignature) {
         await _rebuildIndex(txn, root);
-        await txn.insert(
-          'metadata',
-          {'key': 'finance_index_signature', 'value': indexSignature},
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('metadata', {
+          'key': 'finance_index_signature',
+          'value': indexSignature,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
-      await txn.insert(
-        'metadata',
-        {'key': 'schema', 'value': 'v0.4.5'},
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await txn.insert('metadata', {
+        'key': 'schema',
+        'value': 'v0.4.5',
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
     });
   }
 
   String _financeIndexSignature(Map<String, dynamic> root) {
-    final raw = jsonEncode([root['transactions'] ?? const [], root['planned'] ?? const []]);
+    final raw = jsonEncode([
+      root['transactions'] ?? const [],
+      root['planned'] ?? const [],
+    ]);
     var hash = 0xcbf29ce484222325;
     for (final unit in raw.codeUnits) {
       hash ^= unit;
@@ -193,10 +201,7 @@ class FinoraDatabase {
     return hash.toRadixString(16);
   }
 
-  Future<void> _rebuildIndex(
-    Transaction txn,
-    Map<String, dynamic> root,
-  ) async {
+  Future<void> _rebuildIndex(Transaction txn, Map<String, dynamic> root) async {
     await txn.delete('finance_index');
     final batch = txn.batch();
 
@@ -209,21 +214,17 @@ class FinoraDatabase {
         final id = item['id']?.toString();
         if (id == null || id.isEmpty) continue;
         final date = DateTime.tryParse(item['date']?.toString() ?? '');
-        batch.insert(
-          'finance_index',
-          {
-            'kind': kind,
-            'id': id,
-            'type': item['type']?.toString(),
-            'title': item['title']?.toString(),
-            'category': item['category']?.toString(),
-            'amount': (item['amount'] as num?)?.toDouble(),
-            'date_ms': date?.millisecondsSinceEpoch,
-            'account': item[accountKey]?.toString(),
-            'json': jsonEncode(item),
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        batch.insert('finance_index', {
+          'kind': kind,
+          'id': id,
+          'type': item['type']?.toString(),
+          'title': item['title']?.toString(),
+          'category': item['category']?.toString(),
+          'amount': (item['amount'] as num?)?.toDouble(),
+          'date_ms': date?.millisecondsSinceEpoch,
+          'account': item[accountKey]?.toString(),
+          'json': jsonEncode(item),
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     }
 
@@ -234,7 +235,9 @@ class FinoraDatabase {
 
   Future<int> indexedRowCount() async {
     final db = await _database();
-    final result = await db.rawQuery('SELECT COUNT(*) AS total FROM finance_index');
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) AS total FROM finance_index',
+    );
     return (result.first['total'] as num?)?.toInt() ?? 0;
   }
 

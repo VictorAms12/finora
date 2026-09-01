@@ -125,6 +125,53 @@ class CopilotMemoryItem {
   );
 }
 
+class CopilotChatMessageItem {
+  final String id;
+  bool user;
+  String text;
+  List<String> followUps;
+  String action;
+  String? actionLabel;
+  DateTime createdAt;
+
+  CopilotChatMessageItem({
+    required this.id,
+    required this.user,
+    required this.text,
+    required this.createdAt,
+    this.followUps = const [],
+    this.action = 'none',
+    this.actionLabel,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'user': user,
+    'text': text,
+    'followUps': followUps,
+    'action': action,
+    'actionLabel': actionLabel,
+    'createdAt': createdAt.toIso8601String(),
+  };
+
+  factory CopilotChatMessageItem.fromJson(
+    Map<String, dynamic> j,
+  ) => CopilotChatMessageItem(
+    id: j['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+    user: j['user'] as bool? ?? false,
+    text: j['text'] as String? ?? '',
+    followUps: ((j['followUps'] as List?) ?? const [])
+        .whereType<String>()
+        .where((value) => value.trim().isNotEmpty)
+        .take(4)
+        .toList(growable: false),
+    action: j['action'] as String? ?? 'none',
+    actionLabel: j['actionLabel'] as String?,
+    createdAt:
+        DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+  );
+}
+
 class TransactionItem {
   final String id;
   TransactionType type;
@@ -605,6 +652,11 @@ class FinanceData {
   String primaryGoal;
   bool copilotMemoryEnabled;
   final List<CopilotMemoryItem> copilotMemories;
+  final List<CopilotChatMessageItem> copilotChat;
+  String copilotDraft;
+  String copilotMode;
+  String? copilotPendingTransaction;
+  DateTime? copilotChatUpdatedAt;
   DateTime? trackingMonth;
   double trackingOpeningCash;
   final List<AccountItem> accounts;
@@ -630,6 +682,11 @@ class FinanceData {
     required this.primaryGoal,
     required this.copilotMemoryEnabled,
     required this.copilotMemories,
+    List<CopilotChatMessageItem>? copilotChat,
+    this.copilotDraft = '',
+    this.copilotMode = 'chat',
+    this.copilotPendingTransaction,
+    this.copilotChatUpdatedAt,
     required this.trackingMonth,
     required this.trackingOpeningCash,
     required this.accounts,
@@ -644,7 +701,7 @@ class FinanceData {
     required this.installmentPlans,
     required this.categories,
     required this.snapshots,
-  });
+  }) : copilotChat = copilotChat ?? [];
 
   Map<String, dynamic> toJson() => {
     'darkMode': darkMode,
@@ -656,6 +713,11 @@ class FinanceData {
     'primaryGoal': primaryGoal,
     'copilotMemoryEnabled': copilotMemoryEnabled,
     'copilotMemories': copilotMemories.map((e) => e.toJson()).toList(),
+    'copilotChat': copilotChat.map((e) => e.toJson()).toList(),
+    'copilotDraft': copilotDraft,
+    'copilotMode': copilotMode,
+    'copilotPendingTransaction': copilotPendingTransaction,
+    'copilotChatUpdatedAt': copilotChatUpdatedAt?.toIso8601String(),
     'trackingMonth': trackingMonth?.toIso8601String(),
     'trackingOpeningCash': trackingOpeningCash,
     'accounts': accounts.map((e) => e.toJson()).toList(),
@@ -689,6 +751,27 @@ class FinanceData {
         .where((e) => e.value.trim().isNotEmpty)
         .take(40)
         .toList(),
+    copilotChat: ((j['copilotChat'] as List?) ?? [])
+        .whereType<Map>()
+        .map(
+          (e) => CopilotChatMessageItem.fromJson(Map<String, dynamic>.from(e)),
+        )
+        .where((e) => e.text.trim().isNotEmpty)
+        .toList()
+        .reversed
+        .take(120)
+        .toList()
+        .reversed
+        .toList(),
+    copilotDraft: (j['copilotDraft'] as String? ?? '').substring(
+      0,
+      (j['copilotDraft'] as String? ?? '').length.clamp(0, 2000).toInt(),
+    ),
+    copilotMode: j['copilotMode'] == 'transaction' ? 'transaction' : 'chat',
+    copilotPendingTransaction: j['copilotPendingTransaction'] as String?,
+    copilotChatUpdatedAt: DateTime.tryParse(
+      j['copilotChatUpdatedAt'] as String? ?? '',
+    ),
     trackingMonth: DateTime.tryParse(j['trackingMonth'] as String? ?? ''),
     trackingOpeningCash: (j['trackingOpeningCash'] as num? ?? 0).toDouble(),
     accounts: ((j['accounts'] as List?) ?? [])

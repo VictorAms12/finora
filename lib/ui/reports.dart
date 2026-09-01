@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
@@ -161,18 +162,19 @@ class ReportsScreen extends StatelessWidget {
                     width: 42,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: (change != null && change > 0
-                              ? FinoraColors.expense
-                              : FinoraColors.income)
-                          .withValues(alpha: .09),
+                      color:
+                          (change != null && change > 0
+                                  ? FinoraColors.expense
+                                  : FinoraColors.income)
+                              .withValues(alpha: .09),
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
                       change == null
                           ? Icons.horizontal_rule_rounded
                           : change > 0
-                              ? Icons.trending_up_rounded
-                              : Icons.trending_down_rounded,
+                          ? Icons.trending_up_rounded
+                          : Icons.trending_down_rounded,
                       color: change != null && change > 0
                           ? FinoraColors.expense
                           : FinoraColors.income,
@@ -225,13 +227,15 @@ class ReportsScreen extends StatelessWidget {
                 ? const EmptyState(
                     icon: Icons.bar_chart_rounded,
                     title: 'Ainda sem dados suficientes',
-                    subtitle:
-                        'Os relatórios por categoria aparecem conforme os lançamentos são registrados.',
+                    subtitle: 'Os relatórios por categoria aparecem conforme os lançamentos são registrados.',
                   )
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('GASTOS POR CATEGORIA', style: eyebrowStyle(context)),
+                      Text(
+                        'GASTOS POR CATEGORIA',
+                        style: eyebrowStyle(context),
+                      ),
                       const SizedBox(height: 8),
                       ...categories.map((entry) {
                         final ratio = store.monthExpense <= 0
@@ -290,27 +294,26 @@ class ReportsScreen extends StatelessWidget {
     String label,
     String value,
     Color color,
-  ) =>
-      Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 8.2,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 10.4,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      );
+  ) => Column(
+    children: [
+      Text(
+        label,
+        style: TextStyle(
+          fontSize: 8.2,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 10.4,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    ],
+  );
 }

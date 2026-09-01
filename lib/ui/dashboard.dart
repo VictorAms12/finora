@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
@@ -20,13 +21,13 @@ class DashboardScreen extends StatelessWidget {
     final primaryLabel = store.selectedIsFuture
         ? 'SALDO PROJETADO'
         : store.selectedIsPast
-            ? (snapshot == null ? 'RESULTADO DO MÊS' : 'FECHAMENTO DO MÊS')
-            : 'PATRIMÔNIO';
+        ? (snapshot == null ? 'RESULTADO DO MÊS' : 'FECHAMENTO DO MÊS')
+        : 'PATRIMÔNIO';
     final primaryValue = store.selectedIsFuture
         ? store.selectedCashProjectedClosing
         : store.selectedIsPast
-            ? (snapshot?.closingBalance ?? store.monthBalance)
-            : store.netWorth;
+        ? (snapshot?.closingBalance ?? store.monthBalance)
+        : store.netWorth;
 
     return PageScaffold(
       eyebrow: 'VISÃO GERAL',
@@ -46,6 +47,55 @@ class DashboardScreen extends StatelessWidget {
       child: Column(
         children: [
           const MonthSwitcher(),
+          if (store.selectedIsCurrent &&
+              DateTime.now().day <= 3 &&
+              (store.previousMonthExpense > 0 ||
+                  store.incomeForMonth(store.previousSelectedMonth) > 0)) ...[
+            const SizedBox(height: 10),
+            SurfaceCard(
+              borderColor: FinoraColors.balance.withValues(alpha: .24),
+              padding: const EdgeInsets.all(13),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_month_rounded,
+                    color: FinoraColors.balance,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${monthLong[store.selectedMonth.month - 1]} começou',
+                          style: const TextStyle(
+                            fontSize: 10.8,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${monthLong[store.previousSelectedMonth.month - 1]} terminou com ${money(context, store.previousMonthExpense)} em gastos.',
+                          style: TextStyle(
+                            fontSize: 8.8,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: store.previousMonth,
+                    child: Text(
+                      'Ver ${monthShort[store.previousSelectedMonth.month - 1]}',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 230),
@@ -60,17 +110,14 @@ class DashboardScreen extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          primaryLabel,
-                          style: eyebrowStyle(context),
-                        ),
+                        child: Text(primaryLabel, style: eyebrowStyle(context)),
                       ),
                       Text(
                         store.selectedIsFuture
                             ? 'PLANEJADO'
                             : store.selectedIsPast
-                                ? 'HISTÓRICO'
-                                : store.data.primaryGoal.toUpperCase(),
+                            ? 'HISTÓRICO'
+                            : store.data.primaryGoal.toUpperCase(),
                         style: const TextStyle(
                           fontSize: 8,
                           color: FinoraColors.goldBright,
@@ -127,7 +174,7 @@ class DashboardScreen extends StatelessWidget {
                         Expanded(
                           child: _mini(
                             context,
-                            'Entradas',
+                            'Entradas · ${monthShort[store.selectedMonth.month - 1]}',
                             store.monthIncome,
                             FinoraColors.income,
                           ),
@@ -136,7 +183,7 @@ class DashboardScreen extends StatelessWidget {
                         Expanded(
                           child: _mini(
                             context,
-                            'Saídas',
+                            'Saídas · ${monthShort[store.selectedMonth.month - 1]}',
                             store.monthExpense,
                             FinoraColors.expense,
                           ),
@@ -166,25 +213,26 @@ class DashboardScreen extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: (store.selectedIsFuture
-                            ? FinoraColors.balance
-                            : store.selectedIsPast
+                    color:
+                        (store.selectedIsFuture
+                                ? FinoraColors.balance
+                                : store.selectedIsPast
                                 ? FinoraColors.goldBright
                                 : FinoraColors.income)
-                        .withValues(alpha: .10),
+                            .withValues(alpha: .10),
                     borderRadius: BorderRadius.circular(13),
                   ),
                   child: Icon(
                     store.selectedIsFuture
                         ? Icons.query_stats_rounded
                         : store.selectedIsPast
-                            ? Icons.history_rounded
-                            : Icons.wallet_outlined,
+                        ? Icons.history_rounded
+                        : Icons.wallet_outlined,
                     color: store.selectedIsFuture
                         ? FinoraColors.balance
                         : store.selectedIsPast
-                            ? FinoraColors.goldBright
-                            : FinoraColors.income,
+                        ? FinoraColors.goldBright
+                        : FinoraColors.income,
                     size: 20,
                   ),
                 ),
@@ -197,15 +245,13 @@ class DashboardScreen extends StatelessWidget {
                         store.selectedIsFuture
                             ? 'Saldo projetado para o fim do mês'
                             : store.selectedIsPast
-                                ? (snapshot == null
-                                    ? 'Resultado registrado no mês'
-                                    : 'Detalhes do fechamento mensal')
-                                : 'Disponível para gastar',
+                            ? (snapshot == null
+                                  ? 'Resultado registrado no mês'
+                                  : 'Detalhes do fechamento mensal')
+                            : 'Disponível para gastar',
                         style: TextStyle(
                           fontSize: 9.5,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -215,17 +261,16 @@ class DashboardScreen extends StatelessWidget {
                           store.selectedIsFuture
                               ? store.selectedCashProjectedClosing
                               : store.selectedIsPast
-                                  ? (snapshot?.closingBalance ??
-                                      store.monthBalance)
-                                  : store.availableToSpend,
+                              ? (snapshot?.closingBalance ?? store.monthBalance)
+                              : store.availableToSpend,
                         ),
                         style: TextStyle(
                           fontSize: 19,
                           color: store.selectedIsFuture
                               ? FinoraColors.balance
                               : store.selectedIsPast
-                                  ? FinoraColors.goldBright
-                                  : FinoraColors.income,
+                              ? FinoraColors.goldBright
+                              : FinoraColors.income,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -246,12 +291,18 @@ class DashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.all(13),
               child: Row(
                 children: [
-                  const Icon(Icons.warning_amber_rounded, color: FinoraColors.expense),
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: FinoraColors.expense,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Faltam ${money(context, store.currentCashShortfall)} para cobrir os compromissos já previstos.',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
@@ -280,6 +331,58 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+          if (!store.selectedIsFuture && store.smartInsights.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            sectionTitle(context, 'INSIGHTS', 'O que merece atenção'),
+            const SizedBox(height: 7),
+            SurfaceCard(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Column(
+                children: store.smartInsights.take(3).map((insight) {
+                  final color = switch (insight.severity) {
+                    FinoraInsightSeverity.warning => FinoraColors.expense,
+                    FinoraInsightSeverity.attention => FinoraColors.warning,
+                    FinoraInsightSeverity.info => FinoraColors.balance,
+                  };
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.auto_graph_rounded, size: 18, color: color),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                insight.title,
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                insight.message,
+                                style: TextStyle(
+                                  fontSize: 8.7,
+                                  height: 1.35,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               ),
             ),
           ],
@@ -335,8 +438,7 @@ class DashboardScreen extends StatelessWidget {
                 ? EmptyState(
                     icon: Icons.speed_rounded,
                     title: 'Nenhum orçamento definido',
-                    subtitle:
-                        'Crie limites por categoria para acompanhar o que ainda pode gastar.',
+                    subtitle: 'Crie limites por categoria para acompanhar o que ainda pode gastar.',
                     actionLabel: 'Criar orçamento',
                     onAction: () => showBudgetForm(context),
                   )
@@ -356,8 +458,7 @@ class DashboardScreen extends StatelessWidget {
                 ? const EmptyState(
                     icon: Icons.event_available_outlined,
                     title: 'Nada previsto neste mês',
-                    subtitle:
-                        'Parcelas, recorrências e contas futuras aparecerão aqui.',
+                    subtitle: 'Parcelas, recorrências e contas futuras aparecerão aqui.',
                   )
                 : Column(
                     children: store.selectedPlanned
@@ -402,18 +503,13 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _line(BuildContext context) => Container(
-        width: 1,
-        height: 28,
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-        color: Theme.of(context).dividerColor,
-      );
+    width: 1,
+    height: 28,
+    margin: const EdgeInsets.symmetric(horizontal: 6),
+    color: Theme.of(context).dividerColor,
+  );
 
-  Widget _mini(
-    BuildContext context,
-    String label,
-    double value,
-    Color color,
-  ) =>
+  Widget _mini(BuildContext context, String label, double value, Color color) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -443,30 +539,29 @@ class DashboardScreen extends StatelessWidget {
     String label,
     String value,
     Color color,
-  ) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 8.2,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 10.4,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
+  ) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 8.2,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
-      );
+        const SizedBox(height: 4),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: color,
+            fontSize: 10.4,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    ),
+  );
 }

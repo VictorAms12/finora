@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models.dart';
 import '../theme.dart';
 import 'forms.dart';
@@ -55,10 +56,7 @@ Future<void> showDesktopQuickActions(BuildContext context) async {
                       color: FinoraColors.expense,
                       onTap: () {
                         Navigator.pop(dialogContext);
-                        showTransactionForm(
-                          context,
-                          TransactionType.expense,
-                        );
+                        showTransactionForm(context, TransactionType.expense);
                       },
                     ),
                   ),
@@ -71,10 +69,7 @@ Future<void> showDesktopQuickActions(BuildContext context) async {
                       color: FinoraColors.income,
                       onTap: () {
                         Navigator.pop(dialogContext);
-                        showTransactionForm(
-                          context,
-                          TransactionType.income,
-                        );
+                        showTransactionForm(context, TransactionType.income);
                       },
                     ),
                   ),
@@ -260,41 +255,41 @@ class _PrimaryAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: color.withValues(alpha: .10),
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+    color: color.withValues(alpha: .10),
+    borderRadius: BorderRadius.circular(18),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, color: color, size: 28),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 9.5,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _ActionChip extends StatelessWidget {
@@ -310,9 +305,9 @@ class _ActionChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ActionChip(
-        avatar: Icon(icon, size: 18, color: FinoraColors.goldBright),
-        label: Text(label),
-        onPressed: onTap,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-      );
+    avatar: Icon(icon, size: 18, color: FinoraColors.goldBright),
+    label: Text(label),
+    onPressed: onTap,
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+  );
 }

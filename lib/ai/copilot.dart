@@ -424,9 +424,8 @@ class FinancialQueryEngine {
 
   int? _installmentsFromText(String text) {
     final x = RegExp(r'\b(\d{1,2})\s*x\b').firstMatch(text);
-    final words = RegExp(
-      r'\bem\s+(\d{1,2})\s+(?:vezes|parcelas)\b',
-    ).firstMatch(text);
+    final words = RegExp(r'\bem\s+(\d{1,2})\s+(?:vezes|parcelas)\b')
+        .firstMatch(text);
     final raw = x?.group(1) ?? words?.group(1);
     final value = int.tryParse(raw ?? '');
     if (value == null || value < 2 || value > 60) return null;

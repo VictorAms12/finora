@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
@@ -13,24 +14,23 @@ class NotificationService {
 
   static const AndroidNotificationDetails _androidDetails =
       AndroidNotificationDetails(
-    'finora_finance_reminders',
-    'Lembretes financeiros',
-    channelDescription: 'Lembretes de contas, parcelas e planejamento do Finora',
-    importance: Importance.high,
-    priority: Priority.high,
-  );
+        'finora_finance_reminders',
+        'Lembretes financeiros',
+        channelDescription:
+            'Lembretes de contas, parcelas e planejamento do Finora',
+        importance: Importance.high,
+        priority: Priority.high,
+      );
 
   static const DarwinNotificationDetails _darwinDetails =
       DarwinNotificationDetails(
-    presentAlert: true,
-    presentBadge: true,
-    presentSound: true,
-  );
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
 
   static const WindowsNotificationDetails _windowsDetails =
-      WindowsNotificationDetails(
-    subtitle: 'Finora · Gestão financeira',
-  );
+      WindowsNotificationDetails(subtitle: 'Finora · Gestão financeira');
 
   static const NotificationDetails _details = NotificationDetails(
     android: _androidDetails,
@@ -39,8 +39,7 @@ class NotificationService {
     windows: _windowsDetails,
   );
 
-  static Future<void> initialize() =>
-      _initialization ??= _initializePlugin();
+  static Future<void> initialize() => _initialization ??= _initializePlugin();
 
   static Future<void> _initializePlugin() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -67,20 +66,21 @@ class NotificationService {
     await initialize();
     var granted = true;
 
-    final android = plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android != null) {
       granted = await android.requestNotificationsPermission() ?? false;
     }
 
-    final ios = plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final ios = plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     if (ios != null) {
-      granted = await ios.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          ) ??
+      granted =
+          await ios.requestPermissions(alert: true, badge: true, sound: true) ??
           false;
     }
 

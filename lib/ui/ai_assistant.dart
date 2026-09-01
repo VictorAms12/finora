@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,6 +15,8 @@ import 'common.dart';
 enum _AiMode { chat, transaction }
 
 class _ChatMessage {
+  final String id;
+  final DateTime createdAt;
   final bool user;
   final String text;
   final AiTransactionSuggestion? suggestion;
@@ -23,6 +27,8 @@ class _ChatMessage {
   bool handled = false;
 
   _ChatMessage({
+    String? id,
+    DateTime? createdAt,
     required this.user,
     required this.text,
     this.suggestion,
@@ -30,7 +36,21 @@ class _ChatMessage {
     this.followUps = const [],
     this.action = AiAssistantAction.none,
     this.actionLabel,
-  });
+  }) : id = id ?? FinanceStore.newId(),
+       createdAt = createdAt ?? DateTime.now();
+
+  factory _ChatMessage.fromStored(CopilotChatMessageItem item) => _ChatMessage(
+    id: item.id,
+    createdAt: item.createdAt,
+    user: item.user,
+    text: item.text,
+    followUps: item.followUps,
+    action: AiAssistantAction.values.firstWhere(
+      (value) => value.name == item.action,
+      orElse: () => AiAssistantAction.none,
+    ),
+    actionLabel: item.actionLabel,
+  );
 }
 
 class FinoraAiScreen extends StatefulWidget {
@@ -42,27 +62,19 @@ class FinoraAiScreen extends StatefulWidget {
   State<FinoraAiScreen> createState() => _FinoraAiScreenState();
 }
 
-class _FinoraAiScreenState extends State<FinoraAiScreen> {
+class _FinoraAiScreenState extends State<FinoraAiScreen>
+    with AutomaticKeepAliveClientMixin<FinoraAiScreen>, WidgetsBindingObserver {
   final _gemini = const GeminiService();
   final _ai = const FinoraAiService();
   final _composer = TextEditingController();
   final _keyController = TextEditingController();
   final _scroll = ScrollController();
   final _focus = FocusNode();
+  final _messages = <_ChatMessage>[];
 
-  final _messages = <_ChatMessage>[
-    _ChatMessage(
-      user: false,
-      text:
-          'Oi! Posso te ajudar a entender seus gastos, conferir saldos, planejar o mês ou registrar uma movimentação. Pode falar do seu jeito.',
-      followUps: const [
-        'Como está meu mês?',
-        'Quanto posso gastar?',
-        'Quais são as próximas contas?',
-      ],
-    ),
-  ];
-
+  FinanceStore? _store;
+  Timer? _draftTimer;
+  bool _hydrated = false;
   bool _checkingKey = true;
   bool _hasKey = false;
   bool _busy = false;
@@ -76,11 +88,99 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refreshKey();
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_hydrated) return;
+    _store = context.read<FinanceStore>();
+    final data = _store!.data;
+    if (data.copilotChat.isEmpty) {
+      _messages.add(_welcomeMessage());
+    } else {
+      _messages.addAll(data.copilotChat.map(_ChatMessage.fromStored));
+    }
+    _composer.text = data.copilotDraft;
+    _mode = data.copilotMode == 'transaction'
+        ? _AiMode.transaction
+        : _AiMode.chat;
+    _pendingTransaction = data.copilotPendingTransaction;
+    _composer.addListener(_onComposerChanged);
+    _hydrated = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _persistState();
+      _scrollToEnd();
+    });
+  }
+
+  _ChatMessage _welcomeMessage() => _ChatMessage(
+    user: false,
+    text: 'Oi! Posso te ajudar a entender seus gastos, conferir saldos, planejar o mês ou registrar uma movimentação. Pode falar do seu jeito.',
+    followUps: const [
+      'Como está meu mês?',
+      'Quanto posso gastar?',
+      'Quais são as próximas contas?',
+    ],
+  );
+
+  void _onComposerChanged() {
+    _draftTimer?.cancel();
+    _draftTimer = Timer(const Duration(milliseconds: 650), _persistState);
+  }
+
+  void _persistState() {
+    if (!_hydrated || _store == null) return;
+    final persistent = _messages
+        .where(
+          (message) => message.suggestion == null && message.proposal == null,
+        )
+        .map(
+          (message) => CopilotChatMessageItem(
+            id: message.id,
+            user: message.user,
+            text: message.text,
+            followUps: message.followUps,
+            action: message.action.name,
+            actionLabel: message.actionLabel,
+            createdAt: message.createdAt,
+          ),
+        )
+        .toList(growable: false);
+    _store!.saveCopilotSession(
+      messages: persistent,
+      draft: _composer.text,
+      mode: _mode.name,
+      pendingTransaction: _pendingTransaction,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      _persistState();
+    }
+  }
+
+  @override
+  void didChangeMetrics() {
+    _scrollToEnd();
+  }
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _draftTimer?.cancel();
+    _composer.removeListener(_onComposerChanged);
     _composer.dispose();
     _keyController.dispose();
     _scroll.dispose();
@@ -116,8 +216,7 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
         _messages.add(
           _ChatMessage(
             user: false,
-            text:
-                'Pronto. Agora posso analisar seus dados, entender perguntas de continuação e preparar lançamentos pela conversa.',
+            text: 'Pronto. Agora posso analisar seus dados, entender perguntas de continuação e preparar lançamentos pela conversa.',
             followUps: const [
               'Como está meu mês?',
               'Onde estou gastando mais?',
@@ -179,7 +278,7 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
       if (!_hasKey) {
         final local = shouldTreatAsTransaction
             ? null
-            : _ai.tryLocalAnswer(store, clean);
+            : _ai.tryLocalAnswer(store, clean, conversationContext: history);
         if (!mounted) return;
         if (local != null) {
           _appendReply(local);
@@ -188,8 +287,7 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
             () => _messages.add(
               _ChatMessage(
                 user: false,
-                text:
-                    'Para essa conversa eu preciso do Gemini conectado. Você ainda pode consultar saldos e o disponível para gastar sem conexão.',
+                text: 'Para essa conversa eu preciso do Gemini conectado. Você ainda pode consultar saldos e o disponível para gastar sem conexão.',
                 followUps: const [
                   'Quanto posso gastar?',
                   'Qual é meu saldo total?',
@@ -330,6 +428,7 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
       _mode = _AiMode.transaction;
       _pendingTransaction = null;
     });
+    _persistState();
     _focus.requestFocus();
   }
 
@@ -354,8 +453,7 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
         () => _messages.add(
           _ChatMessage(
             user: false,
-            text:
-                'Esse lançamento mudou enquanto eu conferia. Veja se a conta ou o cartão ainda existe e tente novamente.',
+            text: 'Esse lançamento mudou enquanto eu conferia. Veja se a conta ou o cartão ainda existe e tente novamente.',
           ),
         ),
       );
@@ -430,22 +528,26 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
   }
 
   void _clear() {
+    _store?.clearCopilotSession();
     setState(() {
       _messages
         ..clear()
         ..add(
           _ChatMessage(
             user: false,
-            text: 'Tudo limpo. O que você quer ver agora?',
+            text: 'Nova conversa. O que você quer ver agora?',
             followUps: const ['Como está meu mês?', 'Quanto posso gastar?'],
           ),
         );
+      _composer.clear();
       _mode = _AiMode.chat;
       _pendingTransaction = null;
     });
+    _scrollToEnd();
   }
 
   void _scrollToEnd() {
+    _persistState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!_scroll.hasClients) return;
       _scroll.animateTo(
@@ -463,13 +565,17 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final setup = !_checkingKey && !_hasKey;
     final count = _messages.length + (setup ? 1 : 0) + (_busy ? 1 : 0);
+    final media = MediaQuery.of(context);
+    final compactHeight =
+        media.size.height < 430 || media.viewInsets.bottom > 0;
 
     return Column(
       children: [
         _header(context),
-        _quickActions(),
+        if (!compactHeight) _quickActions(),
         Expanded(
           child: ListView.builder(
             controller: _scroll,
@@ -623,6 +729,13 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
                 : null,
           ),
           _chip(
+            Icons.lightbulb_outline_rounded,
+            'Insights',
+            enabled
+                ? () => _askPreset('O que merece minha atenção agora?')
+                : null,
+          ),
+          _chip(
             Icons.add_card_rounded,
             'Registrar',
             enabled ? _startTransaction : null,
@@ -740,9 +853,9 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
                           style: TextStyle(
                             fontSize: 8.5,
                             height: 1.35,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -776,10 +889,13 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
                 icon: Icons.chat_bubble_outline_rounded,
                 label: 'Conversar',
                 selected: _mode == _AiMode.chat,
-                onTap: () => setState(() {
-                  _mode = _AiMode.chat;
-                  _pendingTransaction = null;
-                }),
+                onTap: () {
+                  setState(() {
+                    _mode = _AiMode.chat;
+                    _pendingTransaction = null;
+                  });
+                  _persistState();
+                },
               ),
               const SizedBox(width: 7),
               _ModePill(
@@ -982,9 +1098,8 @@ class _TypingBubble extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         decoration: BoxDecoration(
-          color: Theme.of(
-            context,
-          ).colorScheme.surfaceContainerHighest.withValues(alpha: .58),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest
+              .withValues(alpha: .58),
           borderRadius: BorderRadius.circular(17),
         ),
         child: Row(
