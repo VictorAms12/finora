@@ -751,8 +751,9 @@ ${jsonEncode(context)}
 
   String _contextualLocalQuestion(String question, String conversationContext) {
     final clean = _fold(question);
-    if (conversationContext.trim().isEmpty || clean.length > 45)
+    if (conversationContext.trim().isEmpty || clean.length > 45) {
       return question;
+    }
     final continuation = _hasAny(clean, [
       'e mes passado',
       'e mês passado',

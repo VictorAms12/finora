@@ -309,7 +309,7 @@ class BudgetProgress extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Ritmo atual: cerca de ${money(context, projected!)} até o fim do mês',
+                'Ritmo atual: cerca de ${money(context, projected)} até o fim do mês',
                 style: const TextStyle(
                   fontSize: 8.2,
                   color: FinoraColors.warning,
