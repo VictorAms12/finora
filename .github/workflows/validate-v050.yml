@@ -62,8 +62,20 @@ jobs:
         run: flutter pub get
 
       - name: Formatar arquivos alterados
+        run: dart format lib/ai/copilot.dart lib/ai/finance_ai.dart lib/models.dart lib/store_backup.dart lib/store_entities.dart lib/ui/ai_assistant.dart lib/ui/ai_settings.dart lib/ui/copilot_memory.dart test/ai_assistant_engine_test.dart test/copilot_engine_test.dart
+
+      - name: Persistir normalização na branch
         run: |
-          dart format lib/ai/copilot.dart lib/ai/finance_ai.dart lib/models.dart lib/store_backup.dart lib/store_entities.dart lib/ui/ai_assistant.dart lib/ui/ai_settings.dart lib/ui/copilot_memory.dart test/ai_assistant_engine_test.dart test/copilot_engine_test.dart
+          git config user.name "VictorAms12"
+          git config user.email "victoralexandresoaresmaranhao@gmail.com"
+          git add lib test
+          if ! git diff --cached --quiet; then
+            git commit -m "fix: normalize Finora v0.5 Copilot sources"
+            git push origin HEAD:feature/finora-v050-copilot
+          fi
+
+      - name: Mostrar trecho alvo
+        run: nl -ba lib/ai/finance_ai.dart | sed -n '714,726p'
 
       - name: Analyzer
         run: flutter analyze
@@ -71,11 +83,9 @@ jobs:
       - name: Testes
         run: flutter test
 
-      - name: Commitar correções validadas
+      - name: Remover workflow temporário
         run: |
           rm .github/workflows/validate-v050.yml
-          git config user.name "VictorAms12"
-          git config user.email "victoralexandresoaresmaranhao@gmail.com"
           git add -A
-          git commit -m "fix: harden Finora v0.5 Copilot"
+          git commit -m "chore: finish v0.5 Copilot validation"
           git push origin HEAD:feature/finora-v050-copilot
