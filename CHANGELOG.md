@@ -1,3 +1,20 @@
+## v0.6.0 — Finora Intelligence
+
+- novo centro **Finora Intelligence** reúne insights, recorrências detectadas e captura inteligente;
+- detecção local de possíveis assinaturas/cobranças mensais usando histórico, estabilidade de valor e intervalo entre pagamentos;
+- possíveis recorrências nunca são criadas automaticamente: o usuário revisa e confirma antes de transformar o padrão em recorrência;
+- motor local de anomalias aponta possíveis duplicidades, aumentos fora do padrão e gastos muito acima do comportamento recente;
+- score de saúde financeira combina atrasos, orçamento, cartão e anomalias sem alterar os dados financeiros;
+- registro por voz transforma fala natural em proposta de lançamento e mantém a confirmação antes de gravar;
+- leitura de comprovantes, recibos, PIX e prints JPG/PNG/WebP usa Gemini multimodal para extrair valor, estabelecimento, data e categoria;
+- imagens selecionadas são usadas somente para a leitura e não são persistidas pelo Finora;
+- comprovantes ambíguos continuam pelo mesmo fluxo conversacional de esclarecimento de conta/cartão;
+- notificações inteligentes podem destacar uma vez por dia alertas financeiros relevantes quando notificações estão habilitadas;
+- cliente Gemini passa a enviar a revisão atual da Interactions API e remove blocos internos `<analysis>...</analysis>` antes de exibir respostas;
+- Android passa a declarar permissão de microfone para o registro por voz;
+- adicionados testes para recorrências detectadas, exclusão de parcelamentos/recorrências formais da detecção, duplicidades, orçamento crítico e normalização textual;
+- nenhuma migração destrutiva do SQLite e nenhuma ação financeira automática sem confirmação.
+
 ## v0.5.2 — Stateful Copilot + Stability Pack
 
 ### v0.5.1 incorporada
