@@ -18,7 +18,7 @@ jobs:
         with:
           ref: feature/finora-v050-copilot
 
-      - name: Corrigir tipagem e sintaxe do Copilot
+      - name: Corrigir tipagem, sintaxe e lints do Copilot
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -27,6 +27,8 @@ jobs:
               'lib/store_entities.dart': [
                   ('cleanLabel.length.clamp(0, 60))', 'cleanLabel.length.clamp(0, 60).toInt())'),
                   ('cleanValue.length.clamp(0, 240))', 'cleanValue.length.clamp(0, 240).toInt())'),
+                  ('    if (defaults.any((value) => _normalizedName(value) == normalized)) return true;',
+                   '    if (defaults.any((value) => _normalizedName(value) == normalized)) {\n      return true;\n    }'),
               ],
               'lib/ai/copilot.dart': [
                   ('(months ?? 6).clamp(1, 60),', '(months ?? 6).clamp(1, 60).toInt(),'),
@@ -39,6 +41,13 @@ jobs:
               'lib/ai/finance_ai.dart': [
                   ("((result['operationMonths'] as num?)?.toInt() ?? 6).clamp(1, 60);", "((result['operationMonths'] as num?)?.toInt() ?? 6).clamp(1, 60).toInt();"),
                   ("final memories = store.data.copilotMemoryEnabled\n        ? store.data.copilotMemories\n            .toList()\n          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt))\n        : <CopilotMemoryItem>[];", "final memories = store.data.copilotMemoryEnabled\n        ? (store.data.copilotMemories.toList()\n          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))\n        : <CopilotMemoryItem>[];"),
+                  ('    final clean = _fold(question);\n    final selected = store.selectedMonth;\n', '    final clean = _fold(question);\n'),
+              ],
+              'lib/ui/copilot_memory.dart': [
+                  ("import 'common.dart';", "import 'common.dart';\nimport 'forms.dart';"),
+              ],
+              'test/ai_assistant_engine_test.dart': [
+                  ('    final service = const FinoraAiService();', '    const service = FinoraAiService();'),
               ],
           }
           for path, pairs in replacements.items():
@@ -58,7 +67,7 @@ jobs:
       - name: Dependências
         run: flutter pub get
 
-      - name: Formatar arquivos da v0.5
+      - name: Formatar arquivos alterados
         run: |
           dart format \
             lib/ai/copilot.dart \
@@ -69,6 +78,7 @@ jobs:
             lib/ui/ai_assistant.dart \
             lib/ui/ai_settings.dart \
             lib/ui/copilot_memory.dart \
+            test/ai_assistant_engine_test.dart \
             test/copilot_engine_test.dart
 
       - name: Analyzer
