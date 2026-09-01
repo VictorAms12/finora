@@ -1,0 +1,75 @@
+name: Aplicar correções revisão v0.6
+
+on:
+  push:
+    branches: [feature/finora-v060-intelligence]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feature/finora-v060-intelligence
+      - name: Corrigir pontos da revisão
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('lib/ui/intelligence_center.dart')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace("import '../intelligence_engine.dart';\n", "import '../intelligence_engine.dart';\nimport '../models.dart';\n")
+          s = s.replace(
+              "      setState(() => _receipt = result);\n      await _interpret(_receiptInput(result));",
+              "      setState(() {\n        _receipt = result;\n        _processing = false;\n      });\n      await _interpret(_receiptInput(result));",
+          )
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('lib/intelligence_engine.dart')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace('healthScore: score.clamp(0, 100),', 'healthScore: score.clamp(0, 100).toInt(),')
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('lib/ui/common.dart')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace(
+              '  final EdgeInsets padding;\n  final Color? borderColor;',
+              '  final EdgeInsets padding;\n  final EdgeInsets? margin;\n  final Color? borderColor;',
+          )
+          s = s.replace(
+              '    this.padding = const EdgeInsets.all(16),\n    this.borderColor,',
+              '    this.padding = const EdgeInsets.all(16),\n    this.margin,\n    this.borderColor,',
+          )
+          s = s.replace(
+              '    final content = Container(\n      padding: padding,',
+              '    final content = Container(\n      margin: margin,\n      padding: padding,',
+          )
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('lib/ai/gemini_service.dart')
+          s = p.read_text(encoding='utf-8')
+          s = s.replace(
+              "      request.headers.set('x-goog-api-key', apiKey);\n      request.write(jsonEncode(body));",
+              "      request.headers.set('x-goog-api-key', apiKey);\n      request.headers.set('Api-Revision', '2026-05-20');\n      request.write(jsonEncode(body));",
+          )
+          marker = "    text = text.replaceAll(\n      RegExp(\n        r'</?(?:analysis|assistant|response|answer|final|message|content|result)[^>]*>',"
+          if marker in s and "r'<analysis\\b[^>]*>.*?</analysis>'" not in s:
+              s = s.replace(
+                  marker,
+                  "    text = text.replaceAll(\n      RegExp(\n        r'<analysis\\b[^>]*>.*?</analysis>',\n        caseSensitive: false,\n        dotAll: true,\n      ),\n      '',\n    );\n    text = text.replaceAll(\n      RegExp(\n        r'</?(?:analysis|assistant|response|answer|final|message|content|result)[^>]*>',",
+              )
+          p.write_text(s, encoding='utf-8')
+          PY
+
+          dart format lib/intelligence_engine.dart lib/ui/intelligence_center.dart lib/ui/common.dart lib/ai/gemini_service.dart
+          git rm .github/workflows/patch-v060-review.yml
+          git config user.name 'Finora Intelligence Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/intelligence_engine.dart lib/ui/intelligence_center.dart lib/ui/common.dart lib/ai/gemini_service.dart
+          git commit -m 'fix: harden Finora v0.6 intelligence flows'
+          git push origin HEAD:feature/finora-v060-intelligence
