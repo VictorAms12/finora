@@ -1,0 +1,76 @@
+name: Validar Finora v0.5 Copilot
+
+on:
+  push:
+    branches:
+      - feature/finora-v050-copilot
+    paths:
+      - .github/workflows/validate-v050.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feature/finora-v050-copilot
+
+      - name: Aplicar correções de tipagem conhecidas
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'lib/store_entities.dart': [
+                  ('cleanLabel.length.clamp(0, 60))', 'cleanLabel.length.clamp(0, 60).toInt())'),
+                  ('cleanValue.length.clamp(0, 240))', 'cleanValue.length.clamp(0, 240).toInt())'),
+              ],
+              'lib/ai/copilot.dart': [
+                  ('(months ?? 6).clamp(1, 60),', '(months ?? 6).clamp(1, 60).toInt(),'),
+                  ("(int.tryParse(monthsMatch?.group(1) ?? '') ?? 6).clamp(1, 24);", "(int.tryParse(monthsMatch?.group(1) ?? '') ?? 6).clamp(1, 24).toInt();"),
+                  ("(int.tryParse(match.group(1) ?? '') ?? 1).clamp(1, 24);", "(int.tryParse(match.group(1) ?? '') ?? 1).clamp(1, 24).toInt();"),
+              ],
+              'lib/ai/finance_ai.dart': [
+                  ("((result['operationMonths'] as num?)?.toInt() ?? 6).clamp(1, 60);", "((result['operationMonths'] as num?)?.toInt() ?? 6).clamp(1, 60).toInt();"),
+              ],
+          }
+          for path, pairs in replacements.items():
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              for old, new in pairs:
+                  text = text.replace(old, new)
+              p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Instalar Flutter Stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dependências
+        run: flutter pub get
+
+      - name: Format check
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analyzer
+        run: flutter analyze
+
+      - name: Testes
+        run: flutter test
+
+      - name: Commitar correções validadas
+        run: |
+          rm .github/workflows/validate-v050.yml
+          git config user.name "VictorAms12"
+          git config user.email "victoralexandresoaresmaranhao@gmail.com"
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "fix: harden Finora v0.5 Copilot"
+          git push origin HEAD:feature/finora-v050-copilot
