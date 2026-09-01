@@ -11,6 +11,7 @@ def configure_manifest() -> None:
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 """
     if "android.permission.INTERNET" not in text:
         text = text.replace(">", ">" + permissions, 1)
@@ -19,6 +20,7 @@ def configure_manifest() -> None:
             "android.permission.USE_BIOMETRIC",
             "android.permission.POST_NOTIFICATIONS",
             "android.permission.RECEIVE_BOOT_COMPLETED",
+            "android.permission.RECORD_AUDIO",
         ):
             if permission not in text:
                 text = text.replace(
