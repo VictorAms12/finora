@@ -1,0 +1,40 @@
+name: Aplicar Finora v0.5 Copilot
+
+on:
+  push:
+    branches:
+      - feature/finora-v050-copilot
+    paths:
+      - tool/apply_v050_copilot.py
+      - .github/workflows/apply-v050-copilot.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/finora-v050-copilot
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Aplicar patch
+        run: python tool/apply_v050_copilot.py
+      - name: Remover arquivos temporários
+        run: |
+          rm tool/apply_v050_copilot.py
+          rm .github/workflows/apply-v050-copilot.yml
+      - name: Commit
+        run: |
+          git config user.name "VictorAms12"
+          git config user.email "victoralexandresoaresmaranhao@gmail.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Sem alterações"
+            exit 0
+          fi
+          git commit -m "feat: Finora v0.5.0 Copilot"
+          git push origin HEAD:feature/finora-v050-copilot
