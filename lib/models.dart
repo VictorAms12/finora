@@ -100,6 +100,36 @@ class CategoryItem {
       );
 }
 
+class CopilotMemoryItem {
+  final String id;
+  String label;
+  String value;
+  DateTime updatedAt;
+
+  CopilotMemoryItem({
+    required this.id,
+    required this.label,
+    required this.value,
+    required this.updatedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'label': label,
+        'value': value,
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory CopilotMemoryItem.fromJson(Map<String, dynamic> j) =>
+      CopilotMemoryItem(
+        id: j['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        label: j['label'] as String? ?? 'Memória',
+        value: j['value'] as String? ?? '',
+        updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? '') ??
+            DateTime.now(),
+      );
+}
+
 class TransactionItem {
   final String id;
   TransactionType type;
@@ -582,6 +612,8 @@ class FinanceData {
   int notificationDaysBefore;
   bool onboardingCompleted;
   String primaryGoal;
+  bool copilotMemoryEnabled;
+  final List<CopilotMemoryItem> copilotMemories;
   DateTime? trackingMonth;
   double trackingOpeningCash;
   final List<AccountItem> accounts;
@@ -605,6 +637,8 @@ class FinanceData {
     required this.notificationDaysBefore,
     required this.onboardingCompleted,
     required this.primaryGoal,
+    required this.copilotMemoryEnabled,
+    required this.copilotMemories,
     required this.trackingMonth,
     required this.trackingOpeningCash,
     required this.accounts,
@@ -629,6 +663,8 @@ class FinanceData {
         'notificationDaysBefore': notificationDaysBefore,
         'onboardingCompleted': onboardingCompleted,
         'primaryGoal': primaryGoal,
+        'copilotMemoryEnabled': copilotMemoryEnabled,
+        'copilotMemories': copilotMemories.map((e) => e.toJson()).toList(),
         'trackingMonth': trackingMonth?.toIso8601String(),
         'trackingOpeningCash': trackingOpeningCash,
         'accounts': accounts.map((e) => e.toJson()).toList(),
@@ -656,6 +692,13 @@ class FinanceData {
             (j['notificationDaysBefore'] as num? ?? 2).toInt(),
         onboardingCompleted: j['onboardingCompleted'] as bool? ?? false,
         primaryGoal: j['primaryGoal'] as String? ?? 'Controlar gastos',
+        copilotMemoryEnabled: j['copilotMemoryEnabled'] as bool? ?? true,
+        copilotMemories: ((j['copilotMemories'] as List?) ?? [])
+            .whereType<Map>()
+            .map((e) => CopilotMemoryItem.fromJson(Map<String, dynamic>.from(e)))
+            .where((e) => e.value.trim().isNotEmpty)
+            .take(40)
+            .toList(),
         trackingMonth:
             DateTime.tryParse(j['trackingMonth'] as String? ?? ''),
         trackingOpeningCash:

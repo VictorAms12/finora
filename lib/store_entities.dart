@@ -3,6 +3,72 @@ part of 'store.dart';
 extension FinanceStoreEntities on FinanceStore {
   String _normalizedName(String value) => value.trim().toLowerCase();
 
+  void setCopilotMemoryEnabled(bool value) {
+    if (data.copilotMemoryEnabled == value) return;
+    data.copilotMemoryEnabled = value;
+    commit();
+  }
+
+  bool rememberCopilot(String label, String value) {
+    final cleanLabel = label.trim();
+    final cleanValue = value.trim();
+    if (cleanLabel.isEmpty || cleanValue.isEmpty) return false;
+
+    final normalized = _normalizedName(cleanLabel);
+    final existing = data.copilotMemories.where(
+      (item) => _normalizedName(item.label) == normalized,
+    );
+    if (existing.isNotEmpty) {
+      existing.first
+        ..label = cleanLabel.substring(0, cleanLabel.length.clamp(0, 60))
+        ..value = cleanValue.substring(0, cleanValue.length.clamp(0, 240))
+        ..updatedAt = DateTime.now();
+    } else {
+      if (data.copilotMemories.length >= 40) {
+        data.copilotMemories.sort((a, b) => a.updatedAt.compareTo(b.updatedAt));
+        data.copilotMemories.removeAt(0);
+      }
+      data.copilotMemories.add(
+        CopilotMemoryItem(
+          id: FinanceStore.newId(),
+          label: cleanLabel.substring(0, cleanLabel.length.clamp(0, 60)),
+          value: cleanValue.substring(0, cleanValue.length.clamp(0, 240)),
+          updatedAt: DateTime.now(),
+        ),
+      );
+    }
+    commit();
+    return true;
+  }
+
+  bool updateCopilotMemory(
+    CopilotMemoryItem item,
+    String label,
+    String value,
+  ) {
+    final cleanLabel = label.trim();
+    final cleanValue = value.trim();
+    if (cleanLabel.isEmpty || cleanValue.isEmpty) return false;
+    item
+      ..label = cleanLabel.substring(0, cleanLabel.length.clamp(0, 60))
+      ..value = cleanValue.substring(0, cleanValue.length.clamp(0, 240))
+      ..updatedAt = DateTime.now();
+    commit();
+    return true;
+  }
+
+  void deleteCopilotMemory(String id) {
+    final before = data.copilotMemories.length;
+    data.copilotMemories.removeWhere((item) => item.id == id);
+    if (data.copilotMemories.length != before) commit();
+  }
+
+  void clearCopilotMemories() {
+    if (data.copilotMemories.isEmpty) return;
+    data.copilotMemories.clear();
+    commit();
+  }
+
   bool accountNameExists(String name, {String? exceptId}) {
     final normalized = _normalizedName(name);
     if (normalized.isEmpty) return false;

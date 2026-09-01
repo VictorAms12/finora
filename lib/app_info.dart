@@ -1,1 +1,1 @@
-const finoraVersion = '0.4.5';
+const finoraVersion = '0.5.0';

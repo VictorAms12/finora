@@ -1,3 +1,12 @@
+## v0.5.0 — Finora Copilot
+
+- Memória contextual persistente, opcional e totalmente editável pelo usuário.
+- Financial Query Engine local para análises rápidas sem depender do Gemini.
+- Simulador conversacional de compras à vista e parceladas usando projeções reais.
+- Ações do Copilot com confirmação para orçamentos, metas, reservas e previstos.
+- Memórias passam a integrar o estado SQLite/backup do Finora.
+- Mantém todas as correções de integridade e performance da v0.4.5.
+
 # Changelog
 
 ## [0.4.5] - 2026-09-01

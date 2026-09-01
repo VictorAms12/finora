@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../ai/finance_ai.dart';
+import '../ai/copilot.dart';
 import '../ai/gemini_service.dart';
 import '../models.dart';
 import '../store.dart';
@@ -15,6 +16,7 @@ class _ChatMessage {
   final bool user;
   final String text;
   final AiTransactionSuggestion? suggestion;
+  final CopilotActionProposal? proposal;
   final List<String> followUps;
   final AiAssistantAction action;
   final String? actionLabel;
@@ -24,6 +26,7 @@ class _ChatMessage {
     required this.user,
     required this.text,
     this.suggestion,
+    this.proposal,
     this.followUps = const [],
     this.action = AiAssistantAction.none,
     this.actionLabel,
@@ -258,11 +261,17 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
   }
 
   void _appendReply(AiAssistantReply reply) {
+    final store = context.read<FinanceStore>();
+    final memory = reply.memory;
+    if (memory != null && store.data.copilotMemoryEnabled) {
+      store.rememberCopilot(memory.label, memory.value);
+    }
     setState(
       () => _messages.add(
         _ChatMessage(
           user: false,
           text: reply.message,
+          proposal: reply.proposal,
           followUps: reply.followUps,
           action: reply.action,
           actionLabel: reply.actionLabel,
@@ -359,6 +368,37 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
     _scrollToEnd();
   }
 
+
+  void _confirmProposal(_ChatMessage message) {
+    final proposal = message.proposal;
+    if (proposal == null || message.handled) return;
+    final ok = proposal.apply(context.read<FinanceStore>());
+    if (!ok) {
+      _snack('Não consegui aplicar essa ação. Confira os dados e tente novamente.');
+      return;
+    }
+    setState(() {
+      message.handled = true;
+      _messages.add(
+        _ChatMessage(
+          user: false,
+          text: 'Pronto. A alteração foi aplicada ao Finora.',
+          followUps: const ['Como isso afeta meu mês?', 'Ver planejamento'],
+        ),
+      );
+    });
+    _scrollToEnd();
+  }
+
+  void _discardProposal(_ChatMessage message) {
+    if (message.handled) return;
+    setState(() {
+      message.handled = true;
+      _messages.add(_ChatMessage(user: false, text: 'Certo, não alterei nada.'));
+    });
+    _scrollToEnd();
+  }
+
   void _discard(_ChatMessage message) {
     if (message.handled) return;
     setState(() {
@@ -438,6 +478,8 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
                         : _sourceLabel(message.suggestion!),
                     onConfirm: () => _confirm(message),
                     onDiscard: () => _discard(message),
+                    onConfirmProposal: () => _confirmProposal(message),
+                    onDiscardProposal: () => _discardProposal(message),
                     onQuickReply: _send,
                     onAction: () => _handleAction(message.action),
                   ),
@@ -552,6 +594,11 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
             Icons.credit_card_rounded,
             'Cartões',
             enabled ? () => _askPreset('Como estão meus cartões e faturas?') : null,
+          ),
+          _chip(
+            Icons.calculate_outlined,
+            'Simular compra',
+            enabled ? () => _askPreset('Posso comprar algo de R\$ 1.000 à vista?') : null,
           ),
           _chip(
             Icons.add_card_rounded,
@@ -777,6 +824,8 @@ class _MessageBubble extends StatelessWidget {
   final String? source;
   final VoidCallback onConfirm;
   final VoidCallback onDiscard;
+  final VoidCallback onConfirmProposal;
+  final VoidCallback onDiscardProposal;
   final ValueChanged<String> onQuickReply;
   final VoidCallback onAction;
 
@@ -785,6 +834,8 @@ class _MessageBubble extends StatelessWidget {
     required this.source,
     required this.onConfirm,
     required this.onDiscard,
+    required this.onConfirmProposal,
+    required this.onDiscardProposal,
     required this.onQuickReply,
     required this.onAction,
   });
@@ -824,6 +875,15 @@ class _MessageBubble extends StatelessWidget {
                   handled: message.handled,
                   onConfirm: onConfirm,
                   onDiscard: onDiscard,
+                ),
+              ],
+              if (message.proposal case final proposal?) ...[
+                const SizedBox(height: 10),
+                _CopilotActionCard(
+                  proposal: proposal,
+                  handled: message.handled,
+                  onConfirm: onConfirmProposal,
+                  onDiscard: onDiscardProposal,
                 ),
               ],
               if (!message.user && message.action != AiAssistantAction.none) ...[
@@ -957,6 +1017,97 @@ class _ModePill extends StatelessWidget {
           ),
         ),
       );
+}
+
+
+class _CopilotActionCard extends StatelessWidget {
+  final CopilotActionProposal proposal;
+  final bool handled;
+  final VoidCallback onConfirm;
+  final VoidCallback onDiscard;
+
+  const _CopilotActionCard({
+    required this.proposal,
+    required this.handled,
+    required this.onConfirm,
+    required this.onDiscard,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (proposal.type) {
+      CopilotActionType.createBudget => 'Orçamento',
+      CopilotActionType.createGoal => 'Meta',
+      CopilotActionType.createReserve => 'Reserva',
+      CopilotActionType.createPlanned => 'Planejamento',
+    };
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: FinoraColors.goldBright.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: FinoraColors.goldBright.withValues(alpha: .24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                handled ? Icons.check_circle_rounded : Icons.auto_fix_high_rounded,
+                color: handled ? FinoraColors.income : FinoraColors.goldBright,
+                size: 18,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  handled ? '$label aplicado' : 'Confirmar $label',
+                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            proposal.title,
+            style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            proposal.summary,
+            style: TextStyle(
+              fontSize: 9,
+              height: 1.4,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (!handled) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: onDiscard,
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: onConfirm,
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('Confirmar'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _SuggestionCard extends StatelessWidget {

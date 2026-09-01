@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../models.dart';
 import '../store.dart';
 import 'gemini_service.dart';
+import 'copilot.dart';
 
 enum AiAssistantAction {
   none,
@@ -28,6 +29,8 @@ class AiAssistantReply {
   final AiAssistantAction action;
   final String? actionLabel;
   final bool local;
+  final CopilotActionProposal? proposal;
+  final CopilotMemoryCandidate? memory;
 
   const AiAssistantReply({
     required this.message,
@@ -35,6 +38,8 @@ class AiAssistantReply {
     this.action = AiAssistantAction.none,
     this.actionLabel,
     this.local = false,
+    this.proposal,
+    this.memory,
   });
 }
 
@@ -377,41 +382,61 @@ $clean
 
     final intent = detectIntent(clean);
     final context = _financialContext(store, intent);
+    final memories = store.data.copilotMemoryEnabled
+        ? store.data.copilotMemories
+            .toList()
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt))
+        : <CopilotMemoryItem>[];
+    final memoryContext = memories
+        .take(20)
+        .map((item) => {'assunto': item.label, 'valor': item.value})
+        .toList(growable: false);
+
     final result = await gemini.generateStructured(
       input: '''
-Você é Finora, o assistente financeiro pessoal que vive dentro do aplicativo Finora.
-Você não é um chatbot genérico e nunca fala como documentação técnica.
+Você é Finora, o Copilot financeiro pessoal que vive dentro do aplicativo Finora.
+Você conversa como um assistente humano, mas os cálculos do Finora são a fonte de verdade.
 
 JEITO DE FALAR:
 - Português do Brasil natural, direto e humano.
-- Responda primeiro ao que foi perguntado. Não faça introduções desnecessárias.
-- Pergunta simples recebe resposta simples, normalmente 1 ou 2 frases.
-- Análise pode ter até 3 parágrafos curtos. Evite listas quando uma frase resolve.
-- Use nomes e valores do próprio Finora naturalmente: R\$ 1.250,00, agosto, Nubank, fatura, saldo.
-- Nunca diga "com base nos dados fornecidos", "como IA", "segundo o contexto" ou frases parecidas.
-- Nunca exponha nomes de campos internos, JSON, banco, API, prompt ou implementação.
+- Responda primeiro ao que foi perguntado; nada de introduções genéricas.
+- Pergunta simples: 1 ou 2 frases. Análise: até 3 parágrafos curtos.
+- Use nomes e valores reais do Finora naturalmente.
+- Nunca exponha campos internos, JSON, banco, API, prompt, tags ou implementação.
 - Nunca use XML, tags como <analysis>, blocos de código, tabelas Markdown ou cabeçalhos com #.
-- Não repita "Finora IA" dentro da resposta.
-- Não encerre toda resposta com conselho genérico. Sugira algo somente quando for útil.
-- Não invente movimentações, saldos, taxas ou rendimentos.
+- Não diga "como IA", "com base nos dados fornecidos" ou frases equivalentes.
+- Não invente movimentações, saldos, datas, taxas ou rendimentos.
 - Não faça diagnóstico financeiro profissional nem prometa resultado de investimento.
-- Se faltar uma informação essencial, pergunte de forma curta e natural.
-- Os cálculos já fornecidos pelo Finora são a fonte de verdade. Não substitua por estimativas próprias.
+- Se faltar informação essencial, faça UMA pergunta curta.
+
+MEMÓRIA:
+- As memórias abaixo foram explicitamente salvas pelo usuário e só devem ser usadas quando forem relevantes.
+- Não trate memória como dado financeiro atual se o Finora tiver um valor calculado mais recente.
+- Só preencha memoryLabel e memoryValue quando o usuário pedir explicitamente para lembrar algo
+  ou declarar uma preferência/associação estável claramente útil ao app.
+- Não memorize saldos, valores temporários, senhas, chaves, documentos ou conteúdo sensível.
+Memórias salvas: ${jsonEncode(memoryContext)}
+
+AÇÕES DE NAVEGAÇÃO:
+action pode ser none, showPlanning, showTransactions ou startTransaction.
+actionLabel deve ser curto e só existir quando ajudar.
+
+AÇÕES DO COPILOT:
+Você também pode PROPOR uma operação, mas nunca diga que salvou antes da confirmação do usuário.
+operation pode ser:
+- none
+- createBudget: criar/atualizar orçamento de categoria de despesa;
+- createGoal: criar meta com valor-alvo e prazo;
+- createReserve: criar reserva com meta e meses de proteção;
+- createPlanned: criar receita/despesa prevista.
+Use apenas nomes de categorias, contas e cartões existentes nos fatos do Finora.
+Se a operação depender de uma conta/cartão e houver ambiguidade, não proponha; pergunte primeiro.
 
 CONTINUIDADE:
-Use a conversa recente apenas para entender pronomes e continuações como
-"e o Nubank?", "por quê?", "e mês passado?". Não repita informações que o usuário já entendeu.
+Use a conversa recente para continuações como "e o Nubank?", "por quê?" e "e mês passado?".
+Não repita o que o usuário já entendeu.
 
-AÇÕES:
-action pode ser:
-- none: apenas responder;
-- showPlanning: quando abrir Planejamento ajuda diretamente;
-- showTransactions: quando ver movimentações ajuda diretamente;
-- startTransaction: quando o usuário quer registrar uma movimentação.
-actionLabel deve ser curto e só existir quando houver uma ação realmente útil.
-followUps deve ter de 0 a 3 continuações curtas e relevantes, nunca genéricas.
-
-Intenção detectada pelo Finora: ${intent.name}
+Intenção detectada: ${intent.name}
 ${conversationContext.trim().isEmpty ? '' : 'Conversa recente:\n${conversationContext.trim()}\n'}
 Pergunta atual: $clean
 
@@ -437,10 +462,56 @@ ${jsonEncode(context)}
             ],
           },
           'actionLabel': {'type': ['string', 'null']},
+          'operation': {
+            'type': 'string',
+            'enum': [
+              'none',
+              'createBudget',
+              'createGoal',
+              'createReserve',
+              'createPlanned',
+            ],
+          },
+          'operationTitle': {'type': ['string', 'null']},
+          'operationAmount': {'type': ['number', 'null']},
+          'operationCategory': {'type': ['string', 'null']},
+          'operationDate': {'type': ['string', 'null']},
+          'operationTransactionType': {
+            'type': ['string', 'null'],
+            'enum': ['income', 'expense', null],
+          },
+          'operationPaymentKind': {
+            'type': ['string', 'null'],
+            'enum': ['account', 'card', null],
+          },
+          'operationSourceName': {'type': ['string', 'null']},
+          'operationCardId': {'type': ['string', 'null']},
+          'operationMonths': {'type': ['number', 'null']},
+          'operationDeadline': {'type': ['string', 'null']},
+          'memoryLabel': {'type': ['string', 'null']},
+          'memoryValue': {'type': ['string', 'null']},
         },
-        'required': ['message', 'followUps', 'action', 'actionLabel'],
+        'required': [
+          'message',
+          'followUps',
+          'action',
+          'actionLabel',
+          'operation',
+          'operationTitle',
+          'operationAmount',
+          'operationCategory',
+          'operationDate',
+          'operationTransactionType',
+          'operationPaymentKind',
+          'operationSourceName',
+          'operationCardId',
+          'operationMonths',
+          'operationDeadline',
+          'memoryLabel',
+          'memoryValue',
+        ],
       },
-      maxOutputTokens: 700,
+      maxOutputTokens: 850,
     );
 
     final message = GeminiService.cleanAssistantText(
@@ -450,6 +521,15 @@ ${jsonEncode(context)}
       throw const GeminiApiException('Não consegui formular uma resposta agora.');
     }
 
+    final memoryLabel = _cleanNullable(result['memoryLabel']?.toString());
+    final memoryValue = _cleanNullable(result['memoryValue']?.toString());
+    final memory = memoryLabel != null && memoryValue != null
+        ? CopilotMemoryCandidate(
+            label: _truncate(memoryLabel, 60),
+            value: _truncate(memoryValue, 240),
+          )
+        : null;
+
     return AiAssistantReply(
       message: message,
       followUps: _stringList(result['followUps'], max: 3)
@@ -458,6 +538,8 @@ ${jsonEncode(context)}
           .toList(growable: false),
       action: _parseAction(result['action']?.toString()),
       actionLabel: _cleanNullable(result['actionLabel']?.toString()),
+      proposal: _proposalFromResult(store, result),
+      memory: memory,
     );
   }
 
@@ -474,6 +556,15 @@ ${jsonEncode(context)}
       (await askAssistant(store, question)).message;
 
   AiAssistantReply? tryLocalAnswer(FinanceStore store, String question) {
+    final query = const FinancialQueryEngine().answer(store, question);
+    if (query != null) {
+      return AiAssistantReply(
+        message: query.message,
+        followUps: query.followUps,
+        local: true,
+      );
+    }
+
     final clean = _fold(question);
     final selected = store.selectedMonth;
 
@@ -677,6 +768,112 @@ ${jsonEncode(context)}
       });
     }
     return result;
+  }
+
+  CopilotActionProposal? _proposalFromResult(
+    FinanceStore store,
+    Map<String, dynamic> result,
+  ) {
+    final operation = result['operation']?.toString() ?? 'none';
+    if (operation == 'none') return null;
+    final amount = (result['operationAmount'] as num?)?.toDouble() ?? 0;
+    if (!amount.isFinite || amount <= 0) return null;
+
+    final title = _truncate(
+      result['operationTitle']?.toString().trim() ?? '',
+      120,
+    );
+    final requestedCategory = result['operationCategory']?.toString() ?? '';
+
+    if (operation == 'createBudget') {
+      final category = _resolveCategory(store.expenseCategories, requestedCategory);
+      return CopilotActionProposal(
+        type: CopilotActionType.createBudget,
+        title: 'Orçamento de $category',
+        summary: 'Limite mensal de ${_money(amount)} para $category',
+        amount: amount,
+        category: category,
+      );
+    }
+
+    if (operation == 'createGoal') {
+      final cleanTitle = title.isEmpty ? 'Nova meta' : title;
+      final deadline = DateTime.tryParse(
+        result['operationDeadline']?.toString() ?? '',
+      );
+      return CopilotActionProposal(
+        type: CopilotActionType.createGoal,
+        title: cleanTitle,
+        summary: 'Meta de ${_money(amount)}${deadline == null ? '' : ' até ${_dateOnly(deadline)}'}',
+        amount: amount,
+        deadline: deadline,
+      );
+    }
+
+    if (operation == 'createReserve') {
+      final cleanTitle = title.isEmpty ? 'Reserva de emergência' : title;
+      final months = ((result['operationMonths'] as num?)?.toInt() ?? 6).clamp(1, 60);
+      return CopilotActionProposal(
+        type: CopilotActionType.createReserve,
+        title: cleanTitle,
+        summary: 'Meta de ${_money(amount)} para $months meses de proteção',
+        amount: amount,
+        months: months,
+      );
+    }
+
+    if (operation == 'createPlanned') {
+      final type = result['operationTransactionType']?.toString() == 'income'
+          ? TransactionType.income
+          : TransactionType.expense;
+      final requestedKind = result['operationPaymentKind']?.toString() == 'card'
+          ? PaymentKind.card
+          : PaymentKind.account;
+      final paymentKind = type == TransactionType.income
+          ? PaymentKind.account
+          : requestedKind;
+      final date = DateTime.tryParse(result['operationDate']?.toString() ?? '');
+      if (date == null || date.year < 2020 || date.year > 2100) return null;
+      final categories = type == TransactionType.income
+          ? store.incomeCategories
+          : store.expenseCategories;
+      final category = _resolveCategory(categories, requestedCategory);
+      String? source;
+      String? cardId;
+      if (paymentKind == PaymentKind.card) {
+        cardId = _resolveCardId(
+          store,
+          result['operationCardId']?.toString() ?? '',
+          result['operationSourceName']?.toString() ?? '',
+        );
+        final card = store.findCard(cardId);
+        if (card == null) return null;
+        source = card.name;
+      } else {
+        source = _resolveAccount(
+          store,
+          result['operationSourceName']?.toString() ?? '',
+        );
+        if (source.isEmpty) return null;
+      }
+      final cleanTitle = title.isEmpty
+          ? (type == TransactionType.income ? 'Receita prevista' : 'Despesa prevista')
+          : title;
+      return CopilotActionProposal(
+        type: CopilotActionType.createPlanned,
+        title: cleanTitle,
+        summary: '${type == TransactionType.income ? 'Receber' : 'Pagar'} ${_money(amount)} em ${_dateOnly(date)}',
+        amount: amount,
+        category: category,
+        date: date,
+        transactionType: type,
+        paymentKind: paymentKind,
+        sourceName: source,
+        cardId: cardId,
+      );
+    }
+
+    return null;
   }
 
   AiAssistantAction _parseAction(String? value) => switch (value) {

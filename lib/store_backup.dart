@@ -63,6 +63,8 @@ FinanceData emptyData() => FinanceData(
       notificationDaysBefore: 2,
       onboardingCompleted: false,
       primaryGoal: 'Controlar gastos',
+      copilotMemoryEnabled: true,
+      copilotMemories: [],
       trackingMonth: null,
       trackingOpeningCash: 0,
       accounts: [],
@@ -89,6 +91,8 @@ FinanceData demoData() {
     notificationDaysBefore: 2,
     onboardingCompleted: true,
     primaryGoal: 'Planejar melhor',
+    copilotMemoryEnabled: true,
+    copilotMemories: [],
     trackingMonth: DateTime(now.year, now.month),
     trackingOpeningCash: 2400,
     accounts: [
