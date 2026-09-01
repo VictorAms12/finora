@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../app_info.dart';
 import '../theme.dart';
 import 'ai_assistant.dart';
 import 'dashboard.dart';
@@ -248,7 +249,7 @@ class _DesktopSidebar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
-              'Finora Desktop · v0.4.3\nCtrl + N para novo lançamento',
+              'Finora Desktop · v$finoraVersion\nCtrl + N para novo lançamento',
               style: TextStyle(
                 fontSize: 9,
                 height: 1.5,

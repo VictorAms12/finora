@@ -15,6 +15,7 @@ import 'store.dart';
 class SqliteFinanceStore extends FinanceStore {
   static const _legacyKey = 'finora_data_v02';
   static const _legacyBackupKey = 'finora_data_v02_backup';
+  static const _sqliteDirtyKey = 'finora_sqlite_needs_resync';
 
   final FinoraDatabase database;
   Future<void> _sqliteSaveChain = Future<void>.value();
@@ -53,6 +54,8 @@ class SqliteFinanceStore extends FinanceStore {
     String? sqlitePrimary;
     String? sqliteBackup;
     var databaseOpened = false;
+    final prefs = await SharedPreferences.getInstance();
+    final sqliteDirty = prefs.getBool(_sqliteDirtyKey) == true;
 
     try {
       sqlitePrimary = await database.readPrimaryRaw();
@@ -63,6 +66,7 @@ class SqliteFinanceStore extends FinanceStore {
     } catch (error, stackTrace) {
       _sqliteAvailable = false;
       _storageError = error.toString();
+      await prefs.setBool(_sqliteDirtyKey, true);
       debugPrint('Finora SQLite: falha ao abrir banco; usando legado: $error');
       debugPrintStack(stackTrace: stackTrace);
     }
@@ -79,7 +83,7 @@ class SqliteFinanceStore extends FinanceStore {
       recoveredDatabaseBackup = databaseData != null;
     }
 
-    if (databaseData != null && databaseRaw != null) {
+    if (!sqliteDirty && databaseData != null && databaseRaw != null) {
       await _mirrorToLegacy(databaseRaw);
     }
 
@@ -99,12 +103,14 @@ class SqliteFinanceStore extends FinanceStore {
         _lastSqliteRaw = normalized;
         _sqliteAvailable = true;
         _storageError = null;
+        await prefs.setBool(_sqliteDirtyKey, false);
         // Também garante que qualquer normalização feita pelo núcleo continue
         // disponível para uma eventual volta à v0.3.9 durante a migração.
         await _mirrorToLegacy(normalized);
       } catch (error, stackTrace) {
         _sqliteAvailable = false;
         _storageError = error.toString();
+        await prefs.setBool(_sqliteDirtyKey, true);
         debugPrint('Finora SQLite: falha na migração inicial: $error');
         debugPrintStack(stackTrace: stackTrace);
       }
@@ -115,11 +121,12 @@ class SqliteFinanceStore extends FinanceStore {
     if (!_sqliteAvailable || _lastSqliteRaw == raw) return;
     _lastSqliteRaw = raw;
     _sqliteSaveChain = _sqliteSaveChain.then((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_sqliteDirtyKey, true);
       try {
         await database.saveRaw(raw);
-        // Espelho compatível com v0.3.9. O FinanceStore também grava esse
-        // estado; repetir um valor idêntico é barato e evita janela de perda.
         await _mirrorToLegacy(raw);
+        await prefs.setBool(_sqliteDirtyKey, false);
       } catch (error, stackTrace) {
         _sqliteAvailable = false;
         _storageError = error.toString();
@@ -130,10 +137,7 @@ class SqliteFinanceStore extends FinanceStore {
   }
 
   @override
-  void commit() {
-    super.commit();
-    _queueSqliteSave(data.encode());
-  }
+  void onStateCommitted(String raw) => _queueSqliteSave(raw);
 
   @override
   Future<void> flushPersistence() async {

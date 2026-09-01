@@ -26,7 +26,8 @@ extension FinanceStoreTransactions on FinanceStore {
       paymentKind: item.paymentKind,
       cardId: item.cardId,
       recurrenceId: item.recurrenceId,
-      recurrenceDate: item.recurrenceId == null ? null : item.date,
+      recurrenceDate: item.recurrenceDate ??
+          (item.recurrenceId == null ? null : item.date),
       installmentId: item.installmentId,
       installmentNumber: item.installmentNumber,
       installmentTotal: item.installmentTotal,
@@ -77,8 +78,10 @@ extension FinanceStoreTransactions on FinanceStore {
     return true;
   }
 
-  void addTransaction(TransactionItem item) {
-    if (_addTransactionInternal(item)) commit();
+  bool addTransaction(TransactionItem item) {
+    if (!_addTransactionInternal(item)) return false;
+    commit();
+    return true;
   }
 
   DateTime? _earliestPastMonth(DateTime a, [DateTime? b]) {
@@ -93,10 +96,20 @@ extension FinanceStoreTransactions on FinanceStore {
     return earliest;
   }
 
-  void updateTransaction(TransactionItem before, TransactionItem after) {
+  bool updateTransaction(TransactionItem before, TransactionItem after) {
     final index = data.transactions.indexWhere((e) => e.id == before.id);
-    if (index == -1 || !isValidAmount(after.amount)) return;
+    if (index == -1 || !isValidAmount(after.amount)) return false;
 
+    if (after.recurrenceId != null && after.recurrenceDate == null) {
+      after.recurrenceDate = before.recurrenceDate ?? before.date;
+    }
+    if (after.paymentKind == PaymentKind.card &&
+        after.type == TransactionType.expense &&
+        after.cardId == before.cardId &&
+        after.invoiceMonth == null &&
+        before.invoiceMonth != null) {
+      after.invoiceMonth = before.invoiceMonth;
+    }
     _prepareCardInvoice(after);
     if (!(after.paymentKind == PaymentKind.card &&
         after.type == TransactionType.expense)) {
@@ -120,11 +133,53 @@ extension FinanceStoreTransactions on FinanceStore {
     final rebuildFrom = _earliestPastMonth(before.date, after.date);
     if (rebuildFrom != null) rebuildSnapshotsFrom(rebuildFrom);
     commit();
+    return true;
   }
 
   void deleteTransaction(TransactionItem item) {
     final exists = data.transactions.any((e) => e.id == item.id);
     if (!exists) return;
+
+    if (item.recurrenceId != null &&
+        data.recurringRules.any((rule) => rule.id == item.recurrenceId)) {
+      final canonical = item.recurrenceDate ?? item.date;
+      PlannedItem? occurrence;
+      for (final planned in data.planned) {
+        if (planned.recurrenceId == item.recurrenceId &&
+            sameDay(planned.canonicalRecurrenceDate, canonical)) {
+          occurrence = planned;
+          break;
+        }
+      }
+      if (occurrence != null) {
+        occurrence.status = PlannedStatus.skipped;
+      } else {
+        final tombstone = _plannedFromTransaction(item)
+          ..date = canonical
+          ..recurrenceDate = canonical
+          ..status = PlannedStatus.skipped;
+        data.planned.add(tombstone);
+      }
+    }
+
+    if (item.installmentId != null &&
+        data.installmentPlans.any((plan) => plan.id == item.installmentId)) {
+      PlannedItem? installment;
+      for (final planned in data.planned) {
+        if (planned.installmentId == item.installmentId &&
+            planned.installmentNumber == item.installmentNumber) {
+          installment = planned;
+          break;
+        }
+      }
+      if (installment != null) {
+        if (installment.status == PlannedStatus.settled) {
+          installment.status = PlannedStatus.planned;
+        }
+      } else {
+        data.planned.add(_plannedFromTransaction(item));
+      }
+    }
 
     _applyTransactionEffect(item, reverse: true);
     data.transactions.removeWhere((e) => e.id == item.id);

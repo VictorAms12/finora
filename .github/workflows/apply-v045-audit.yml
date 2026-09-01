@@ -1,0 +1,41 @@
+name: Aplicar auditoria Finora v0.4.5
+
+on:
+  push:
+    branches:
+      - audit/finora-v045-total-hardening
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finora-v045-audit-patch
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[v045-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar branch
+        uses: actions/checkout@v5
+        with:
+          ref: audit/finora-v045-total-hardening
+          fetch-depth: 0
+
+      - name: Aplicar correções da auditoria
+        run: python tool/apply_v045_audit.py
+
+      - name: Commitar alterações
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Finora Audit Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'Nenhuma alteração pendente.'
+            exit 0
+          fi
+          git commit -m 'fix: harden Finora v0.4.5 [v045-patched]'
+          git push origin HEAD:audit/finora-v045-total-hardening

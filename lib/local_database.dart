@@ -130,6 +130,8 @@ class FinoraDatabase {
       throw const FormatException('Estado financeiro precisa ser um objeto JSON.');
     }
 
+    final root = Map<String, dynamic>.from(decoded);
+    final indexSignature = _financeIndexSignature(root);
     final db = await _database();
     final now = DateTime.now().millisecondsSinceEpoch;
     await db.transaction((txn) async {
@@ -156,13 +158,39 @@ class FinoraDatabase {
         {'id': 1, 'json': raw, 'updated_at': now},
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      await _rebuildIndex(txn, Map<String, dynamic>.from(decoded));
+      final signatureRows = await txn.query(
+        'metadata',
+        columns: ['value'],
+        where: 'key = ?',
+        whereArgs: ['finance_index_signature'],
+      );
+      final previousSignature = signatureRows.isEmpty
+          ? null
+          : signatureRows.first['value']?.toString();
+      if (previousSignature != indexSignature) {
+        await _rebuildIndex(txn, root);
+        await txn.insert(
+          'metadata',
+          {'key': 'finance_index_signature', 'value': indexSignature},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
       await txn.insert(
         'metadata',
-        {'key': 'schema', 'value': 'v0.4.0'},
+        {'key': 'schema', 'value': 'v0.4.5'},
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
     });
+  }
+
+  String _financeIndexSignature(Map<String, dynamic> root) {
+    final raw = jsonEncode([root['transactions'] ?? const [], root['planned'] ?? const []]);
+    var hash = 0xcbf29ce484222325;
+    for (final unit in raw.codeUnits) {
+      hash ^= unit;
+      hash = (hash * 0x100000001b3) & 0x7fffffffffffffff;
+    }
+    return hash.toRadixString(16);
   }
 
   Future<void> _rebuildIndex(

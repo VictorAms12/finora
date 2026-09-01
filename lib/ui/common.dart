@@ -37,6 +37,27 @@ String formatMoney(double value) {
   return negative ? '-$result' : result;
 }
 
+double? parseNumberInput(String raw) {
+  var value = raw.trim().replaceAll('R\$', '').replaceAll(' ', '').replaceAll('\u00a0', '');
+  if (value.isEmpty) return null;
+  final comma = value.lastIndexOf(',');
+  final dot = value.lastIndexOf('.');
+  if (comma >= 0 && dot >= 0) {
+    if (comma > dot) {
+      value = value.replaceAll('.', '').replaceAll(',', '.');
+    } else {
+      value = value.replaceAll(',', '');
+    }
+  } else if (comma >= 0) {
+    value = value.replaceAll(',', '.');
+  } else if (value.split('.').length > 2) {
+    final last = value.lastIndexOf('.');
+    value = value.substring(0, last).replaceAll('.', '') + value.substring(last);
+  }
+  final parsed = double.tryParse(value);
+  return parsed != null && parsed.isFinite ? parsed : null;
+}
+
 String money(BuildContext context, double value) {
   final privacy = context.select<FinanceStore, bool>(
     (store) => store.data.privacyMode,

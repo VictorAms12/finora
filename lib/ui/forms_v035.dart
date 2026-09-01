@@ -556,7 +556,7 @@ Future<void> showTransactionForm(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () {
-                    final value = double.tryParse(amount.text.replaceAll(',', '.')) ?? 0;
+                    final value = parseNumberInput(amount.text) ?? 0;
                     if (value <= 0 || title.text.trim().isEmpty) return;
 
                     final isCard = sourceKey.startsWith('card:');
@@ -566,8 +566,9 @@ Future<void> showTransactionForm(
                         : sourceKey.substring('account:'.length);
                     final paymentKind = isCard ? PaymentKind.card : PaymentKind.account;
 
+                    bool savedOk;
                     if (editing != null) {
-                      store.updateTransaction(
+                      savedOk = store.updateTransaction(
                         editing,
                         TransactionItem(
                           id: editing.id,
@@ -581,7 +582,9 @@ Future<void> showTransactionForm(
                           cardId: cardId,
                           note: note.text.trim(),
                           recurrenceId: editing.recurrenceId,
+                          recurrenceDate: editing.recurrenceDate,
                           installmentId: editing.installmentId,
+                          invoiceMonth: editing.invoiceMonth,
                           installmentNumber: editing.installmentNumber,
                           installmentTotal: editing.installmentTotal,
                         ),
@@ -589,7 +592,7 @@ Future<void> showTransactionForm(
                     } else if (installment && type == TransactionType.expense) {
                       final count = int.tryParse(installmentsController.text) ?? 1;
                       if (count < 2) return;
-                      store.addInstallment(
+                      savedOk = store.addInstallment(
                         title: title.text.trim(),
                         category: category,
                         totalAmount: value,
@@ -603,7 +606,7 @@ Future<void> showTransactionForm(
                       final maxOccurrences = recurrenceDuration == 'quantidade'
                           ? (int.tryParse(recurrenceCountController.text) ?? 12).clamp(2, 120)
                           : null;
-                      store.addRecurring(
+                      savedOk = store.addRecurring(
                         type: type,
                         title: title.text.trim(),
                         category: category,
@@ -617,7 +620,7 @@ Future<void> showTransactionForm(
                         maxOccurrences: maxOccurrences,
                       );
                     } else {
-                      store.addTransaction(TransactionItem(
+                      savedOk = store.addTransaction(TransactionItem(
                         id: FinanceStore.newId(),
                         type: type,
                         title: title.text.trim(),
@@ -631,6 +634,12 @@ Future<void> showTransactionForm(
                       ));
                     }
 
+                    if (!savedOk) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Não foi possível salvar. Confira valor, origem e dados do lançamento.')),
+                      );
+                      return;
+                    }
                     Navigator.pop(sheetContext);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(editing == null ? 'Lançamento salvo' : 'Lançamento atualizado')),
@@ -731,7 +740,7 @@ Future<void> showPlannedForm(BuildContext context) async {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () {
-                    final value = double.tryParse(amount.text.replaceAll(',', '.')) ?? 0;
+                    final value = parseNumberInput(amount.text) ?? 0;
                     if (value <= 0 || title.text.trim().isEmpty) return;
                     final isCard = sourceKey.startsWith('card:');
                     final cardId = isCard ? sourceKey.substring(5) : null;
@@ -799,10 +808,10 @@ Future<void> showTransactionDetails(BuildContext context, TransactionItem item) 
               detailRow(context, 'Parcela', '${item.installmentNumber}/${item.installmentTotal}'),
             if (item.recurrenceId != null) detailRow(context, 'Tipo', 'Recorrente'),
             if (item.note.isNotEmpty) detailRow(context, 'Observação', item.note),
-            if (item.type != TransactionType.transfer) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (item.type != TransactionType.transfer) ...[
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () {
@@ -814,21 +823,27 @@ Future<void> showTransactionDetails(BuildContext context, TransactionItem item) 
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final ok = await confirmAction(context, 'Excluir lançamento?', 'O saldo da conta ou a fatura será ajustado automaticamente.');
-                        if (!ok || !context.mounted) return;
-                        context.read<FinanceStore>().deleteTransaction(item);
-                        if (sheetContext.mounted) Navigator.pop(sheetContext);
-                      },
-                      icon: const Icon(Icons.delete_outline_rounded),
-                      label: const Text('Excluir'),
-                    ),
-                  ),
                 ],
-              ),
-            ],
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final ok = await confirmAction(
+                        context,
+                        'Excluir lançamento?',
+                        item.type == TransactionType.transfer
+                            ? 'Os saldos envolvidos serão recompostos automaticamente.'
+                            : 'O saldo da conta ou a fatura será ajustado automaticamente.',
+                      );
+                      if (!ok || !context.mounted) return;
+                      context.read<FinanceStore>().deleteTransaction(item);
+                      if (sheetContext.mounted) Navigator.pop(sheetContext);
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    label: const Text('Excluir'),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -889,9 +904,16 @@ Future<void> showAvailableBreakdown(BuildContext context) async {
               breakdownRow(context, 'Saldo atual nas contas', store.cashBalance, FinoraColors.balance, positive: true),
               breakdownRow(context, 'Ainda a receber', store.selectedCashPlannedReceivable, FinoraColors.income, positive: true),
               breakdownRow(context, 'Contas, parcelas e faturas', store.selectedCashPlannedPayable, FinoraColors.expense),
-              breakdownRow(context, 'Reserva sugerida para metas', store.suggestedGoalContribution, FinoraColors.goal),
               const Divider(height: 24),
               breakdownTotal(context, 'Disponível', store.availableToSpend, FinoraColors.income),
+              if (store.currentCashShortfall > 0) ...[
+                const SizedBox(height: 10),
+                Text('Déficit previsto: ${money(context, store.currentCashShortfall)}', style: const TextStyle(color: FinoraColors.expense, fontWeight: FontWeight.w800)),
+              ],
+              if (store.suggestedGoalContribution > 0) ...[
+                const SizedBox(height: 10),
+                Text('Sugestão opcional para metas: ${money(context, store.suggestedGoalContribution)}', style: const TextStyle(color: FinoraColors.goal, fontSize: 9.5)),
+              ],
             ],
           ],
         ),
@@ -947,8 +969,14 @@ Future<void> showPlannedDetails(BuildContext context, PlannedItem item) async {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: () {
-                    context.read<FinanceStore>().settlePlanned(item);
-                    Navigator.pop(sheetContext);
+                    final ok = context.read<FinanceStore>().settlePlanned(item);
+                    if (ok) {
+                      Navigator.pop(sheetContext);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Não foi possível realizar este previsto. Verifique a conta ou o cartão vinculado.')),
+                      );
+                    }
                   },
                   icon: const Icon(Icons.check_rounded),
                   label: Text(item.type == TransactionType.income ? 'Marcar como recebido' : 'Marcar como pago'),
@@ -1115,7 +1143,7 @@ Future<void> showRecurringEditForm(BuildContext context, RecurringRule item) asy
               if (duration == 'quantidade') ...[const SizedBox(height: 9), TextField(controller: count, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Ocorrências'))],
               if (duration == 'data') ...[const SizedBox(height: 9), InkWell(onTap: () async { final picked = await pickFinoraDate(sheetContext, endDate); if (picked != null) setLocal(() => endDate = picked); }, child: InputDecorator(decoration: const InputDecoration(labelText: 'Até'), child: Text(fullDate(endDate))))],
               const SizedBox(height: 13),
-              SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final value = double.tryParse(amount.text.replaceAll(',', '.')) ?? 0; if (value <= 0 || title.text.trim().isEmpty) return; store.updateRecurring(item, title: title.text.trim(), category: category, amount: value, frequency: frequency, endDate: duration == 'data' ? endDate : null, maxOccurrences: duration == 'quantidade' ? (int.tryParse(count.text) ?? 12).clamp(2, 120) : null); Navigator.pop(sheetContext); }, child: const Text('Salvar alterações'))),
+              SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final value = parseNumberInput(amount.text) ?? 0; if (value <= 0 || title.text.trim().isEmpty) return; store.updateRecurring(item, title: title.text.trim(), category: category, amount: value, frequency: frequency, endDate: duration == 'data' ? endDate : null, maxOccurrences: duration == 'quantidade' ? (int.tryParse(count.text) ?? 12).clamp(2, 120) : null); Navigator.pop(sheetContext); }, child: const Text('Salvar alterações'))),
             ],
           ),
         ),
@@ -1194,7 +1222,7 @@ Future<void> showTransferForm(BuildContext context) async {
             const SizedBox(height: 9),
             InkWell(onTap: () async { final picked = await pickFinoraDate(sheetContext, date); if (picked != null) setLocal(() => date = picked); }, child: InputDecorator(decoration: const InputDecoration(labelText: 'Data'), child: Text(fullDate(date)))),
             const SizedBox(height: 13),
-            SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final value = double.tryParse(amount.text.replaceAll(',', '.')) ?? 0; if (value <= 0 || from == to) return; store.transfer(amount: value, from: from, to: to, date: date); Navigator.pop(sheetContext); }, child: const Text('Transferir'))),
+            SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final value = parseNumberInput(amount.text) ?? 0; if (value <= 0 || from == to) return; store.transfer(amount: value, from: from, to: to, date: date); Navigator.pop(sheetContext); }, child: const Text('Transferir'))),
           ],
         ),
       ),
@@ -1222,7 +1250,7 @@ Future<void> showBudgetForm(BuildContext context, {BudgetItem? editing}) async {
             const SizedBox(height: 9),
             TextField(controller: limit, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Limite mensal')),
             const SizedBox(height: 13),
-            SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final value = double.tryParse(limit.text.replaceAll(',', '.')) ?? 0; if (value <= 0) return; if (editing == null) { store.addBudget(category, value); } else { store.updateBudget(editing, category, value); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
+            SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final value = parseNumberInput(limit.text) ?? 0; if (value <= 0) return; if (editing == null) { store.addBudget(category, value); } else { store.updateBudget(editing, category, value); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
           ],
         ),
       ),
@@ -1256,7 +1284,7 @@ Future<void> showGoalForm(BuildContext context, {GoalItem? editing}) async {
             const SizedBox(height: 9),
             InkWell(onTap: () async { final picked = await pickFinoraDate(sheetContext, deadline); if (picked != null) setLocal(() => deadline = picked); }, child: InputDecorator(decoration: const InputDecoration(labelText: 'Prazo'), child: Text(fullDate(deadline)))),
             const SizedBox(height: 13),
-            SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final tv = double.tryParse(target.text.replaceAll(',', '.')) ?? 0; final sv = double.tryParse(saved.text.replaceAll(',', '.')) ?? 0; if (name.text.trim().isEmpty || tv <= 0) return; if (editing == null) { store.addGoal(name.text.trim(), tv, sv, deadline); } else { store.updateGoal(editing, name.text.trim(), tv, sv, deadline); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
+            SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final tv = parseNumberInput(target.text) ?? 0; final sv = parseNumberInput(saved.text) ?? 0; if (name.text.trim().isEmpty || tv <= 0) return; if (editing == null) { store.addGoal(name.text.trim(), tv, sv, deadline); } else { store.updateGoal(editing, name.text.trim(), tv, sv, deadline); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
           ],
         ),
       ),
@@ -1270,7 +1298,7 @@ Future<void> showReserveForm(BuildContext context, {ReserveItem? editing}) async
   final target = TextEditingController(text: editing == null ? '' : editing.target.toStringAsFixed(2));
   final saved = TextEditingController(text: editing == null ? '0' : editing.saved.toStringAsFixed(2));
   final months = TextEditingController(text: (editing?.months ?? 6).toString());
-  await showSimpleForm(context, editing == null ? 'Nova reserva' : 'Editar reserva', [FormFieldData('Nome', name), FormFieldData('Valor alvo', target, number: true), FormFieldData('Valor guardado', saved, number: true), FormFieldData('Meses de proteção', months, number: true)], () { final tv = double.tryParse(target.text.replaceAll(',', '.')) ?? 0; final sv = double.tryParse(saved.text.replaceAll(',', '.')) ?? 0; final mv = int.tryParse(months.text) ?? 6; if (name.text.trim().isEmpty || tv <= 0) return false; if (editing == null) { store.addReserve(name.text.trim(), tv, sv, months: mv); } else { store.updateReserve(editing, name.text.trim(), tv, sv, mv); } return true; });
+  await showSimpleForm(context, editing == null ? 'Nova reserva' : 'Editar reserva', [FormFieldData('Nome', name), FormFieldData('Valor alvo', target, number: true), FormFieldData('Valor guardado', saved, number: true), FormFieldData('Meses de proteção', months, number: true)], () { final tv = parseNumberInput(target.text) ?? 0; final sv = parseNumberInput(saved.text) ?? 0; final mv = int.tryParse(months.text) ?? 6; if (name.text.trim().isEmpty || tv <= 0) return false; if (editing == null) { store.addReserve(name.text.trim(), tv, sv, months: mv); } else { store.updateReserve(editing, name.text.trim(), tv, sv, mv); } return true; });
 }
 
 Future<void> showInvestmentForm(BuildContext context, {InvestmentItem? editing}) async {
@@ -1297,7 +1325,7 @@ Future<void> showInvestmentForm(BuildContext context, {InvestmentItem? editing})
         const SizedBox(height: 9),
         TextField(controller: estimated, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Rentabilidade estimada (%)')),
         const SizedBox(height: 13),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final av = double.tryParse(amount.text.replaceAll(',', '.')) ?? 0; final rv = double.tryParse(estimated.text.replaceAll(',', '.')) ?? 0; if (name.text.trim().isEmpty || av <= 0) return; if (editing == null) { store.addInvestment(name.text.trim(), assetClass, av, rv); } else { store.updateInvestment(editing, name.text.trim(), assetClass, av, rv); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
+        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final av = parseNumberInput(amount.text) ?? 0; final rv = parseNumberInput(estimated.text) ?? 0; if (name.text.trim().isEmpty || av <= 0) return; if (editing == null) { store.addInvestment(name.text.trim(), assetClass, av, rv); } else { store.updateInvestment(editing, name.text.trim(), assetClass, av, rv); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
       ])),
     ),
   );
@@ -1324,7 +1352,7 @@ Future<void> showAccountForm(BuildContext context, {AccountItem? editing}) async
         const SizedBox(height: 9),
         TextField(controller: balance, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Saldo atual')),
         const SizedBox(height: 13),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final bv = double.tryParse(balance.text.replaceAll(',', '.')) ?? 0; if (name.text.trim().isEmpty) return; if (editing == null) { store.addAccount(name.text.trim(), bv, type: type); } else { store.updateAccount(editing, name.text.trim(), type, bv); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
+        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final bv = parseNumberInput(balance.text) ?? 0; if (name.text.trim().isEmpty) return; final ok = editing == null ? store.addAccount(name.text.trim(), bv, type: type) : store.updateAccount(editing, name.text.trim(), type, bv); if (!ok) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível salvar a conta. O nome pode estar em uso ou reservado pelo histórico.'))); return; } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
       ])),
     ),
   );
@@ -1360,7 +1388,7 @@ Future<void> showCardForm(BuildContext context, {CardItem? editing}) async {
           DropdownButtonFormField<String>(initialValue: store.data.accounts.any((e) => e.name == defaultAccount) ? defaultAccount : store.data.accounts.first.name, decoration: const InputDecoration(labelText: 'Conta padrão para pagar'), items: store.data.accounts.map((e) => DropdownMenuItem(value: e.name, child: Text(e.name))).toList(), onChanged: (v) { if (v != null) setLocal(() => defaultAccount = v); }),
         ],
         const SizedBox(height: 13),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final lv = double.tryParse(limit.text.replaceAll(',', '.')) ?? 0; final uv = double.tryParse(used.text.replaceAll(',', '.')) ?? 0; final cv = int.tryParse(close.text) ?? 25; final dv = int.tryParse(due.text) ?? 5; if (name.text.trim().isEmpty || lv <= 0) return; if (editing == null) { store.addCard(name.text.trim(), lv, uv, cv, dv, defaultAccountName: defaultAccount); } else { store.updateCard(editing, name.text.trim(), lv, uv, cv, dv, defaultAccount); } Navigator.pop(sheetContext); }, child: const Text('Salvar cartão'))),
+        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final lv = parseNumberInput(limit.text) ?? 0; final uv = parseNumberInput(used.text) ?? 0; final cv = int.tryParse(close.text) ?? 25; final dv = int.tryParse(due.text) ?? 5; if (name.text.trim().isEmpty || lv <= 0) return; final ok = editing == null ? store.addCard(name.text.trim(), lv, uv, cv, dv, defaultAccountName: defaultAccount) : store.updateCard(editing, name.text.trim(), lv, uv, cv, dv, defaultAccount); if (!ok) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível salvar o cartão. O saldo informado não pode ficar abaixo das compras ainda pendentes.'))); return; } Navigator.pop(sheetContext); }, child: const Text('Salvar cartão'))),
       ]))),
     ),
   );
@@ -1383,7 +1411,7 @@ Future<void> showCategoryForm(BuildContext context, {CategoryItem? editing}) asy
         const SizedBox(height: 9),
         SegmentedButton<bool>(segments: const [ButtonSegment(value: false, icon: Icon(Icons.north_east_rounded), label: Text('Despesa')), ButtonSegment(value: true, icon: Icon(Icons.south_west_rounded), label: Text('Receita'))], selected: {income}, onSelectionChanged: (value) => setLocal(() => income = value.first)),
         const SizedBox(height: 13),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { if (name.text.trim().isEmpty) return; if (editing == null) { store.addCategory(name.text.trim(), income); } else { store.updateCategory(editing, name.text.trim(), income); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
+        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { if (name.text.trim().isEmpty) return; final ok = editing == null ? store.addCategory(name.text.trim(), income) : store.updateCategory(editing, name.text.trim(), income); if (!ok) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível salvar a categoria. Categorias em uso não podem trocar entre receita e despesa.'))); return; } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
       ])),
     ),
   );
@@ -1398,7 +1426,7 @@ Future<void> showContribution(BuildContext context, bool goal, String id) async 
       content: TextField(controller: controller, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor')),
       actions: [
         TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
-        FilledButton(onPressed: () { final value = double.tryParse(controller.text.replaceAll(',', '.')) ?? 0; if (value <= 0) return; if (goal) { context.read<FinanceStore>().contributeGoal(id, value); } else { context.read<FinanceStore>().contributeReserve(id, value); } Navigator.pop(dialogContext); }, child: const Text('Adicionar')),
+        FilledButton(onPressed: () { final value = parseNumberInput(controller.text) ?? 0; if (value <= 0) return; if (goal) { context.read<FinanceStore>().contributeGoal(id, value); } else { context.read<FinanceStore>().contributeReserve(id, value); } Navigator.pop(dialogContext); }, child: const Text('Adicionar')),
       ],
     ),
   );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../app_info.dart';
 import '../notification_service.dart';
 import '../security.dart';
 import '../store.dart';
@@ -248,7 +249,7 @@ class SettingsScreen extends StatelessWidget {
           const SizedBox(height: 14),
           Center(
             child: Text(
-              'Finora v0.4.0',
+              'Finora v$finoraVersion',
               style: TextStyle(
                 fontSize: 8.5,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,

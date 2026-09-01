@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../ai/gemini_service.dart';
 import '../theme.dart';
+import '../store.dart';
 import 'common.dart';
+import 'copilot_memory.dart';
 
 class AiSettingsScreen extends StatefulWidget {
   const AiSettingsScreen({super.key});
@@ -121,7 +124,9 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       _hasKey
                           ? Icons.check_circle_rounded
                           : Icons.warning_amber_rounded,
-                      color: _hasKey ? FinoraColors.income : FinoraColors.warning,
+                      color: _hasKey
+                          ? FinoraColors.income
+                          : FinoraColors.warning,
                     ),
                   ],
                 ),
@@ -174,6 +179,58 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                     ),
                   ),
                 ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text('COPILOT', style: eyebrowStyle(context)),
+          const SizedBox(height: 7),
+          SurfaceCard(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: const Icon(
+                    Icons.psychology_alt_outlined,
+                    color: FinoraColors.investment,
+                  ),
+                  title: const Text(
+                    'Memória contextual',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                  ),
+                  subtitle: Text(
+                    '${context.watch<FinanceStore>().data.copilotMemories.length} lembrança(s) salva(s) · você mantém o controle',
+                    style: const TextStyle(fontSize: 8.5),
+                  ),
+                  value: context
+                      .watch<FinanceStore>()
+                      .data
+                      .copilotMemoryEnabled,
+                  onChanged: context
+                      .read<FinanceStore>()
+                      .setCopilotMemoryEnabled,
+                ),
+                const Divider(),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.memory_rounded),
+                  title: const Text(
+                    'Ver e editar memória',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Revise, edite ou apague tudo o que o Copilot lembra',
+                    style: TextStyle(fontSize: 8.5),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.push(
+                    context,
+                    PremiumRoute(page: const CopilotMemoryScreen()),
+                  ),
+                ),
               ],
             ),
           ),
@@ -263,10 +320,7 @@ class _InfoLine extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  body,
-                  style: const TextStyle(fontSize: 8.8, height: 1.4),
-                ),
+                Text(body, style: const TextStyle(fontSize: 8.8, height: 1.4)),
               ],
             ),
           ),

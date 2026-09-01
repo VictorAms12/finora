@@ -20,7 +20,7 @@ class DashboardScreen extends StatelessWidget {
     final primaryLabel = store.selectedIsFuture
         ? 'SALDO PROJETADO'
         : store.selectedIsPast
-            ? 'FECHAMENTO DO MÊS'
+            ? (snapshot == null ? 'RESULTADO DO MÊS' : 'FECHAMENTO DO MÊS')
             : 'PATRIMÔNIO';
     final primaryValue = store.selectedIsFuture
         ? store.selectedCashProjectedClosing
@@ -197,7 +197,9 @@ class DashboardScreen extends StatelessWidget {
                         store.selectedIsFuture
                             ? 'Saldo projetado para o fim do mês'
                             : store.selectedIsPast
-                                ? 'Detalhes do fechamento mensal'
+                                ? (snapshot == null
+                                    ? 'Resultado registrado no mês'
+                                    : 'Detalhes do fechamento mensal')
                                 : 'Disponível para gastar',
                         style: TextStyle(
                           fontSize: 9.5,
@@ -237,6 +239,25 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (store.selectedIsCurrent && store.currentCashShortfall > 0) ...[
+            const SizedBox(height: 10),
+            SurfaceCard(
+              borderColor: FinoraColors.expense.withValues(alpha: .30),
+              padding: const EdgeInsets.all(13),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: FinoraColors.expense),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Faltam ${money(context, store.currentCashShortfall)} para cobrir os compromissos já previstos.',
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (store.selectedIsCurrent && store.overduePlannedCount > 0) ...[
             const SizedBox(height: 10),
             SurfaceCard(

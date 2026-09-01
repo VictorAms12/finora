@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../ai/finance_ai.dart';
+import '../ai/copilot.dart';
 import '../ai/gemini_service.dart';
 import '../models.dart';
 import '../store.dart';
@@ -15,6 +16,7 @@ class _ChatMessage {
   final bool user;
   final String text;
   final AiTransactionSuggestion? suggestion;
+  final CopilotActionProposal? proposal;
   final List<String> followUps;
   final AiAssistantAction action;
   final String? actionLabel;
@@ -24,6 +26,7 @@ class _ChatMessage {
     required this.user,
     required this.text,
     this.suggestion,
+    this.proposal,
     this.followUps = const [],
     this.action = AiAssistantAction.none,
     this.actionLabel,
@@ -33,10 +36,7 @@ class _ChatMessage {
 class FinoraAiScreen extends StatefulWidget {
   final ValueChanged<int>? onNavigatePage;
 
-  const FinoraAiScreen({
-    super.key,
-    this.onNavigatePage,
-  });
+  const FinoraAiScreen({super.key, this.onNavigatePage});
 
   @override
   State<FinoraAiScreen> createState() => _FinoraAiScreenState();
@@ -118,7 +118,10 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
             user: false,
             text:
                 'Pronto. Agora posso analisar seus dados, entender perguntas de continuação e preparar lançamentos pela conversa.',
-            followUps: const ['Como está meu mês?', 'Onde estou gastando mais?'],
+            followUps: const [
+              'Como está meu mês?',
+              'Onde estou gastando mais?',
+            ],
           ),
         );
       });
@@ -131,10 +134,7 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
   }
 
   Future<void> _openSettings() async {
-    await Navigator.push(
-      context,
-      PremiumRoute(page: const AiSettingsScreen()),
-    );
+    await Navigator.push(context, PremiumRoute(page: const AiSettingsScreen()));
     await _refreshKey();
   }
 
@@ -145,7 +145,10 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
     final start = messages.length > 10 ? messages.length - 10 : 0;
     return messages
         .sublist(start)
-        .map((message) => '${message.user ? 'Usuário' : 'Finora'}: ${message.text}')
+        .map(
+          (message) =>
+              '${message.user ? 'Usuário' : 'Finora'}: ${message.text}',
+        )
         .join('\n');
   }
 
@@ -156,7 +159,8 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
 
     final store = context.read<FinanceStore>();
     final history = _conversationContext();
-    final shouldTreatAsTransaction = _mode == _AiMode.transaction ||
+    final shouldTreatAsTransaction =
+        _mode == _AiMode.transaction ||
         _pendingTransaction != null ||
         _ai.looksLikeTransactionRequest(clean);
 
@@ -173,7 +177,9 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
 
     try {
       if (!_hasKey) {
-        final local = shouldTreatAsTransaction ? null : _ai.tryLocalAnswer(store, clean);
+        final local = shouldTreatAsTransaction
+            ? null
+            : _ai.tryLocalAnswer(store, clean);
         if (!mounted) return;
         if (local != null) {
           _appendReply(local);
@@ -184,7 +190,10 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
                 user: false,
                 text:
                     'Para essa conversa eu preciso do Gemini conectado. Você ainda pode consultar saldos e o disponível para gastar sem conexão.',
-                followUps: const ['Quanto posso gastar?', 'Qual é meu saldo total?'],
+                followUps: const [
+                  'Quanto posso gastar?',
+                  'Qual é meu saldo total?',
+                ],
               ),
             ),
           );
@@ -210,7 +219,8 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
             _messages.add(
               _ChatMessage(
                 user: false,
-                text: interpretation.clarification ??
+                text:
+                    interpretation.clarification ??
                     'Só preciso de mais uma informação para continuar.',
                 followUps: interpretation.choices,
               ),
@@ -258,11 +268,17 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
   }
 
   void _appendReply(AiAssistantReply reply) {
+    final store = context.read<FinanceStore>();
+    final memory = reply.memory;
+    if (memory != null && store.data.copilotMemoryEnabled) {
+      store.rememberCopilot(memory.label, memory.value);
+    }
     setState(
       () => _messages.add(
         _ChatMessage(
           user: false,
           text: reply.message,
+          proposal: reply.proposal,
           followUps: reply.followUps,
           action: reply.action,
           actionLabel: reply.actionLabel,
@@ -286,12 +302,16 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
     });
     _scrollToEnd();
     try {
-      final reply = await _ai.analyzeSelectedMonthReply(context.read<FinanceStore>());
+      final reply = await _ai.analyzeSelectedMonthReply(
+        context.read<FinanceStore>(),
+      );
       if (!mounted) return;
       _appendReply(reply);
     } on GeminiApiException catch (error) {
       if (!mounted) return;
-      setState(() => _messages.add(_ChatMessage(user: false, text: error.message)));
+      setState(
+        () => _messages.add(_ChatMessage(user: false, text: error.message)),
+      );
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -350,10 +370,47 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
         _ChatMessage(
           user: false,
           text: 'Pronto, registrei. Os saldos já foram atualizados.',
-          followUps: const ['Quanto posso gastar agora?', 'Ver minhas movimentações'],
+          followUps: const [
+            'Quanto posso gastar agora?',
+            'Ver minhas movimentações',
+          ],
           action: AiAssistantAction.showTransactions,
           actionLabel: 'Ver movimentações',
         ),
+      );
+    });
+    _scrollToEnd();
+  }
+
+  void _confirmProposal(_ChatMessage message) {
+    final proposal = message.proposal;
+    if (proposal == null || message.handled) return;
+    final ok = proposal.apply(context.read<FinanceStore>());
+    if (!ok) {
+      _snack(
+        'Não consegui aplicar essa ação. Confira os dados e tente novamente.',
+      );
+      return;
+    }
+    setState(() {
+      message.handled = true;
+      _messages.add(
+        _ChatMessage(
+          user: false,
+          text: 'Pronto. A alteração foi aplicada ao Finora.',
+          followUps: const ['Como isso afeta meu mês?', 'Ver planejamento'],
+        ),
+      );
+    });
+    _scrollToEnd();
+  }
+
+  void _discardProposal(_ChatMessage message) {
+    if (message.handled) return;
+    setState(() {
+      message.handled = true;
+      _messages.add(
+        _ChatMessage(user: false, text: 'Certo, não alterei nada.'),
       );
     });
     _scrollToEnd();
@@ -366,10 +423,7 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
       _pendingTransaction = null;
       _mode = _AiMode.chat;
       _messages.add(
-        _ChatMessage(
-          user: false,
-          text: 'Certo, não registrei nada.',
-        ),
+        _ChatMessage(user: false, text: 'Certo, não registrei nada.'),
       );
     });
     _scrollToEnd();
@@ -438,6 +492,8 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
                         : _sourceLabel(message.suggestion!),
                     onConfirm: () => _confirm(message),
                     onDiscard: () => _discard(message),
+                    onConfirmProposal: () => _confirmProposal(message),
+                    onDiscardProposal: () => _discardProposal(message),
                     onQuickReply: _send,
                     onAction: () => _handleAction(message.action),
                   ),
@@ -456,13 +512,15 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
     final status = _checkingKey
         ? 'Preparando...'
         : _hasKey
-            ? 'Pronta para ajudar'
-            : 'Recursos básicos locais ativos';
+        ? 'Pronta para ajudar'
+        : 'Recursos básicos locais ativos';
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 11, 8, 10),
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).dividerColor),
+        ),
       ),
       child: Row(
         children: [
@@ -495,7 +553,9 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
                       height: 7,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _hasKey ? FinoraColors.income : FinoraColors.warning,
+                        color: _hasKey
+                            ? FinoraColors.income
+                            : FinoraColors.warning,
                       ),
                     ),
                     const SizedBox(width: 5),
@@ -551,7 +611,16 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
           _chip(
             Icons.credit_card_rounded,
             'Cartões',
-            enabled ? () => _askPreset('Como estão meus cartões e faturas?') : null,
+            enabled
+                ? () => _askPreset('Como estão meus cartões e faturas?')
+                : null,
+          ),
+          _chip(
+            Icons.calculate_outlined,
+            'Simular compra',
+            enabled
+                ? () => _askPreset('Posso comprar algo de R\$ 1.000 à vista?')
+                : null,
           ),
           _chip(
             Icons.add_card_rounded,
@@ -564,209 +633,217 @@ class _FinoraAiScreenState extends State<FinoraAiScreen> {
   }
 
   Widget _chip(IconData icon, String label, VoidCallback? onTap) => Padding(
-        padding: const EdgeInsets.only(right: 7),
-        child: ActionChip(
-          avatar: Icon(icon, size: 16),
-          label: Text(label),
-          onPressed: onTap,
-          visualDensity: VisualDensity.compact,
-          labelStyle: const TextStyle(fontSize: 9.2, fontWeight: FontWeight.w700),
-        ),
-      );
+    padding: const EdgeInsets.only(right: 7),
+    child: ActionChip(
+      avatar: Icon(icon, size: 16),
+      label: Text(label),
+      onPressed: onTap,
+      visualDensity: VisualDensity.compact,
+      labelStyle: const TextStyle(fontSize: 9.2, fontWeight: FontWeight.w700),
+    ),
+  );
 
   Widget _keySetup(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: SurfaceCard(
-          borderColor: FinoraColors.investment.withValues(alpha: .24),
-          child: AnimatedSize(
-            duration: const Duration(milliseconds: 180),
-            child: _showKeyForm
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Text(
-                        'Conectar Gemini',
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        'A chave fica no armazenamento seguro do aparelho. O Finora só envia ao Gemini o contexto necessário para a pergunta.',
-                        style: TextStyle(
-                          fontSize: 9,
-                          height: 1.4,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: _keyController,
-                        obscureText: _obscureKey,
-                        enabled: !_busyKey,
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        decoration: InputDecoration(
-                          labelText: 'Chave da API Gemini',
-                          hintText: 'Cole a chave do Google AI Studio',
-                          suffixIcon: IconButton(
-                            onPressed: _busyKey
-                                ? null
-                                : () => setState(() => _obscureKey = !_obscureKey),
-                            icon: Icon(
-                              _obscureKey
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 9),
-                      Row(
-                        children: [
-                          TextButton(
-                            onPressed: _busyKey
-                                ? null
-                                : () => setState(() => _showKeyForm = false),
-                            child: const Text('Agora não'),
-                          ),
-                          const Spacer(),
-                          FilledButton.icon(
-                            onPressed: _busyKey ? null : _connectKey,
-                            icon: _busyKey
-                                ? const SizedBox(
-                                    width: 15,
-                                    height: 15,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Icon(Icons.link_rounded, size: 17),
-                            label: Text(_busyKey ? 'Testando...' : 'Conectar'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: FinoraColors.investment,
-                        size: 21,
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Ative a conversa completa',
-                              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Saldos básicos funcionam localmente. Conecte o Gemini para análises, conversa e lançamentos em linguagem natural.',
-                              style: TextStyle(
-                                fontSize: 8.5,
-                                height: 1.35,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.tonal(
-                        onPressed: () => setState(() => _showKeyForm = true),
-                        child: const Text('Conectar'),
-                      ),
-                    ],
-                  ),
-          ),
-        ),
-      );
-
-  Widget _composerArea(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
-        ),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: SurfaceCard(
+      borderColor: FinoraColors.investment.withValues(alpha: .24),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 180),
+        child: _showKeyForm
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ModePill(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    label: 'Conversar',
-                    selected: _mode == _AiMode.chat,
-                    onTap: () => setState(() {
-                      _mode = _AiMode.chat;
-                      _pendingTransaction = null;
-                    }),
+                  const Text(
+                    'Conectar Gemini',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
                   ),
-                  const SizedBox(width: 7),
-                  _ModePill(
-                    icon: Icons.add_card_rounded,
-                    label: 'Registrar',
-                    selected: _mode == _AiMode.transaction,
-                    onTap: _startTransaction,
+                  const SizedBox(height: 5),
+                  Text(
+                    'A chave fica no armazenamento seguro do aparelho. O Finora só envia ao Gemini o contexto necessário para a pergunta.',
+                    style: TextStyle(
+                      fontSize: 9,
+                      height: 1.4,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
-                  const Spacer(),
-                  if (_mode == _AiMode.transaction)
-                    Text(
-                      'você confirma antes de salvar',
-                      style: TextStyle(
-                        fontSize: 8,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _keyController,
+                    obscureText: _obscureKey,
+                    enabled: !_busyKey,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: InputDecoration(
+                      labelText: 'Chave da API Gemini',
+                      hintText: 'Cole a chave do Google AI Studio',
+                      suffixIcon: IconButton(
+                        onPressed: _busyKey
+                            ? null
+                            : () => setState(() => _obscureKey = !_obscureKey),
+                        icon: Icon(
+                          _obscureKey
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
                       ),
                     ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _composer,
-                      focusNode: _focus,
-                      enabled: !_busy,
-                      minLines: 1,
-                      maxLines: 4,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: InputDecoration(
-                        hintText: _mode == _AiMode.transaction
-                            ? 'Ex.: gastei 32,90 de gasolina no Nubank'
-                            : _hasKey
-                                ? 'Pergunte ou diga o que aconteceu...'
-                                : 'Pergunte sobre seus saldos ou conecte o Gemini...',
-                        prefixIcon: Icon(
-                          _mode == _AiMode.transaction
-                              ? Icons.edit_note_rounded
-                              : Icons.auto_awesome_rounded,
-                          size: 20,
-                        ),
+                  ),
+                  const SizedBox(height: 9),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: _busyKey
+                            ? null
+                            : () => setState(() => _showKeyForm = false),
+                        child: const Text('Agora não'),
                       ),
+                      const Spacer(),
+                      FilledButton.icon(
+                        onPressed: _busyKey ? null : _connectKey,
+                        icon: _busyKey
+                            ? const SizedBox(
+                                width: 15,
+                                height: 15,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.link_rounded, size: 17),
+                        label: Text(_busyKey ? 'Testando...' : 'Conectar'),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: FinoraColors.investment,
+                    size: 21,
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Ative a conversa completa',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Saldos básicos funcionam localmente. Conecte o Gemini para análises, conversa e lançamentos em linguagem natural.',
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            height: 1.35,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  IconButton.filled(
-                    tooltip: 'Enviar',
-                    onPressed: _busy ? null : () => _send(),
-                    icon: const Icon(Icons.arrow_upward_rounded),
+                  FilledButton.tonal(
+                    onPressed: () => setState(() => _showKeyForm = true),
+                    child: const Text('Conectar'),
                   ),
                 ],
               ),
+      ),
+    ),
+  );
+
+  Widget _composerArea(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
+    ),
+    padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+    child: SafeArea(
+      top: false,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              _ModePill(
+                icon: Icons.chat_bubble_outline_rounded,
+                label: 'Conversar',
+                selected: _mode == _AiMode.chat,
+                onTap: () => setState(() {
+                  _mode = _AiMode.chat;
+                  _pendingTransaction = null;
+                }),
+              ),
+              const SizedBox(width: 7),
+              _ModePill(
+                icon: Icons.add_card_rounded,
+                label: 'Registrar',
+                selected: _mode == _AiMode.transaction,
+                onTap: _startTransaction,
+              ),
+              const Spacer(),
+              if (_mode == _AiMode.transaction)
+                Text(
+                  'você confirma antes de salvar',
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
             ],
           ),
-        ),
-      );
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _composer,
+                  focusNode: _focus,
+                  enabled: !_busy,
+                  minLines: 1,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => _send(),
+                  decoration: InputDecoration(
+                    hintText: _mode == _AiMode.transaction
+                        ? 'Ex.: gastei 32,90 de gasolina no Nubank'
+                        : _hasKey
+                        ? 'Pergunte ou diga o que aconteceu...'
+                        : 'Pergunte sobre seus saldos ou conecte o Gemini...',
+                    prefixIcon: Icon(
+                      _mode == _AiMode.transaction
+                          ? Icons.edit_note_rounded
+                          : Icons.auto_awesome_rounded,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                tooltip: 'Enviar',
+                onPressed: _busy ? null : () => _send(),
+                icon: const Icon(Icons.arrow_upward_rounded),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
 
   String _sourceLabel(AiTransactionSuggestion suggestion) {
     if (suggestion.paymentKind == PaymentKind.card) {
-      return context.read<FinanceStore>().findCard(suggestion.cardId)?.name ?? 'Cartão';
+      return context.read<FinanceStore>().findCard(suggestion.cardId)?.name ??
+          'Cartão';
     }
     return suggestion.accountName;
   }
@@ -777,6 +854,8 @@ class _MessageBubble extends StatelessWidget {
   final String? source;
   final VoidCallback onConfirm;
   final VoidCallback onDiscard;
+  final VoidCallback onConfirmProposal;
+  final VoidCallback onDiscardProposal;
   final ValueChanged<String> onQuickReply;
   final VoidCallback onAction;
 
@@ -785,6 +864,8 @@ class _MessageBubble extends StatelessWidget {
     required this.source,
     required this.onConfirm,
     required this.onDiscard,
+    required this.onConfirmProposal,
+    required this.onDiscardProposal,
     required this.onQuickReply,
     required this.onAction,
   });
@@ -826,12 +907,24 @@ class _MessageBubble extends StatelessWidget {
                   onDiscard: onDiscard,
                 ),
               ],
-              if (!message.user && message.action != AiAssistantAction.none) ...[
+              if (message.proposal case final proposal?) ...[
+                const SizedBox(height: 10),
+                _CopilotActionCard(
+                  proposal: proposal,
+                  handled: message.handled,
+                  onConfirm: onConfirmProposal,
+                  onDiscard: onDiscardProposal,
+                ),
+              ],
+              if (!message.user &&
+                  message.action != AiAssistantAction.none) ...[
                 const SizedBox(height: 9),
                 OutlinedButton.icon(
                   onPressed: onAction,
                   icon: Icon(_actionIcon(message.action), size: 16),
-                  label: Text(message.actionLabel ?? _actionFallback(message.action)),
+                  label: Text(
+                    message.actionLabel ?? _actionFallback(message.action),
+                  ),
                 ),
               ],
               if (!message.user && message.followUps.isNotEmpty) ...[
@@ -845,7 +938,10 @@ class _MessageBubble extends StatelessWidget {
                           label: Text(text),
                           visualDensity: VisualDensity.compact,
                           onPressed: () => onQuickReply(text),
-                          labelStyle: const TextStyle(fontSize: 8.7, fontWeight: FontWeight.w700),
+                          labelStyle: const TextStyle(
+                            fontSize: 8.7,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       )
                       .toList(),
@@ -859,18 +955,18 @@ class _MessageBubble extends StatelessWidget {
   }
 
   IconData _actionIcon(AiAssistantAction action) => switch (action) {
-        AiAssistantAction.showPlanning => Icons.calendar_month_rounded,
-        AiAssistantAction.showTransactions => Icons.swap_vert_rounded,
-        AiAssistantAction.startTransaction => Icons.add_card_rounded,
-        AiAssistantAction.none => Icons.arrow_forward_rounded,
-      };
+    AiAssistantAction.showPlanning => Icons.calendar_month_rounded,
+    AiAssistantAction.showTransactions => Icons.swap_vert_rounded,
+    AiAssistantAction.startTransaction => Icons.add_card_rounded,
+    AiAssistantAction.none => Icons.arrow_forward_rounded,
+  };
 
   String _actionFallback(AiAssistantAction action) => switch (action) {
-        AiAssistantAction.showPlanning => 'Ver planejamento',
-        AiAssistantAction.showTransactions => 'Ver movimentações',
-        AiAssistantAction.startTransaction => 'Registrar movimentação',
-        AiAssistantAction.none => 'Abrir',
-      };
+    AiAssistantAction.showPlanning => 'Ver planejamento',
+    AiAssistantAction.showTransactions => 'Ver movimentações',
+    AiAssistantAction.startTransaction => 'Registrar movimentação',
+    AiAssistantAction.none => 'Abrir',
+  };
 }
 
 class _TypingBubble extends StatelessWidget {
@@ -880,33 +976,32 @@ class _TypingBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-            decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: .58),
-              borderRadius: BorderRadius.circular(17),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 9),
-                Text(label, style: const TextStyle(fontSize: 9.5)),
-              ],
-            ),
-          ),
+    alignment: Alignment.centerLeft,
+    child: Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        decoration: BoxDecoration(
+          color: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest.withValues(alpha: .58),
+          borderRadius: BorderRadius.circular(17),
         ),
-      );
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 9),
+            Text(label, style: const TextStyle(fontSize: 9.5)),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _ModePill extends StatelessWidget {
@@ -924,39 +1019,136 @@ class _ModePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: selected
-            ? FinoraColors.investment.withValues(alpha: .13)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  icon,
-                  size: 15,
-                  color: selected
-                      ? FinoraColors.investment
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
+    color: selected
+        ? FinoraColors.investment.withValues(alpha: .13)
+        : Colors.transparent,
+    borderRadius: BorderRadius.circular(12),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: selected
+                  ? FinoraColors.investment
+                  : Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 8.8,
+                fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
+                color: selected ? FinoraColors.investment : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _CopilotActionCard extends StatelessWidget {
+  final CopilotActionProposal proposal;
+  final bool handled;
+  final VoidCallback onConfirm;
+  final VoidCallback onDiscard;
+
+  const _CopilotActionCard({
+    required this.proposal,
+    required this.handled,
+    required this.onConfirm,
+    required this.onDiscard,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final label = switch (proposal.type) {
+      CopilotActionType.createBudget => 'Orçamento',
+      CopilotActionType.createGoal => 'Meta',
+      CopilotActionType.createReserve => 'Reserva',
+      CopilotActionType.createPlanned => 'Planejamento',
+    };
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: FinoraColors.goldBright.withValues(alpha: .07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: FinoraColors.goldBright.withValues(alpha: .24),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                handled
+                    ? Icons.check_circle_rounded
+                    : Icons.auto_fix_high_rounded,
+                color: handled ? FinoraColors.income : FinoraColors.goldBright,
+                size: 18,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  handled ? '$label aplicado' : 'Confirmar $label',
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                const SizedBox(width: 5),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 8.8,
-                    fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
-                    color: selected ? FinoraColors.investment : null,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            proposal.title,
+            style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            proposal.summary,
+            style: TextStyle(
+              fontSize: 9,
+              height: 1.4,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          if (!handled) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: onDiscard,
+                    child: const Text('Cancelar'),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton.icon(
+                    onPressed: onConfirm,
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('Confirmar'),
                   ),
                 ),
               ],
             ),
-          ),
-        ),
-      );
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _SuggestionCard extends StatelessWidget {
@@ -992,7 +1184,9 @@ class _SuggestionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: FinoraColors.investment.withValues(alpha: .08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: FinoraColors.investment.withValues(alpha: .24)),
+        border: Border.all(
+          color: FinoraColors.investment.withValues(alpha: .24),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1000,7 +1194,9 @@ class _SuggestionCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                handled ? Icons.check_circle_rounded : Icons.fact_check_outlined,
+                handled
+                    ? Icons.check_circle_rounded
+                    : Icons.fact_check_outlined,
                 size: 18,
                 color: handled ? FinoraColors.income : FinoraColors.investment,
               ),
@@ -1008,7 +1204,10 @@ class _SuggestionCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   handled ? 'Concluído' : 'Confira antes de registrar',
-                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
               if (!handled && suggestion.confidence < .85)
@@ -1027,7 +1226,10 @@ class _SuggestionCard extends StatelessWidget {
           _detail('Descrição', suggestion.title),
           _detail('Categoria', suggestion.category),
           _detail('Data', date),
-          _detail(suggestion.destinationAccountName == null ? 'Origem' : 'De', source),
+          _detail(
+            suggestion.destinationAccountName == null ? 'Origem' : 'De',
+            source,
+          ),
           if (suggestion.destinationAccountName != null)
             _detail('Para', suggestion.destinationAccountName!),
           if (suggestion.reason.isNotEmpty) ...[
@@ -1069,18 +1271,21 @@ class _SuggestionCard extends StatelessWidget {
   }
 
   Widget _detail(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2.2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: 72, child: Text(label, style: const TextStyle(fontSize: 8.2))),
-            Expanded(
-              child: Text(
-                value,
-                style: const TextStyle(fontSize: 9.8, fontWeight: FontWeight.w800),
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 2.2),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 72,
+          child: Text(label, style: const TextStyle(fontSize: 8.2)),
         ),
-      );
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 9.8, fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    ),
+  );
 }

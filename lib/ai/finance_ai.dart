@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../models.dart';
 import '../store.dart';
 import 'gemini_service.dart';
+import 'copilot.dart';
 
 enum AiAssistantAction {
   none,
@@ -28,6 +29,8 @@ class AiAssistantReply {
   final AiAssistantAction action;
   final String? actionLabel;
   final bool local;
+  final CopilotActionProposal? proposal;
+  final CopilotMemoryCandidate? memory;
 
   const AiAssistantReply({
     required this.message,
@@ -35,6 +38,8 @@ class AiAssistantReply {
     this.action = AiAssistantAction.none,
     this.actionLabel,
     this.local = false,
+    this.proposal,
+    this.memory,
   });
 }
 
@@ -50,7 +55,7 @@ class AiTransactionInterpretation {
   });
 
   const AiTransactionInterpretation.ready(AiTransactionSuggestion value)
-      : this._(suggestion: value);
+    : this._(suggestion: value);
 
   const AiTransactionInterpretation.clarify(
     String question, {
@@ -109,7 +114,7 @@ class AiTransactionSuggestion {
     if (isCard && card == null) return false;
     if (!isCard && account == null) return false;
 
-    store.addTransaction(
+    return store.addTransaction(
       TransactionItem(
         id: FinanceStore.newId(),
         type: type,
@@ -123,7 +128,6 @@ class AiTransactionSuggestion {
         note: note.isEmpty ? 'Criado via Finora IA' : '$note · Finora IA',
       ),
     );
-    return true;
   }
 }
 
@@ -140,7 +144,8 @@ class FinoraAiService {
     final suggestion = result.suggestion;
     if (suggestion != null) return suggestion;
     throw GeminiApiException(
-      result.clarification ?? 'Preciso de mais uma informação para montar esse lançamento.',
+      result.clarification ??
+          'Preciso de mais uma informação para montar esse lançamento.',
     );
   }
 
@@ -158,7 +163,8 @@ class FinoraAiService {
     final cards = store.data.cards
         .map((e) => {'id': e.id, 'name': e.name})
         .toList();
-    final prompt = '''
+    final prompt =
+        '''
 Você interpreta lançamentos para o aplicativo financeiro Finora.
 Seu trabalho é entender a fala natural do usuário e montar UM lançamento.
 
@@ -203,24 +209,42 @@ $clean
             'type': ['string', 'null'],
             'enum': ['income', 'expense', 'transfer', null],
           },
-          'amount': {'type': ['number', 'null']},
-          'title': {'type': ['string', 'null']},
-          'category': {'type': ['string', 'null']},
-          'date': {'type': ['string', 'null']},
+          'amount': {
+            'type': ['number', 'null'],
+          },
+          'title': {
+            'type': ['string', 'null'],
+          },
+          'category': {
+            'type': ['string', 'null'],
+          },
+          'date': {
+            'type': ['string', 'null'],
+          },
           'paymentKind': {
             'type': ['string', 'null'],
             'enum': ['account', 'card', null],
           },
-          'accountName': {'type': ['string', 'null']},
-          'destinationAccountName': {'type': ['string', 'null']},
-          'cardId': {'type': ['string', 'null']},
-          'note': {'type': ['string', 'null']},
+          'accountName': {
+            'type': ['string', 'null'],
+          },
+          'destinationAccountName': {
+            'type': ['string', 'null'],
+          },
+          'cardId': {
+            'type': ['string', 'null'],
+          },
+          'note': {
+            'type': ['string', 'null'],
+          },
           'confidence': {
             'type': ['number', 'null'],
             'minimum': 0,
             'maximum': 1,
           },
-          'reason': {'type': ['string', 'null']},
+          'reason': {
+            'type': ['string', 'null'],
+          },
         },
         'required': [
           'needsClarification',
@@ -246,9 +270,10 @@ $clean
       final question = GeminiService.cleanAssistantText(
         result['clarificationQuestion']?.toString() ?? '',
       );
-      final choices = _stringList(result['choices'], max: 4)
-          .where((value) => _isKnownSource(store, value))
-          .toList(growable: false);
+      final choices = _stringList(
+        result['choices'],
+        max: 4,
+      ).where((value) => _isKnownSource(store, value)).toList(growable: false);
       return AiTransactionInterpretation.clarify(
         question.isEmpty ? 'Qual conta ou cartão você usou?' : question,
         choices: choices,
@@ -262,9 +287,7 @@ $clean
     };
     final amount = (result['amount'] as num?)?.toDouble() ?? 0;
     if (!amount.isFinite || amount <= 0) {
-      return const AiTransactionInterpretation.clarify(
-        'Qual foi o valor?',
-      );
+      return const AiTransactionInterpretation.clarify('Qual foi o valor?');
     }
 
     final requestedKind = result['paymentKind']?.toString() == 'card'
@@ -272,8 +295,8 @@ $clean
         : PaymentKind.account;
     final paymentKind =
         type == TransactionType.income || type == TransactionType.transfer
-            ? PaymentKind.account
-            : requestedKind;
+        ? PaymentKind.account
+        : requestedKind;
 
     final accountName = _resolveAccount(
       store,
@@ -323,20 +346,26 @@ $clean
     final categories = type == TransactionType.income
         ? store.incomeCategories
         : type == TransactionType.expense
-            ? store.expenseCategories
-            : const ['Transferência'];
+        ? store.expenseCategories
+        : const ['Transferência'];
     final category = type == TransactionType.transfer
         ? 'Transferência'
         : _resolveCategory(categories, result['category']?.toString() ?? '');
-    final date = DateTime.tryParse(result['date']?.toString() ?? '') ?? DateTime.now();
-    final titleValue = result['title']?.toString().trim() ?? '';
+    final date =
+        DateTime.tryParse(result['date']?.toString() ?? '') ?? DateTime.now();
+    if (date.year < 2020 || date.year > 2100) {
+      return const AiTransactionInterpretation.clarify(
+        'Qual é a data desse lançamento?',
+      );
+    }
+    final titleValue = _truncate(result['title']?.toString().trim() ?? '', 120);
     final title = titleValue.isNotEmpty
         ? titleValue
         : type == TransactionType.income
-            ? 'Receita'
-            : type == TransactionType.transfer
-                ? 'Transferência'
-                : 'Despesa';
+        ? 'Receita'
+        : type == TransactionType.transfer
+        ? 'Transferência'
+        : 'Despesa';
 
     return AiTransactionInterpretation.ready(
       AiTransactionSuggestion(
@@ -349,7 +378,7 @@ $clean
         accountName: accountName,
         destinationAccountName: destination,
         cardId: cardId,
-        note: result['note']?.toString().trim() ?? '',
+        note: _truncate(result['note']?.toString().trim() ?? '', 500),
         confidence: ((result['confidence'] as num?)?.toDouble() ?? .5)
             .clamp(0.0, 1.0)
             .toDouble(),
@@ -375,41 +404,61 @@ $clean
 
     final intent = detectIntent(clean);
     final context = _financialContext(store, intent);
+    final memories = store.data.copilotMemoryEnabled
+        ? (store.data.copilotMemories.toList()
+            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))
+        : <CopilotMemoryItem>[];
+    final memoryContext = memories
+        .take(20)
+        .map((item) => {'assunto': item.label, 'valor': item.value})
+        .toList(growable: false);
+
     final result = await gemini.generateStructured(
-      input: '''
-Você é Finora, o assistente financeiro pessoal que vive dentro do aplicativo Finora.
-Você não é um chatbot genérico e nunca fala como documentação técnica.
+      input:
+          '''
+Você é Finora, o Copilot financeiro pessoal que vive dentro do aplicativo Finora.
+Você conversa como um assistente humano, mas os cálculos do Finora são a fonte de verdade.
 
 JEITO DE FALAR:
 - Português do Brasil natural, direto e humano.
-- Responda primeiro ao que foi perguntado. Não faça introduções desnecessárias.
-- Pergunta simples recebe resposta simples, normalmente 1 ou 2 frases.
-- Análise pode ter até 3 parágrafos curtos. Evite listas quando uma frase resolve.
-- Use nomes e valores do próprio Finora naturalmente: R\$ 1.250,00, agosto, Nubank, fatura, saldo.
-- Nunca diga "com base nos dados fornecidos", "como IA", "segundo o contexto" ou frases parecidas.
-- Nunca exponha nomes de campos internos, JSON, banco, API, prompt ou implementação.
+- Responda primeiro ao que foi perguntado; nada de introduções genéricas.
+- Pergunta simples: 1 ou 2 frases. Análise: até 3 parágrafos curtos.
+- Use nomes e valores reais do Finora naturalmente.
+- Nunca exponha campos internos, JSON, banco, API, prompt, tags ou implementação.
 - Nunca use XML, tags como <analysis>, blocos de código, tabelas Markdown ou cabeçalhos com #.
-- Não repita "Finora IA" dentro da resposta.
-- Não encerre toda resposta com conselho genérico. Sugira algo somente quando for útil.
-- Não invente movimentações, saldos, taxas ou rendimentos.
+- Não diga "como IA", "com base nos dados fornecidos" ou frases equivalentes.
+- Não invente movimentações, saldos, datas, taxas ou rendimentos.
 - Não faça diagnóstico financeiro profissional nem prometa resultado de investimento.
-- Se faltar uma informação essencial, pergunte de forma curta e natural.
-- Os cálculos já fornecidos pelo Finora são a fonte de verdade. Não substitua por estimativas próprias.
+- Se faltar informação essencial, faça UMA pergunta curta.
+
+MEMÓRIA:
+- As memórias abaixo foram explicitamente salvas pelo usuário e só devem ser usadas quando forem relevantes.
+- Não trate memória como dado financeiro atual se o Finora tiver um valor calculado mais recente.
+- Só preencha memoryLabel e memoryValue quando o usuário pedir explicitamente para lembrar algo
+  ou declarar uma preferência/associação estável claramente útil ao app.
+- Não memorize saldos, valores temporários, senhas, chaves, documentos ou conteúdo sensível.
+Memórias salvas: ${jsonEncode(memoryContext)}
+
+AÇÕES DE NAVEGAÇÃO:
+action pode ser none, showPlanning, showTransactions ou startTransaction.
+actionLabel deve ser curto e só existir quando ajudar.
+
+AÇÕES DO COPILOT:
+Você também pode PROPOR uma operação, mas nunca diga que salvou antes da confirmação do usuário.
+operation pode ser:
+- none
+- createBudget: criar/atualizar orçamento de categoria de despesa;
+- createGoal: criar meta com valor-alvo e prazo;
+- createReserve: criar reserva com meta e meses de proteção;
+- createPlanned: criar receita/despesa prevista.
+Use apenas nomes de categorias, contas e cartões existentes nos fatos do Finora.
+Se a operação depender de uma conta/cartão e houver ambiguidade, não proponha; pergunte primeiro.
 
 CONTINUIDADE:
-Use a conversa recente apenas para entender pronomes e continuações como
-"e o Nubank?", "por quê?", "e mês passado?". Não repita informações que o usuário já entendeu.
+Use a conversa recente para continuações como "e o Nubank?", "por quê?" e "e mês passado?".
+Não repita o que o usuário já entendeu.
 
-AÇÕES:
-action pode ser:
-- none: apenas responder;
-- showPlanning: quando abrir Planejamento ajuda diretamente;
-- showTransactions: quando ver movimentações ajuda diretamente;
-- startTransaction: quando o usuário quer registrar uma movimentação.
-actionLabel deve ser curto e só existir quando houver uma ação realmente útil.
-followUps deve ter de 0 a 3 continuações curtas e relevantes, nunca genéricas.
-
-Intenção detectada pelo Finora: ${intent.name}
+Intenção detectada: ${intent.name}
 ${conversationContext.trim().isEmpty ? '' : 'Conversa recente:\n${conversationContext.trim()}\n'}
 Pergunta atual: $clean
 
@@ -434,19 +483,98 @@ ${jsonEncode(context)}
               'startTransaction',
             ],
           },
-          'actionLabel': {'type': ['string', 'null']},
+          'actionLabel': {
+            'type': ['string', 'null'],
+          },
+          'operation': {
+            'type': 'string',
+            'enum': [
+              'none',
+              'createBudget',
+              'createGoal',
+              'createReserve',
+              'createPlanned',
+            ],
+          },
+          'operationTitle': {
+            'type': ['string', 'null'],
+          },
+          'operationAmount': {
+            'type': ['number', 'null'],
+          },
+          'operationCategory': {
+            'type': ['string', 'null'],
+          },
+          'operationDate': {
+            'type': ['string', 'null'],
+          },
+          'operationTransactionType': {
+            'type': ['string', 'null'],
+            'enum': ['income', 'expense', null],
+          },
+          'operationPaymentKind': {
+            'type': ['string', 'null'],
+            'enum': ['account', 'card', null],
+          },
+          'operationSourceName': {
+            'type': ['string', 'null'],
+          },
+          'operationCardId': {
+            'type': ['string', 'null'],
+          },
+          'operationMonths': {
+            'type': ['number', 'null'],
+          },
+          'operationDeadline': {
+            'type': ['string', 'null'],
+          },
+          'memoryLabel': {
+            'type': ['string', 'null'],
+          },
+          'memoryValue': {
+            'type': ['string', 'null'],
+          },
         },
-        'required': ['message', 'followUps', 'action', 'actionLabel'],
+        'required': [
+          'message',
+          'followUps',
+          'action',
+          'actionLabel',
+          'operation',
+          'operationTitle',
+          'operationAmount',
+          'operationCategory',
+          'operationDate',
+          'operationTransactionType',
+          'operationPaymentKind',
+          'operationSourceName',
+          'operationCardId',
+          'operationMonths',
+          'operationDeadline',
+          'memoryLabel',
+          'memoryValue',
+        ],
       },
-      maxOutputTokens: 700,
+      maxOutputTokens: 850,
     );
 
     final message = GeminiService.cleanAssistantText(
       result['message']?.toString() ?? '',
     );
     if (message.isEmpty) {
-      throw const GeminiApiException('Não consegui formular uma resposta agora.');
+      throw const GeminiApiException(
+        'Não consegui formular uma resposta agora.',
+      );
     }
+
+    final memoryLabel = _cleanNullable(result['memoryLabel']?.toString());
+    final memoryValue = _cleanNullable(result['memoryValue']?.toString());
+    final memory = memoryLabel != null && memoryValue != null
+        ? CopilotMemoryCandidate(
+            label: _truncate(memoryLabel, 60),
+            value: _truncate(memoryValue, 240),
+          )
+        : null;
 
     return AiAssistantReply(
       message: message,
@@ -456,6 +584,8 @@ ${jsonEncode(context)}
           .toList(growable: false),
       action: _parseAction(result['action']?.toString()),
       actionLabel: _cleanNullable(result['actionLabel']?.toString()),
+      proposal: _proposalFromResult(store, result),
+      memory: memory,
     );
   }
 
@@ -472,13 +602,24 @@ ${jsonEncode(context)}
       (await askAssistant(store, question)).message;
 
   AiAssistantReply? tryLocalAnswer(FinanceStore store, String question) {
+    final query = const FinancialQueryEngine().answer(store, question);
+    if (query != null) {
+      return AiAssistantReply(
+        message: query.message,
+        followUps: query.followUps,
+        local: true,
+      );
+    }
+
     final clean = _fold(question);
-    final selected = store.selectedMonth;
 
     if (_hasAny(clean, ['patrimonio', 'patrimônio', 'quanto tenho no total'])) {
       return AiAssistantReply(
         message: 'Seu patrimônio no Finora está em ${_money(store.netWorth)}.',
-        followUps: const ['Como esse valor está dividido?', 'E comparado ao mês passado?'],
+        followUps: const [
+          'Como esse valor está dividido?',
+          'E comparado ao mês passado?',
+        ],
         local: true,
       );
     }
@@ -489,17 +630,24 @@ ${jsonEncode(context)}
       'disponível para gastar',
       'quanto ainda posso gastar',
     ])) {
-      final payable = store.plannedPayableForMonth(selected);
-      final receivable = store.plannedReceivableForMonth(selected);
-      var message = 'Hoje você tem ${_money(store.availableToSpend)} disponíveis para gastar.';
+      final now = DateTime.now();
+      final payable = store.cashPlannedPayableForMonth(now);
+      final receivable = store.cashPlannedReceivableForMonth(now);
+      var message =
+          'Hoje você tem ${_money(store.availableToSpend)} disponíveis para gastar.';
       if (payable > 0 || receivable > 0) {
         message +=
             ' Neste mês ainda há ${_money(payable)} previstos para sair e ${_money(receivable)} para entrar.';
       }
       return AiAssistantReply(
         message: message,
-        followUps: const ['Quais são as próximas contas?', 'Onde estou gastando mais?'],
-        action: payable > 0 ? AiAssistantAction.showPlanning : AiAssistantAction.none,
+        followUps: const [
+          'Quais são as próximas contas?',
+          'Onde estou gastando mais?',
+        ],
+        action: payable > 0
+            ? AiAssistantAction.showPlanning
+            : AiAssistantAction.none,
         actionLabel: payable > 0 ? 'Ver planejamento' : null,
         local: true,
       );
@@ -523,19 +671,38 @@ ${jsonEncode(context)}
     for (final card in store.data.cards) {
       final cardName = _fold(card.name);
       if (cardName.isEmpty || !clean.contains(cardName)) continue;
-      if (_hasAny(clean, ['fatura', 'cartao', 'cartão', 'limite', 'quanto devo'])) {
-        final invoice = store.invoiceOutstandingForMonth(card.id, selected);
-        final availableLimit = (card.limit - card.used).clamp(0, double.infinity);
+      if (_hasAny(clean, [
+        'fatura',
+        'cartao',
+        'cartão',
+        'limite',
+        'quanto devo',
+      ])) {
+        final invoice = store.invoiceDisplayOutstandingForMonth(
+          card.id,
+          DateTime.now(),
+        );
+        final availableLimit = (card.limit - card.used).clamp(
+          0,
+          double.infinity,
+        );
         return AiAssistantReply(
           message:
               'A fatura atual do ${card.name} está em ${_money(invoice)}. O limite disponível é ${_money(availableLimit.toDouble())}.',
-          followUps: const ['O que mais pesou nessa fatura?', 'Comparar com o mês passado'],
+          followUps: const [
+            'O que mais pesou nessa fatura?',
+            'Comparar com o mês passado',
+          ],
           local: true,
         );
       }
     }
 
-    if (_hasAny(clean, ['saldo total', 'saldo em contas', 'quanto tenho nas contas'])) {
+    if (_hasAny(clean, [
+      'saldo total',
+      'saldo em contas',
+      'quanto tenho nas contas',
+    ])) {
       return AiAssistantReply(
         message: 'Você tem ${_money(store.cashBalance)} somando as contas.',
         followUps: const ['Como está dividido?', 'Quanto posso gastar?'],
@@ -549,26 +716,54 @@ ${jsonEncode(context)}
   AiAssistantIntent detectIntent(String question) {
     final clean = _fold(question);
     if (_looksLikeTransaction(clean)) return AiAssistantIntent.transaction;
-    if (_hasAny(clean, ['cartao', 'fatura', 'limite'])) return AiAssistantIntent.cards;
+    if (_hasAny(clean, ['cartao', 'fatura', 'limite'])) {
+      return AiAssistantIntent.cards;
+    }
     if (_hasAny(clean, ['conta', 'saldo', 'patrimonio', 'quanto tenho'])) {
       return AiAssistantIntent.balance;
     }
-    if (_hasAny(clean, ['planej', 'proxim', 'vence', 'vencimento', 'conta a pagar'])) {
+    if (_hasAny(clean, [
+      'planej',
+      'proxim',
+      'vence',
+      'vencimento',
+      'conta a pagar',
+    ])) {
       return AiAssistantIntent.planning;
     }
-    if (_hasAny(clean, ['compar', 'mes passado', 'mês passado', 'julho', 'junho'])) {
+    if (_hasAny(clean, [
+      'compar',
+      'mes passado',
+      'mês passado',
+      'julho',
+      'junho',
+    ])) {
       return AiAssistantIntent.comparison;
     }
-    if (_hasAny(clean, ['gastei', 'gasto', 'despesa', 'categoria', 'onde estou gastando'])) {
+    if (_hasAny(clean, [
+      'gastei',
+      'gasto',
+      'despesa',
+      'categoria',
+      'onde estou gastando',
+    ])) {
       return AiAssistantIntent.spending;
     }
-    if (_hasAny(clean, ['como estou', 'meu mes', 'meu mês', 'resumo', 'analise', 'análise'])) {
+    if (_hasAny(clean, [
+      'como estou',
+      'meu mes',
+      'meu mês',
+      'resumo',
+      'analise',
+      'análise',
+    ])) {
       return AiAssistantIntent.overview;
     }
     return AiAssistantIntent.general;
   }
 
-  bool looksLikeTransactionRequest(String input) => _looksLikeTransaction(_fold(input));
+  bool looksLikeTransactionRequest(String input) =>
+      _looksLikeTransaction(_fold(input));
 
   Map<String, dynamic> _financialContext(
     FinanceStore store,
@@ -576,7 +771,8 @@ ${jsonEncode(context)}
   ) {
     final selected = store.selectedMonth;
     final base = <String, dynamic>{
-      'mesSelecionado': '${selected.year}-${selected.month.toString().padLeft(2, '0')}',
+      'mesSelecionado':
+          '${selected.year}-${selected.month.toString().padLeft(2, '0')}',
       'hoje': _dateOnly(DateTime.now()),
       'disponivelParaGastar': store.availableToSpend,
     };
@@ -604,7 +800,10 @@ ${jsonEncode(context)}
               'nome': e.name,
               'limite': e.limit,
               'usado': e.used,
-              'faturaAtual': store.invoiceOutstandingForMonth(e.id, selected),
+              'faturaAtual': store.invoiceDisplayOutstandingForMonth(
+                e.id,
+                selected,
+              ),
               'limiteDisponivel': (e.limit - e.used).clamp(0, double.infinity),
             },
           )
@@ -618,49 +817,64 @@ ${jsonEncode(context)}
       base['historicoMensal'] = _monthHistory(store, selected);
       final recent = store.data.transactions.toList()
         ..sort((a, b) => b.date.compareTo(a.date));
-      base['movimentacoesRecentes'] = recent.take(30).map((e) => {
-            'tipo': e.type.name,
-            'descricao': e.title,
-            'categoria': e.category,
-            'valor': e.amount,
-            'data': _dateOnly(e.date),
-            'origem': e.account,
-          }).toList();
-    }
-
-    if (intent == AiAssistantIntent.planning ||
-        intent == AiAssistantIntent.overview ||
-        intent == AiAssistantIntent.general) {
-      final upcoming = store.data.planned
-          .where((e) => e.status == PlannedStatus.planned)
-          .toList()
-        ..sort((a, b) => a.date.compareTo(b.date));
-      base.addAll({
-        'previstoParaReceberNoMes': store.plannedReceivableForMonth(selected),
-        'previstoParaPagarNoMes': store.plannedPayableForMonth(selected),
-        'quantidadeAtrasados': store.overduePlannedCount,
-        'proximosCompromissos': upcoming.take(20).map((e) => {
+      base['movimentacoesRecentes'] = recent
+          .take(30)
+          .map(
+            (e) => {
               'tipo': e.type.name,
               'descricao': e.title,
               'categoria': e.category,
               'valor': e.amount,
               'data': _dateOnly(e.date),
-              'origem': e.sourceName,
-            }).toList(),
+              'origem': e.account,
+            },
+          )
+          .toList();
+    }
+
+    if (intent == AiAssistantIntent.planning ||
+        intent == AiAssistantIntent.overview ||
+        intent == AiAssistantIntent.general) {
+      final upcoming =
+          store.data.planned
+              .where((e) => e.status == PlannedStatus.planned)
+              .toList()
+            ..sort((a, b) => a.date.compareTo(b.date));
+      base.addAll({
+        'previstoParaReceberNoMes': store.plannedReceivableForMonth(selected),
+        'previstoParaPagarNoMes': store.plannedPayableForMonth(selected),
+        'quantidadeAtrasados': store.overduePlannedCount,
+        'proximosCompromissos': upcoming
+            .take(20)
+            .map(
+              (e) => {
+                'tipo': e.type.name,
+                'descricao': e.title,
+                'categoria': e.category,
+                'valor': e.amount,
+                'data': _dateOnly(e.date),
+                'origem': e.sourceName,
+              },
+            )
+            .toList(),
       });
     }
 
     return base;
   }
 
-  List<Map<String, dynamic>> _monthHistory(FinanceStore store, DateTime selected) {
+  List<Map<String, dynamic>> _monthHistory(
+    FinanceStore store,
+    DateTime selected,
+  ) {
     final result = <Map<String, dynamic>>[];
     for (var i = 0; i < 4; i++) {
       final month = DateTime(selected.year, selected.month - i);
       final categoryMap = <String, double>{};
       for (final tx in store.transactionsForMonth(month)) {
         if (tx.type == TransactionType.expense) {
-          categoryMap[tx.category] = (categoryMap[tx.category] ?? 0) + tx.amount;
+          categoryMap[tx.category] =
+              (categoryMap[tx.category] ?? 0) + tx.amount;
         }
       }
       result.add({
@@ -674,12 +888,129 @@ ${jsonEncode(context)}
     return result;
   }
 
+  CopilotActionProposal? _proposalFromResult(
+    FinanceStore store,
+    Map<String, dynamic> result,
+  ) {
+    final operation = result['operation']?.toString() ?? 'none';
+    if (operation == 'none') {
+      return null;
+    }
+    final amount = (result['operationAmount'] as num?)?.toDouble() ?? 0;
+    if (!amount.isFinite || amount <= 0) return null;
+
+    final title = _truncate(
+      result['operationTitle']?.toString().trim() ?? '',
+      120,
+    );
+    final requestedCategory = result['operationCategory']?.toString() ?? '';
+
+    if (operation == 'createBudget') {
+      final category = _resolveCategory(
+        store.expenseCategories,
+        requestedCategory,
+      );
+      return CopilotActionProposal(
+        type: CopilotActionType.createBudget,
+        title: 'Orçamento de $category',
+        summary: 'Limite mensal de ${_money(amount)} para $category',
+        amount: amount,
+        category: category,
+      );
+    }
+
+    if (operation == 'createGoal') {
+      final cleanTitle = title.isEmpty ? 'Nova meta' : title;
+      final deadline = DateTime.tryParse(
+        result['operationDeadline']?.toString() ?? '',
+      );
+      return CopilotActionProposal(
+        type: CopilotActionType.createGoal,
+        title: cleanTitle,
+        summary:
+            'Meta de ${_money(amount)}${deadline == null ? '' : ' até ${_dateOnly(deadline)}'}',
+        amount: amount,
+        deadline: deadline,
+      );
+    }
+
+    if (operation == 'createReserve') {
+      final cleanTitle = title.isEmpty ? 'Reserva de emergência' : title;
+      final months = ((result['operationMonths'] as num?)?.toInt() ?? 6)
+          .clamp(1, 60)
+          .toInt();
+      return CopilotActionProposal(
+        type: CopilotActionType.createReserve,
+        title: cleanTitle,
+        summary: 'Meta de ${_money(amount)} para $months meses de proteção',
+        amount: amount,
+        months: months,
+      );
+    }
+
+    if (operation == 'createPlanned') {
+      final type = result['operationTransactionType']?.toString() == 'income'
+          ? TransactionType.income
+          : TransactionType.expense;
+      final requestedKind = result['operationPaymentKind']?.toString() == 'card'
+          ? PaymentKind.card
+          : PaymentKind.account;
+      final paymentKind = type == TransactionType.income
+          ? PaymentKind.account
+          : requestedKind;
+      final date = DateTime.tryParse(result['operationDate']?.toString() ?? '');
+      if (date == null || date.year < 2020 || date.year > 2100) return null;
+      final categories = type == TransactionType.income
+          ? store.incomeCategories
+          : store.expenseCategories;
+      final category = _resolveCategory(categories, requestedCategory);
+      String? source;
+      String? cardId;
+      if (paymentKind == PaymentKind.card) {
+        cardId = _resolveCardId(
+          store,
+          result['operationCardId']?.toString() ?? '',
+          result['operationSourceName']?.toString() ?? '',
+        );
+        final card = store.findCard(cardId);
+        if (card == null) return null;
+        source = card.name;
+      } else {
+        source = _resolveAccount(
+          store,
+          result['operationSourceName']?.toString() ?? '',
+        );
+        if (source.isEmpty) return null;
+      }
+      final cleanTitle = title.isEmpty
+          ? (type == TransactionType.income
+                ? 'Receita prevista'
+                : 'Despesa prevista')
+          : title;
+      return CopilotActionProposal(
+        type: CopilotActionType.createPlanned,
+        title: cleanTitle,
+        summary:
+            '${type == TransactionType.income ? 'Receber' : 'Pagar'} ${_money(amount)} em ${_dateOnly(date)}',
+        amount: amount,
+        category: category,
+        date: date,
+        transactionType: type,
+        paymentKind: paymentKind,
+        sourceName: source,
+        cardId: cardId,
+      );
+    }
+
+    return null;
+  }
+
   AiAssistantAction _parseAction(String? value) => switch (value) {
-        'showPlanning' => AiAssistantAction.showPlanning,
-        'showTransactions' => AiAssistantAction.showTransactions,
-        'startTransaction' => AiAssistantAction.startTransaction,
-        _ => AiAssistantAction.none,
-      };
+    'showPlanning' => AiAssistantAction.showPlanning,
+    'showTransactions' => AiAssistantAction.showTransactions,
+    'startTransaction' => AiAssistantAction.startTransaction,
+    _ => AiAssistantAction.none,
+  };
 
   String? _cleanNullable(String? value) {
     if (value == null) return null;
@@ -756,6 +1087,9 @@ ${jsonEncode(context)}
     replacements.forEach((from, to) => text = text.replaceAll(from, to));
     return text;
   }
+
+  String _truncate(String value, int max) =>
+      value.length <= max ? value : value.substring(0, max).trimRight();
 
   String _money(double value) {
     final fixed = value.abs().toStringAsFixed(2);
