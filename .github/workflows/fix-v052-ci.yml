@@ -1,0 +1,61 @@
+name: Corrigir analyzer Finora v0.5.2
+
+on:
+  push:
+    branches:
+      - feature/finora-v052-stateful-copilot
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: feature/finora-v052-stateful-copilot
+          fetch-depth: 0
+
+      - name: Aplicar correções
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          ai = Path('lib/ai/finance_ai.dart')
+          text = ai.read_text(encoding='utf-8')
+          old = """    if (conversationContext.trim().isEmpty || clean.length > 45)\n      return question;"""
+          new = """    if (conversationContext.trim().isEmpty || clean.length > 45) {\n      return question;\n    }"""
+          if old not in text:
+              raise SystemExit('Marcador finance_ai não encontrado')
+          ai.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          tiles = Path('lib/ui/tiles.dart')
+          text = tiles.read_text(encoding='utf-8')
+          old = "money(context, projected!)"
+          if old not in text:
+              raise SystemExit('Marcador tiles não encontrado')
+          tiles.write_text(text.replace(old, "money(context, projected)", 1), encoding='utf-8')
+          PY
+
+          rm -f .github/workflows/fix-v052-ci.yml
+
+      - name: Formatar somente arquivos alterados
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: dart format lib/ai/finance_ai.dart lib/ui/tiles.dart
+
+      - name: Commitar correção
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Finora Copilot Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix: clear v0.5.2 analyzer findings [v052-ci]'
+          git push origin HEAD:feature/finora-v052-stateful-copilot
