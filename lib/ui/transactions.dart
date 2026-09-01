@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models.dart';
 import '../store.dart';
 import 'common.dart';
@@ -17,6 +18,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
   TransactionType? _filter;
   String _search = '';
+  bool _allMonths = false;
   int _visibleCount = _pageSize;
 
   void _setFilter(TransactionType? value) {
@@ -29,17 +31,22 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<FinanceStore>();
-    Iterable<TransactionItem> filtered = store.monthTransactions;
+    Iterable<TransactionItem> filtered = _allMonths
+        ? (store.data.transactions.toList()
+            ..sort((a, b) => b.date.compareTo(a.date)))
+        : store.monthTransactions;
 
     if (_filter != null) {
       filtered = filtered.where((item) => item.type == _filter);
     }
     final query = _search.trim().toLowerCase();
     if (query.isNotEmpty) {
-      filtered = filtered.where((item) =>
-          '${item.title} ${item.category} ${item.account}'
-              .toLowerCase()
-              .contains(query));
+      filtered = filtered.where(
+        (item) =>
+            '${item.title} ${item.category} ${item.account} ${item.note} ${item.amount.toStringAsFixed(2)}'
+                .toLowerCase()
+                .contains(query),
+      );
     }
 
     final allItems = filtered.toList(growable: false);
@@ -51,7 +58,28 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       title: 'Movimentações',
       child: Column(
         children: [
-          const MonthSwitcher(),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (_allMonths)
+                const Text(
+                  'Histórico completo',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                )
+              else
+                const MonthSwitcher(),
+              FilterChip(
+                label: const Text('Todos os meses'),
+                selected: _allMonths,
+                onSelected: (value) => setState(() {
+                  _allMonths = value;
+                  _visibleCount = _pageSize;
+                }),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           TextField(
             onChanged: (value) => setState(() {
@@ -94,7 +122,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 ? EmptyState(
                     icon: Icons.receipt_long_outlined,
                     title: 'Nenhuma movimentação',
-                    subtitle: 'Os lançamentos deste mês aparecerão aqui.',
+                    subtitle: _allMonths
+                        ? 'Nenhuma movimentação corresponde aos filtros.'
+                        : 'Os lançamentos deste mês aparecerão aqui.',
                     actionLabel: 'Adicionar',
                     onAction: () => showQuickActions(context),
                   )
@@ -111,9 +141,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: TextButton.icon(
-                            onPressed: () => setState(
-                              () => _visibleCount += _pageSize,
-                            ),
+                            onPressed: () =>
+                                setState(() => _visibleCount += _pageSize),
                             icon: const Icon(Icons.expand_more_rounded),
                             label: Text(
                               'Mostrar mais (${allItems.length - visible.length})',
@@ -130,11 +159,11 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Widget _chip(String label, bool selected, VoidCallback onTap) => Padding(
-        padding: const EdgeInsets.only(right: 7),
-        child: ChoiceChip(
-          label: Text(label),
-          selected: selected,
-          onSelected: (_) => onTap(),
-        ),
-      );
+    padding: const EdgeInsets.only(right: 7),
+    child: ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+    ),
+  );
 }

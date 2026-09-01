@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../app_info.dart';
 import '../notification_service.dart';
 import '../security.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
+import 'data_health.dart';
 import 'ai_settings.dart';
 import 'forms.dart';
 
@@ -131,7 +133,10 @@ class SettingsScreen extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   title: const Text(
                     'Avisar compromissos próximos',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   subtitle: Text(
                     '${store.data.notificationDaysBefore} dia(s) antes na central interna',
@@ -159,7 +164,10 @@ class SettingsScreen extends StatelessWidget {
                   leading: const Icon(Icons.notification_add_outlined),
                   title: const Text(
                     'Testar notificação',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   onTap: () => NotificationService.showTest(),
                 ),
@@ -175,12 +183,39 @@ class SettingsScreen extends StatelessWidget {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(
+                    Icons.health_and_safety_outlined,
+                    color: FinoraColors.income,
+                  ),
+                  title: const Text(
+                    'Diagnóstico dos dados',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Verifica SQLite, vínculos e consistência antes de qualquer recuperação',
+                    style: TextStyle(fontSize: 8.5),
+                  ),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.push(
+                    context,
+                    PremiumRoute(page: const DataHealthScreen()),
+                  ),
+                ),
+                const Divider(),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
                     Icons.content_copy_rounded,
                     color: FinoraColors.investment,
                   ),
                   title: const Text(
                     'Copiar backup completo',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   subtitle: const Text(
                     'Copia todos os dados do Finora para a área de transferência',
@@ -197,7 +232,10 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   title: const Text(
                     'Restaurar backup',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   subtitle: const Text(
                     'Substitui os dados atuais por um backup do Finora',
@@ -267,7 +305,9 @@ class SettingsScreen extends StatelessWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Backup completo copiado. Guarde esse código em local seguro.'),
+        content: Text(
+          'Backup completo copiado. Guarde esse código em local seguro.',
+        ),
       ),
     );
   }
@@ -343,7 +383,9 @@ class SettingsScreen extends StatelessWidget {
     if (!available) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Não há biometria compatível cadastrada neste aparelho.'),
+          content: Text(
+            'Não há biometria compatível cadastrada neste aparelho.',
+          ),
         ),
       );
       return;
@@ -371,7 +413,9 @@ class SettingsScreen extends StatelessWidget {
     if (!context.mounted) return;
     if (!allowed) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Permissão de notificações não concedida.')),
+        const SnackBar(
+          content: Text('Permissão de notificações não concedida.'),
+        ),
       );
       return;
     }

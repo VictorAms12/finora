@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../app_info.dart';
 import '../theme.dart';
 import 'ai_assistant.dart';
@@ -19,128 +20,137 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
-  final controller = PageController();
   int index = 0;
+  late final List<Widget> _pages;
 
   @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _pages = [
+      const DashboardScreen(key: PageStorageKey('dashboard')),
+      const PlanningScreen(key: PageStorageKey('planning')),
+      FinoraAiScreen(
+        key: const PageStorageKey('finora-ai'),
+        onNavigatePage: go,
+      ),
+      const TransactionsScreen(key: PageStorageKey('transactions')),
+      const MoreScreen(key: PageStorageKey('more')),
+    ];
   }
 
   void go(int page) {
-    if (page == index) return;
+    if (page == index || page < 0 || page >= _pages.length) return;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => index = page);
-    controller.animateToPage(
-      page,
-      duration: const Duration(milliseconds: 240),
-      curve: Curves.easeOutCubic,
-    );
   }
-
-  List<Widget> get pages => [
-        const DashboardScreen(),
-        const PlanningScreen(),
-        FinoraAiScreen(onNavigatePage: go),
-        const TransactionsScreen(),
-        const MoreScreen(),
-      ];
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final desktop = constraints.maxWidth >= 880;
-          final pageView = PageView(
-            controller: controller,
-            physics: const NeverScrollableScrollPhysics(),
-            children: pages,
-          );
-
-          final content = CallbackShortcuts(
-            bindings: <ShortcutActivator, VoidCallback>{
-              const SingleActivator(LogicalKeyboardKey.keyN, control: true): () =>
-                  desktop
-                      ? showDesktopQuickActions(context)
-                      : showQuickActions(context),
-              const SingleActivator(LogicalKeyboardKey.digit1, control: true): () => go(0),
-              const SingleActivator(LogicalKeyboardKey.digit2, control: true): () => go(1),
-              const SingleActivator(LogicalKeyboardKey.digit3, control: true): () => go(2),
-              const SingleActivator(LogicalKeyboardKey.digit4, control: true): () => go(3),
-              const SingleActivator(LogicalKeyboardKey.digit5, control: true): () => go(4),
-            },
-            child: Focus(
-              autofocus: true,
-              child: desktop
-                  ? Row(
-                      children: [
-                        _DesktopSidebar(
-                          index: index,
-                          onNavigate: go,
-                          onNew: () => showDesktopQuickActions(context),
-                        ),
-                        VerticalDivider(
-                          width: 1,
-                          thickness: 1,
-                          color: Theme.of(context).dividerColor,
-                        ),
-                        Expanded(
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 1320),
-                              child: pageView,
-                            ),
-                          ),
-                        ),
-                      ],
-                    )
-                  : pageView,
+    builder: (context, constraints) {
+      final desktop = constraints.maxWidth >= 880;
+      final pageArea = Expanded(
+        child: KeyedSubtree(
+          key: const ValueKey('finora-page-area'),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1320),
+              child: IndexedStack(index: index, children: _pages),
             ),
-          );
-
-          if (desktop) {
-            return Scaffold(body: SafeArea(child: content));
-          }
-
-          return Scaffold(
-            body: SafeArea(child: content),
-            floatingActionButton: index == 2
-                ? null
-                : FloatingActionButton.small(
-                    heroTag: 'finora-main-add',
-                    tooltip: 'Novo lançamento',
-                    onPressed: () => showQuickActions(context),
-                    backgroundColor: FinoraColors.goldBright,
-                    foregroundColor: Colors.black,
-                    elevation: 3,
-                    child: const Icon(Icons.add_rounded),
-                  ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-            bottomNavigationBar: BottomAppBar(
-              height: 72,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? const Color(0xFF050505)
-                  : Colors.white,
-              surfaceTintColor: Colors.transparent,
-              padding: EdgeInsets.zero,
-              child: Row(
-                children: [
-                  _mobileNav(context, Icons.home_rounded, 'Início', 0),
-                  _mobileNav(context, Icons.calendar_month_rounded, 'Planejar', 1),
-                  _mobileNav(
-                    context,
-                    Icons.auto_awesome_rounded,
-                    'IA',
-                    2,
-                    accent: FinoraColors.investment,
-                  ),
-                  _mobileNav(context, Icons.swap_vert_rounded, 'Movimentos', 3),
-                  _mobileNav(context, Icons.grid_view_rounded, 'Mais', 4),
-                ],
-              ),
-            ),
-          );
-        },
+          ),
+        ),
       );
+
+      final content = CallbackShortcuts(
+        bindings: <ShortcutActivator, VoidCallback>{
+          const SingleActivator(LogicalKeyboardKey.keyN, control: true): () =>
+              desktop
+              ? showDesktopQuickActions(context)
+              : showQuickActions(context),
+          const SingleActivator(LogicalKeyboardKey.digit1, control: true): () =>
+              go(0),
+          const SingleActivator(LogicalKeyboardKey.digit2, control: true): () =>
+              go(1),
+          const SingleActivator(LogicalKeyboardKey.digit3, control: true): () =>
+              go(2),
+          const SingleActivator(LogicalKeyboardKey.digit4, control: true): () =>
+              go(3),
+          const SingleActivator(LogicalKeyboardKey.digit5, control: true): () =>
+              go(4),
+        },
+        child: Focus(
+          autofocus: true,
+          child: Row(
+            children: [
+              if (desktop) ...[
+                _DesktopSidebar(
+                  index: index,
+                  onNavigate: go,
+                  onNew: () => showDesktopQuickActions(context),
+                ),
+                VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: Theme.of(context).dividerColor,
+                ),
+              ],
+              pageArea,
+            ],
+          ),
+        ),
+      );
+
+      return Scaffold(
+        body: SafeArea(child: content),
+        floatingActionButton: desktop || index == 2
+            ? null
+            : FloatingActionButton.small(
+                heroTag: 'finora-main-add',
+                tooltip: 'Novo lançamento',
+                onPressed: () => showQuickActions(context),
+                backgroundColor: FinoraColors.goldBright,
+                foregroundColor: Colors.black,
+                elevation: 3,
+                child: const Icon(Icons.add_rounded),
+              ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+        bottomNavigationBar: desktop
+            ? null
+            : BottomAppBar(
+                height: 72,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? const Color(0xFF050505)
+                    : Colors.white,
+                surfaceTintColor: Colors.transparent,
+                padding: EdgeInsets.zero,
+                child: Row(
+                  children: [
+                    _mobileNav(context, Icons.home_rounded, 'Início', 0),
+                    _mobileNav(
+                      context,
+                      Icons.calendar_month_rounded,
+                      'Planejar',
+                      1,
+                    ),
+                    _mobileNav(
+                      context,
+                      Icons.auto_awesome_rounded,
+                      'IA',
+                      2,
+                      accent: FinoraColors.investment,
+                    ),
+                    _mobileNav(
+                      context,
+                      Icons.swap_vert_rounded,
+                      'Movimentos',
+                      3,
+                    ),
+                    _mobileNav(context, Icons.grid_view_rounded, 'Mais', 4),
+                  ],
+                ),
+              ),
+      );
+    },
+  );
 
   Widget _mobileNav(
     BuildContext context,
@@ -234,7 +244,13 @@ class _DesktopSidebar extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           _railItem(context, Icons.home_rounded, 'Início', 'Ctrl + 1', 0),
-          _railItem(context, Icons.calendar_month_rounded, 'Planejamento', 'Ctrl + 2', 1),
+          _railItem(
+            context,
+            Icons.calendar_month_rounded,
+            'Planejamento',
+            'Ctrl + 2',
+            1,
+          ),
           _railItem(
             context,
             Icons.auto_awesome_rounded,
@@ -243,7 +259,13 @@ class _DesktopSidebar extends StatelessWidget {
             2,
             accent: FinoraColors.investment,
           ),
-          _railItem(context, Icons.swap_vert_rounded, 'Movimentações', 'Ctrl + 4', 3),
+          _railItem(
+            context,
+            Icons.swap_vert_rounded,
+            'Movimentações',
+            'Ctrl + 4',
+            3,
+          ),
           _railItem(context, Icons.grid_view_rounded, 'Mais', 'Ctrl + 5', 4),
           const Spacer(),
           Padding(
