@@ -149,14 +149,14 @@ extension FinanceStoreEntities on FinanceStore {
     int months = 6,
   }) {
     final clean = name.trim();
-    if (clean.isEmpty || !isValidAmount(target)) return false;
+    if (clean.isEmpty || !isValidAmount(target) || !saved.isFinite || saved < 0) {
+      return false;
+    }
     data.reserves.add(ReserveItem(
       id: FinanceStore.newId(),
       name: clean,
       target: target,
-      saved: saved.isFinite
-          ? saved.clamp(0.0, target).toDouble()
-          : 0,
+      saved: saved,
       months: months.clamp(1, 60),
     ));
     commit();
@@ -171,12 +171,12 @@ extension FinanceStoreEntities on FinanceStore {
     int months,
   ) {
     final clean = name.trim();
-    if (clean.isEmpty || !isValidAmount(target)) return false;
+    if (clean.isEmpty || !isValidAmount(target) || !saved.isFinite || saved < 0) {
+      return false;
+    }
     item.name = clean;
     item.target = target;
-    item.saved = saved.isFinite
-        ? saved.clamp(0.0, target).toDouble()
-        : 0;
+    item.saved = saved;
     item.months = months.clamp(1, 60);
     commit();
     return true;
@@ -395,8 +395,20 @@ extension FinanceStoreEntities on FinanceStore {
     final index = data.reserves.indexWhere((e) => e.id == id);
     if (index == -1) return;
     final item = data.reserves[index];
-    item.saved = (item.saved + value).clamp(0.0, item.target).toDouble();
+    item.saved += value;
     commit();
+  }
+
+  bool withdrawReserve(String id, double value) {
+    if (!isValidAmount(value)) return false;
+    final index = data.reserves.indexWhere((e) => e.id == id);
+    if (index == -1) return false;
+    final item = data.reserves[index];
+    if (value > item.saved) return false;
+    item.saved -= value;
+    if (item.saved.abs() < 0.000001) item.saved = 0;
+    commit();
+    return true;
   }
 
   void loadDemo() {
