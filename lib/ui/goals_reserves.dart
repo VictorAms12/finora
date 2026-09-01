@@ -4,6 +4,7 @@ import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
 import 'forms.dart';
+import 'reserve_forms.dart' as reserve_ui;
 
 class GoalsScreen extends StatelessWidget {
   const GoalsScreen({super.key});
@@ -155,7 +156,8 @@ class ReservesScreen extends StatelessWidget {
         title: const Text('Reservas'),
         actions: [
           IconButton(
-            onPressed: () => showReserveForm(context),
+            tooltip: 'Criar reserva',
+            onPressed: () => reserve_ui.showReserveEditor(context),
             icon: const Icon(Icons.add_rounded),
           ),
         ],
@@ -167,7 +169,7 @@ class ReservesScreen extends StatelessWidget {
                 title: 'Nenhuma reserva criada',
                 subtitle: 'Separe sua proteção financeira das metas.',
                 actionLabel: 'Criar reserva',
-                onAction: () => showReserveForm(context),
+                onAction: () => reserve_ui.showReserveEditor(context),
               ),
             )
           : ListView.separated(
@@ -181,12 +183,18 @@ class ReservesScreen extends StatelessWidget {
                     : (reserve.saved / reserve.target)
                         .clamp(0.0, 1.0)
                         .toDouble();
-                final monthlyCost = reserve.months <= 0
+                final referenceMonthlyCost = reserve.months <= 0
                     ? 0.0
                     : reserve.target / reserve.months;
-                final coverage = monthlyCost <= 0
+                final coverage = referenceMonthlyCost <= 0
                     ? 0.0
-                    : reserve.saved / monthlyCost;
+                    : reserve.saved / referenceMonthlyCost;
+                final remaining = (reserve.target - reserve.saved)
+                    .clamp(0.0, double.infinity)
+                    .toDouble();
+                final excess = (reserve.saved - reserve.target)
+                    .clamp(0.0, double.infinity)
+                    .toDouble();
 
                 return SurfaceCard(
                   child: Column(
@@ -202,15 +210,25 @@ class ReservesScreen extends StatelessWidget {
                               ),
                             ),
                           ),
+                          Text(
+                            '${(ratio * 100).round()}%',
+                            style: const TextStyle(
+                              color: FinoraColors.warning,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
                           PopupMenuButton<String>(
                             onSelected: (value) async {
                               if (value == 'edit') {
-                                showReserveForm(context, editing: reserve);
+                                reserve_ui.showReserveEditor(
+                                  context,
+                                  editing: reserve,
+                                );
                               } else if (value == 'delete') {
                                 final ok = await confirmAction(
                                   context,
                                   'Excluir reserva?',
-                                  'O valor salvo desta reserva será removido do acompanhamento.',
+                                  'O valor salvo desta reserva será removido apenas do acompanhamento.',
                                 );
                                 if (ok) store.deleteReserve(reserve.id);
                               }
@@ -241,17 +259,32 @@ class ReservesScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Cobertura estimada: ${coverage.toStringAsFixed(1)} de ${reserve.months} meses.',
+                        'Cobertura estimada: ${coverage.toStringAsFixed(1)} meses · meta de ${reserve.months} meses.',
                         style: TextStyle(
                           fontSize: 8.8,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        excess > 0
+                            ? 'Meta superada em ${money(context, excess)}.'
+                            : remaining <= 0
+                                ? 'Meta de proteção atingida.'
+                                : 'Faltam ${money(context, remaining)} para a meta.',
+                        style: TextStyle(
+                          fontSize: 8.8,
+                          fontWeight: FontWeight.w700,
+                          color: excess > 0
+                              ? FinoraColors.income
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              'Meta mensal de proteção: ${money(context, monthlyCost)}',
+                              'Referência mensal: ${money(context, referenceMonthlyCost)}',
                               style: TextStyle(
                                 fontSize: 8.5,
                                 color: Theme.of(context)
@@ -260,10 +293,13 @@ class ReservesScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                          TextButton(
-                            onPressed: () =>
-                                showContribution(context, false, reserve.id),
-                            child: const Text('+ Aporte'),
+                          TextButton.icon(
+                            onPressed: () => reserve_ui.showReserveMovement(
+                              context,
+                              reserve,
+                            ),
+                            icon: const Icon(Icons.swap_vert_rounded, size: 17),
+                            label: const Text('Movimentar'),
                           ),
                         ],
                       ),
