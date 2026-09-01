@@ -1,0 +1,93 @@
+name: Gerar Finora v0.5.0 APK compatível
+
+on:
+  push:
+    branches:
+      - build/v050-update-apk
+    paths:
+      - .github/workflows/build-v050-update-apk.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório e histórico
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Instalar Flutter Stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Gerar estrutura Android
+        run: flutter create . --platforms=android --project-name=finora --org=com.finora
+
+      - name: Recuperar assinatura histórica compatível
+        shell: bash
+        run: |
+          set -euo pipefail
+          HISTORICAL_COMMIT='81cc038ce6e8a1c4af41c4ff54b11e76321a47ee'
+          mkdir -p android/app
+          git show "$HISTORICAL_COMMIT:android/keystore/finora-dev.jks" > android/app/finora-update.jks
+          git show "$HISTORICAL_COMMIT:.github/workflows/build-android.yml" > /tmp/historical-build.yml
+          STORE_PASSWORD=$(sed -n 's/.*storePassword = "\([^"]*\)".*/\1/p' /tmp/historical-build.yml | head -1)
+          KEY_ALIAS=$(sed -n 's/.*keyAlias = "\([^"]*\)".*/\1/p' /tmp/historical-build.yml | head -1)
+          KEY_PASSWORD=$(sed -n 's/.*keyPassword = "\([^"]*\)".*/\1/p' /tmp/historical-build.yml | head -1)
+          test -n "$STORE_PASSWORD"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+          cat > android/key.properties <<EOF
+          storePassword=$STORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=finora-update.jks
+          EOF
+          keytool -list -v -keystore android/app/finora-update.jks -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /tmp/signing.txt
+          grep -q 'SHA256: 3B:9F:57:35:03:3F:60:F9:B5:FB:28:6C:F5:24:0A:3B:FB:8C:91:B2:D8:01:E3:52:BA:8E:8E:AF:EF:DE:5F:34' /tmp/signing.txt
+          rm -f /tmp/historical-build.yml /tmp/signing.txt
+
+      - name: Configurar Android
+        run: python tool/configure_android.py
+
+      - name: Aplicar identidade visual Finora
+        run: |
+          python -m pip install --quiet pillow
+          python tool/generate_branding.py
+
+      - name: Preparar dependências
+        run: |
+          rm -f test/widget_test.dart
+          flutter pub get
+
+      - name: Validar código e testes
+        run: |
+          flutter analyze --no-fatal-infos
+          flutter test
+
+      - name: Compilar APK Release
+        run: flutter build apk --release
+
+      - name: Preparar APK final
+        run: |
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/Finora-v0.5.0-ATUALIZA.apk
+
+      - name: Publicar APK compatível
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finora-v0.5.0-ATUALIZA
+          if-no-files-found: error
+          retention-days: 3
+          path: dist/Finora-v0.5.0-ATUALIZA.apk
