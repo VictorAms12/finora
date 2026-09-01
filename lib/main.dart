@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'intelligence_notifications.dart';
 import 'notification_service.dart';
 import 'onboarding.dart';
 import 'screens.dart';
@@ -29,7 +30,9 @@ Future<void> main() async {
 
   // Notificações não precisam bloquear a primeira renderização do aplicativo.
   unawaited(
-    NotificationService.initialize().onError((_, __) {
+    NotificationService.initialize()
+        .then((_) => IntelligenceNotificationService.maybeNotify(store))
+        .onError((_, __) {
       // A central interna continua funcional mesmo se o plugin nativo falhar.
     }),
   );
