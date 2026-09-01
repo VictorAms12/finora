@@ -193,7 +193,7 @@ s = replace_once(
 
 start = s.index('  Future<AiAssistantReply> askAssistant(')
 end = s.index('  Future<AiAssistantReply> analyzeSelectedMonthReply', start)
-ask_fn = r'''  Future<AiAssistantReply> askAssistant(
+ask_fn = r"""  Future<AiAssistantReply> askAssistant(
     FinanceStore store,
     String question, {
     String conversationContext = '',
@@ -369,7 +369,7 @@ ${jsonEncode(context)}
     );
   }
 
-'''
+"""
 s = s[:start] + ask_fn + s[end:]
 
 s = replace_once(
