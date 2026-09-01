@@ -22,13 +22,11 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
           replacements = {
               'lib/store_entities.dart': [
                   ('cleanLabel.length.clamp(0, 60))', 'cleanLabel.length.clamp(0, 60).toInt())'),
                   ('cleanValue.length.clamp(0, 240))', 'cleanValue.length.clamp(0, 240).toInt())'),
-                  ('    if (defaults.any((value) => _normalizedName(value) == normalized)) return true;',
-                   '    if (defaults.any((value) => _normalizedName(value) == normalized)) {\n      return true;\n    }'),
+                  ('    if (defaults.any((value) => _normalizedName(value) == normalized)) return true;', '    if (defaults.any((value) => _normalizedName(value) == normalized)) {\n      return true;\n    }'),
               ],
               'lib/ai/copilot.dart': [
                   ('(months ?? 6).clamp(1, 60),', '(months ?? 6).clamp(1, 60).toInt(),'),
@@ -42,13 +40,10 @@ jobs:
                   ("((result['operationMonths'] as num?)?.toInt() ?? 6).clamp(1, 60);", "((result['operationMonths'] as num?)?.toInt() ?? 6).clamp(1, 60).toInt();"),
                   ("final memories = store.data.copilotMemoryEnabled\n        ? store.data.copilotMemories\n            .toList()\n          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt))\n        : <CopilotMemoryItem>[];", "final memories = store.data.copilotMemoryEnabled\n        ? (store.data.copilotMemories.toList()\n          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)))\n        : <CopilotMemoryItem>[];"),
                   ('    final clean = _fold(question);\n    final selected = store.selectedMonth;\n', '    final clean = _fold(question);\n'),
+                  ("    if (operation == 'none') return null;", "    if (operation == 'none') {\n      return null;\n    }"),
               ],
-              'lib/ui/copilot_memory.dart': [
-                  ("import 'common.dart';", "import 'common.dart';\nimport 'forms.dart';"),
-              ],
-              'test/ai_assistant_engine_test.dart': [
-                  ('    final service = const FinoraAiService();', '    const service = FinoraAiService();'),
-              ],
+              'lib/ui/copilot_memory.dart': [("import 'common.dart';", "import 'common.dart';\nimport 'forms.dart';")],
+              'test/ai_assistant_engine_test.dart': [('    final service = const FinoraAiService();', '    const service = FinoraAiService();')],
           }
           for path, pairs in replacements.items():
               p = Path(path)
@@ -58,8 +53,7 @@ jobs:
               p.write_text(text, encoding='utf-8')
           PY
 
-      - name: Instalar Flutter Stable
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
@@ -69,17 +63,7 @@ jobs:
 
       - name: Formatar arquivos alterados
         run: |
-          dart format \
-            lib/ai/copilot.dart \
-            lib/ai/finance_ai.dart \
-            lib/models.dart \
-            lib/store_backup.dart \
-            lib/store_entities.dart \
-            lib/ui/ai_assistant.dart \
-            lib/ui/ai_settings.dart \
-            lib/ui/copilot_memory.dart \
-            test/ai_assistant_engine_test.dart \
-            test/copilot_engine_test.dart
+          dart format lib/ai/copilot.dart lib/ai/finance_ai.dart lib/models.dart lib/store_backup.dart lib/store_entities.dart lib/ui/ai_assistant.dart lib/ui/ai_settings.dart lib/ui/copilot_memory.dart test/ai_assistant_engine_test.dart test/copilot_engine_test.dart
 
       - name: Analyzer
         run: flutter analyze
