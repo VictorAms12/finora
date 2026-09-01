@@ -1,8 +1,11 @@
 import 'dart:convert';
 
 enum TransactionType { income, expense, transfer }
+
 enum RecurrenceFrequency { weekly, monthly, yearly }
+
 enum PaymentKind { account, card }
+
 enum PlannedStatus { planned, settled, skipped }
 
 class AccountItem {
@@ -19,18 +22,18 @@ class AccountItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'type': type,
-        'balance': balance,
-      };
+    'id': id,
+    'name': name,
+    'type': type,
+    'balance': balance,
+  };
 
   factory AccountItem.fromJson(Map<String, dynamic> j) => AccountItem(
-        id: j['id'] as String,
-        name: j['name'] as String? ?? 'Conta',
-        type: j['type'] as String? ?? 'Conta',
-        balance: (j['balance'] as num? ?? 0).toDouble(),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String? ?? 'Conta',
+    type: j['type'] as String? ?? 'Conta',
+    balance: (j['balance'] as num? ?? 0).toDouble(),
+  );
 }
 
 class CardItem {
@@ -52,28 +55,27 @@ class CardItem {
     this.defaultAccountName = '',
   });
 
-  double get available =>
-      (limit - used).clamp(0.0, double.infinity).toDouble();
+  double get available => (limit - used).clamp(0.0, double.infinity).toDouble();
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'limit': limit,
-        'used': used,
-        'closeDay': closeDay,
-        'dueDay': dueDay,
-        'defaultAccountName': defaultAccountName,
-      };
+    'id': id,
+    'name': name,
+    'limit': limit,
+    'used': used,
+    'closeDay': closeDay,
+    'dueDay': dueDay,
+    'defaultAccountName': defaultAccountName,
+  };
 
   factory CardItem.fromJson(Map<String, dynamic> j) => CardItem(
-        id: j['id'] as String,
-        name: j['name'] as String? ?? 'Cartão',
-        limit: (j['limit'] as num? ?? 0).toDouble(),
-        used: (j['used'] as num? ?? 0).toDouble(),
-        closeDay: (j['closeDay'] as num? ?? 25).toInt(),
-        dueDay: (j['dueDay'] as num? ?? 5).toInt(),
-        defaultAccountName: j['defaultAccountName'] as String? ?? '',
-      );
+    id: j['id'] as String,
+    name: j['name'] as String? ?? 'Cartão',
+    limit: (j['limit'] as num? ?? 0).toDouble(),
+    used: (j['used'] as num? ?? 0).toDouble(),
+    closeDay: (j['closeDay'] as num? ?? 25).toInt(),
+    dueDay: (j['dueDay'] as num? ?? 5).toInt(),
+    defaultAccountName: j['defaultAccountName'] as String? ?? '',
+  );
 }
 
 class CategoryItem {
@@ -81,23 +83,15 @@ class CategoryItem {
   String name;
   bool income;
 
-  CategoryItem({
-    required this.id,
-    required this.name,
-    required this.income,
-  });
+  CategoryItem({required this.id, required this.name, required this.income});
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'income': income,
-      };
+  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'income': income};
 
   factory CategoryItem.fromJson(Map<String, dynamic> j) => CategoryItem(
-        id: j['id'] as String,
-        name: j['name'] as String? ?? 'Categoria',
-        income: j['income'] as bool? ?? false,
-      );
+    id: j['id'] as String,
+    name: j['name'] as String? ?? 'Categoria',
+    income: j['income'] as bool? ?? false,
+  );
 }
 
 class CopilotMemoryItem {
@@ -114,20 +108,21 @@ class CopilotMemoryItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'label': label,
-        'value': value,
-        'updatedAt': updatedAt.toIso8601String(),
-      };
+    'id': id,
+    'label': label,
+    'value': value,
+    'updatedAt': updatedAt.toIso8601String(),
+  };
 
-  factory CopilotMemoryItem.fromJson(Map<String, dynamic> j) =>
-      CopilotMemoryItem(
-        id: j['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
-        label: j['label'] as String? ?? 'Memória',
-        value: j['value'] as String? ?? '',
-        updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? '') ??
-            DateTime.now(),
-      );
+  factory CopilotMemoryItem.fromJson(
+    Map<String, dynamic> j,
+  ) => CopilotMemoryItem(
+    id: j['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+    label: j['label'] as String? ?? 'Memória',
+    value: j['value'] as String? ?? '',
+    updatedAt:
+        DateTime.tryParse(j['updatedAt'] as String? ?? '') ?? DateTime.now(),
+  );
 }
 
 class TransactionItem {
@@ -168,49 +163,48 @@ class TransactionItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'title': title,
-        'category': category,
-        'amount': amount,
-        'date': date.toIso8601String(),
-        'account': account,
-        'paymentKind': paymentKind.name,
-        'cardId': cardId,
-        'note': note,
-        'recurrenceId': recurrenceId,
-        'recurrenceDate': recurrenceDate?.toIso8601String(),
-        'installmentId': installmentId,
-        'installmentNumber': installmentNumber,
-        'installmentTotal': installmentTotal,
-        'invoiceMonth': invoiceMonth?.toIso8601String(),
-      };
+    'id': id,
+    'type': type.name,
+    'title': title,
+    'category': category,
+    'amount': amount,
+    'date': date.toIso8601String(),
+    'account': account,
+    'paymentKind': paymentKind.name,
+    'cardId': cardId,
+    'note': note,
+    'recurrenceId': recurrenceId,
+    'recurrenceDate': recurrenceDate?.toIso8601String(),
+    'installmentId': installmentId,
+    'installmentNumber': installmentNumber,
+    'installmentTotal': installmentTotal,
+    'invoiceMonth': invoiceMonth?.toIso8601String(),
+  };
 
   factory TransactionItem.fromJson(Map<String, dynamic> j) => TransactionItem(
-        id: j['id'] as String,
-        type: TransactionType.values.firstWhere(
-          (e) => e.name == j['type'],
-          orElse: () => TransactionType.expense,
-        ),
-        title: j['title'] as String? ?? 'Movimentação',
-        category: j['category'] as String? ?? 'Outros',
-        amount: (j['amount'] as num? ?? 0).toDouble(),
-        date: DateTime.tryParse(j['date'] as String? ?? '') ?? DateTime.now(),
-        account: j['account'] as String? ?? '',
-        paymentKind: PaymentKind.values.firstWhere(
-          (e) => e.name == j['paymentKind'],
-          orElse: () => PaymentKind.account,
-        ),
-        cardId: j['cardId'] as String?,
-        note: j['note'] as String? ?? '',
-        recurrenceId: j['recurrenceId'] as String?,
-        recurrenceDate:
-            DateTime.tryParse(j['recurrenceDate'] as String? ?? ''),
-        installmentId: j['installmentId'] as String?,
-        installmentNumber: (j['installmentNumber'] as num?)?.toInt(),
-        installmentTotal: (j['installmentTotal'] as num?)?.toInt(),
-        invoiceMonth: DateTime.tryParse(j['invoiceMonth'] as String? ?? ''),
-      );
+    id: j['id'] as String,
+    type: TransactionType.values.firstWhere(
+      (e) => e.name == j['type'],
+      orElse: () => TransactionType.expense,
+    ),
+    title: j['title'] as String? ?? 'Movimentação',
+    category: j['category'] as String? ?? 'Outros',
+    amount: (j['amount'] as num? ?? 0).toDouble(),
+    date: DateTime.tryParse(j['date'] as String? ?? '') ?? DateTime.now(),
+    account: j['account'] as String? ?? '',
+    paymentKind: PaymentKind.values.firstWhere(
+      (e) => e.name == j['paymentKind'],
+      orElse: () => PaymentKind.account,
+    ),
+    cardId: j['cardId'] as String?,
+    note: j['note'] as String? ?? '',
+    recurrenceId: j['recurrenceId'] as String?,
+    recurrenceDate: DateTime.tryParse(j['recurrenceDate'] as String? ?? ''),
+    installmentId: j['installmentId'] as String?,
+    installmentNumber: (j['installmentNumber'] as num?)?.toInt(),
+    installmentTotal: (j['installmentTotal'] as num?)?.toInt(),
+    invoiceMonth: DateTime.tryParse(j['invoiceMonth'] as String? ?? ''),
+  );
 }
 
 class PlannedItem {
@@ -265,54 +259,53 @@ class PlannedItem {
   DateTime get canonicalRecurrenceDate => recurrenceDate ?? date;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'title': title,
-        'category': category,
-        'amount': amount,
-        'date': date.toIso8601String(),
-        'sourceName': sourceName,
-        'destinationName': destinationName,
-        'paymentKind': paymentKind.name,
-        'cardId': cardId,
-        'recurrenceId': recurrenceId,
-        'recurrenceDate': recurrenceDate?.toIso8601String(),
-        'installmentId': installmentId,
-        'installmentNumber': installmentNumber,
-        'installmentTotal': installmentTotal,
-        'invoiceMonth': invoiceMonth?.toIso8601String(),
-        'status': status.name,
-      };
+    'id': id,
+    'type': type.name,
+    'title': title,
+    'category': category,
+    'amount': amount,
+    'date': date.toIso8601String(),
+    'sourceName': sourceName,
+    'destinationName': destinationName,
+    'paymentKind': paymentKind.name,
+    'cardId': cardId,
+    'recurrenceId': recurrenceId,
+    'recurrenceDate': recurrenceDate?.toIso8601String(),
+    'installmentId': installmentId,
+    'installmentNumber': installmentNumber,
+    'installmentTotal': installmentTotal,
+    'invoiceMonth': invoiceMonth?.toIso8601String(),
+    'status': status.name,
+  };
 
   factory PlannedItem.fromJson(Map<String, dynamic> j) => PlannedItem(
-        id: j['id'] as String,
-        type: TransactionType.values.firstWhere(
-          (e) => e.name == j['type'],
-          orElse: () => TransactionType.expense,
-        ),
-        title: j['title'] as String? ?? 'Previsto',
-        category: j['category'] as String? ?? 'Outros',
-        amount: (j['amount'] as num? ?? 0).toDouble(),
-        date: DateTime.tryParse(j['date'] as String? ?? '') ?? DateTime.now(),
-        sourceName: j['sourceName'] as String? ?? '',
-        destinationName: j['destinationName'] as String?,
-        paymentKind: PaymentKind.values.firstWhere(
-          (e) => e.name == j['paymentKind'],
-          orElse: () => PaymentKind.account,
-        ),
-        cardId: j['cardId'] as String?,
-        recurrenceId: j['recurrenceId'] as String?,
-        recurrenceDate:
-            DateTime.tryParse(j['recurrenceDate'] as String? ?? ''),
-        installmentId: j['installmentId'] as String?,
-        installmentNumber: (j['installmentNumber'] as num?)?.toInt(),
-        installmentTotal: (j['installmentTotal'] as num?)?.toInt(),
-        invoiceMonth: DateTime.tryParse(j['invoiceMonth'] as String? ?? ''),
-        status: PlannedStatus.values.firstWhere(
-          (e) => e.name == j['status'],
-          orElse: () => PlannedStatus.planned,
-        ),
-      );
+    id: j['id'] as String,
+    type: TransactionType.values.firstWhere(
+      (e) => e.name == j['type'],
+      orElse: () => TransactionType.expense,
+    ),
+    title: j['title'] as String? ?? 'Previsto',
+    category: j['category'] as String? ?? 'Outros',
+    amount: (j['amount'] as num? ?? 0).toDouble(),
+    date: DateTime.tryParse(j['date'] as String? ?? '') ?? DateTime.now(),
+    sourceName: j['sourceName'] as String? ?? '',
+    destinationName: j['destinationName'] as String?,
+    paymentKind: PaymentKind.values.firstWhere(
+      (e) => e.name == j['paymentKind'],
+      orElse: () => PaymentKind.account,
+    ),
+    cardId: j['cardId'] as String?,
+    recurrenceId: j['recurrenceId'] as String?,
+    recurrenceDate: DateTime.tryParse(j['recurrenceDate'] as String? ?? ''),
+    installmentId: j['installmentId'] as String?,
+    installmentNumber: (j['installmentNumber'] as num?)?.toInt(),
+    installmentTotal: (j['installmentTotal'] as num?)?.toInt(),
+    invoiceMonth: DateTime.tryParse(j['invoiceMonth'] as String? ?? ''),
+    status: PlannedStatus.values.firstWhere(
+      (e) => e.name == j['status'],
+      orElse: () => PlannedStatus.planned,
+    ),
+  );
 }
 
 class BudgetItem {
@@ -323,16 +316,16 @@ class BudgetItem {
   BudgetItem({required this.id, required this.category, required this.limit});
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'category': category,
-        'limit': limit,
-      };
+    'id': id,
+    'category': category,
+    'limit': limit,
+  };
 
   factory BudgetItem.fromJson(Map<String, dynamic> j) => BudgetItem(
-        id: j['id'] as String,
-        category: j['category'] as String? ?? 'Outros',
-        limit: (j['limit'] as num? ?? 0).toDouble(),
-      );
+    id: j['id'] as String,
+    category: j['category'] as String? ?? 'Outros',
+    limit: (j['limit'] as num? ?? 0).toDouble(),
+  );
 }
 
 class GoalItem {
@@ -351,21 +344,21 @@ class GoalItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'target': target,
-        'saved': saved,
-        'deadline': deadline.toIso8601String(),
-      };
+    'id': id,
+    'name': name,
+    'target': target,
+    'saved': saved,
+    'deadline': deadline.toIso8601String(),
+  };
 
   factory GoalItem.fromJson(Map<String, dynamic> j) => GoalItem(
-        id: j['id'] as String,
-        name: j['name'] as String? ?? 'Meta',
-        target: (j['target'] as num? ?? 0).toDouble(),
-        saved: (j['saved'] as num? ?? 0).toDouble(),
-        deadline: DateTime.tryParse(j['deadline'] as String? ?? '') ??
-            DateTime.now(),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String? ?? 'Meta',
+    target: (j['target'] as num? ?? 0).toDouble(),
+    saved: (j['saved'] as num? ?? 0).toDouble(),
+    deadline:
+        DateTime.tryParse(j['deadline'] as String? ?? '') ?? DateTime.now(),
+  );
 }
 
 class ReserveItem {
@@ -384,20 +377,20 @@ class ReserveItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'target': target,
-        'saved': saved,
-        'months': months,
-      };
+    'id': id,
+    'name': name,
+    'target': target,
+    'saved': saved,
+    'months': months,
+  };
 
   factory ReserveItem.fromJson(Map<String, dynamic> j) => ReserveItem(
-        id: j['id'] as String,
-        name: j['name'] as String? ?? 'Reserva',
-        target: (j['target'] as num? ?? 0).toDouble(),
-        saved: (j['saved'] as num? ?? 0).toDouble(),
-        months: (j['months'] as num? ?? 6).toInt(),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String? ?? 'Reserva',
+    target: (j['target'] as num? ?? 0).toDouble(),
+    saved: (j['saved'] as num? ?? 0).toDouble(),
+    months: (j['months'] as num? ?? 6).toInt(),
+  );
 }
 
 class InvestmentItem {
@@ -416,20 +409,20 @@ class InvestmentItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'assetClass': assetClass,
-        'amount': amount,
-        'estimatedReturn': estimatedReturn,
-      };
+    'id': id,
+    'name': name,
+    'assetClass': assetClass,
+    'amount': amount,
+    'estimatedReturn': estimatedReturn,
+  };
 
   factory InvestmentItem.fromJson(Map<String, dynamic> j) => InvestmentItem(
-        id: j['id'] as String,
-        name: j['name'] as String? ?? 'Investimento',
-        assetClass: j['assetClass'] as String? ?? 'Renda fixa',
-        amount: (j['amount'] as num? ?? 0).toDouble(),
-        estimatedReturn: (j['estimatedReturn'] as num? ?? 0).toDouble(),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String? ?? 'Investimento',
+    assetClass: j['assetClass'] as String? ?? 'Renda fixa',
+    amount: (j['amount'] as num? ?? 0).toDouble(),
+    estimatedReturn: (j['estimatedReturn'] as num? ?? 0).toDouble(),
+  );
 }
 
 class RecurringRule {
@@ -464,47 +457,46 @@ class RecurringRule {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'title': title,
-        'category': category,
-        'amount': amount,
-        'sourceName': sourceName,
-        'paymentKind': paymentKind.name,
-        'cardId': cardId,
-        'startDate': startDate.toIso8601String(),
-        'frequency': frequency.name,
-        'active': active,
-        'endDate': endDate?.toIso8601String(),
-        'maxOccurrences': maxOccurrences,
-      };
+    'id': id,
+    'type': type.name,
+    'title': title,
+    'category': category,
+    'amount': amount,
+    'sourceName': sourceName,
+    'paymentKind': paymentKind.name,
+    'cardId': cardId,
+    'startDate': startDate.toIso8601String(),
+    'frequency': frequency.name,
+    'active': active,
+    'endDate': endDate?.toIso8601String(),
+    'maxOccurrences': maxOccurrences,
+  };
 
   factory RecurringRule.fromJson(Map<String, dynamic> j) => RecurringRule(
-        id: j['id'] as String,
-        type: TransactionType.values.firstWhere(
-          (e) => e.name == j['type'],
-          orElse: () => TransactionType.expense,
-        ),
-        title: j['title'] as String? ?? 'Recorrência',
-        category: j['category'] as String? ?? 'Outros',
-        amount: (j['amount'] as num? ?? 0).toDouble(),
-        sourceName:
-            j['sourceName'] as String? ?? j['account'] as String? ?? '',
-        paymentKind: PaymentKind.values.firstWhere(
-          (e) => e.name == j['paymentKind'],
-          orElse: () => PaymentKind.account,
-        ),
-        cardId: j['cardId'] as String?,
-        startDate: DateTime.tryParse(j['startDate'] as String? ?? '') ??
-            DateTime.now(),
-        frequency: RecurrenceFrequency.values.firstWhere(
-          (e) => e.name == j['frequency'],
-          orElse: () => RecurrenceFrequency.monthly,
-        ),
-        active: j['active'] as bool? ?? true,
-        endDate: DateTime.tryParse(j['endDate'] as String? ?? ''),
-        maxOccurrences: (j['maxOccurrences'] as num?)?.toInt(),
-      );
+    id: j['id'] as String,
+    type: TransactionType.values.firstWhere(
+      (e) => e.name == j['type'],
+      orElse: () => TransactionType.expense,
+    ),
+    title: j['title'] as String? ?? 'Recorrência',
+    category: j['category'] as String? ?? 'Outros',
+    amount: (j['amount'] as num? ?? 0).toDouble(),
+    sourceName: j['sourceName'] as String? ?? j['account'] as String? ?? '',
+    paymentKind: PaymentKind.values.firstWhere(
+      (e) => e.name == j['paymentKind'],
+      orElse: () => PaymentKind.account,
+    ),
+    cardId: j['cardId'] as String?,
+    startDate:
+        DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
+    frequency: RecurrenceFrequency.values.firstWhere(
+      (e) => e.name == j['frequency'],
+      orElse: () => RecurrenceFrequency.monthly,
+    ),
+    active: j['active'] as bool? ?? true,
+    endDate: DateTime.tryParse(j['endDate'] as String? ?? ''),
+    maxOccurrences: (j['maxOccurrences'] as num?)?.toInt(),
+  );
 }
 
 class InstallmentPlan {
@@ -534,33 +526,32 @@ class InstallmentPlan {
       installments <= 0 ? 0.0 : totalAmount / installments;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'category': category,
-        'sourceName': sourceName,
-        'paymentKind': paymentKind.name,
-        'cardId': cardId,
-        'totalAmount': totalAmount,
-        'installments': installments,
-        'startDate': startDate.toIso8601String(),
-      };
+    'id': id,
+    'title': title,
+    'category': category,
+    'sourceName': sourceName,
+    'paymentKind': paymentKind.name,
+    'cardId': cardId,
+    'totalAmount': totalAmount,
+    'installments': installments,
+    'startDate': startDate.toIso8601String(),
+  };
 
   factory InstallmentPlan.fromJson(Map<String, dynamic> j) => InstallmentPlan(
-        id: j['id'] as String,
-        title: j['title'] as String? ?? 'Parcelamento',
-        category: j['category'] as String? ?? 'Compras',
-        sourceName:
-            j['sourceName'] as String? ?? j['account'] as String? ?? '',
-        paymentKind: PaymentKind.values.firstWhere(
-          (e) => e.name == j['paymentKind'],
-          orElse: () => PaymentKind.account,
-        ),
-        cardId: j['cardId'] as String?,
-        totalAmount: (j['totalAmount'] as num? ?? 0).toDouble(),
-        installments: (j['installments'] as num? ?? 1).toInt(),
-        startDate: DateTime.tryParse(j['startDate'] as String? ?? '') ??
-            DateTime.now(),
-      );
+    id: j['id'] as String,
+    title: j['title'] as String? ?? 'Parcelamento',
+    category: j['category'] as String? ?? 'Compras',
+    sourceName: j['sourceName'] as String? ?? j['account'] as String? ?? '',
+    paymentKind: PaymentKind.values.firstWhere(
+      (e) => e.name == j['paymentKind'],
+      orElse: () => PaymentKind.account,
+    ),
+    cardId: j['cardId'] as String?,
+    totalAmount: (j['totalAmount'] as num? ?? 0).toDouble(),
+    installments: (j['installments'] as num? ?? 1).toInt(),
+    startDate:
+        DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
+  );
 }
 
 class MonthlySnapshot {
@@ -583,25 +574,25 @@ class MonthlySnapshot {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'month': month.toIso8601String(),
-        'openingBalance': openingBalance,
-        'closingBalance': closingBalance,
-        'income': income,
-        'expense': expense,
-        'createdAt': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'month': month.toIso8601String(),
+    'openingBalance': openingBalance,
+    'closingBalance': closingBalance,
+    'income': income,
+    'expense': expense,
+    'createdAt': createdAt.toIso8601String(),
+  };
 
   factory MonthlySnapshot.fromJson(Map<String, dynamic> j) => MonthlySnapshot(
-        id: j['id'] as String,
-        month: DateTime.tryParse(j['month'] as String? ?? '') ?? DateTime.now(),
-        openingBalance: (j['openingBalance'] as num? ?? 0).toDouble(),
-        closingBalance: (j['closingBalance'] as num? ?? 0).toDouble(),
-        income: (j['income'] as num? ?? 0).toDouble(),
-        expense: (j['expense'] as num? ?? 0).toDouble(),
-        createdAt:
-            DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
-      );
+    id: j['id'] as String,
+    month: DateTime.tryParse(j['month'] as String? ?? '') ?? DateTime.now(),
+    openingBalance: (j['openingBalance'] as num? ?? 0).toDouble(),
+    closingBalance: (j['closingBalance'] as num? ?? 0).toDouble(),
+    income: (j['income'] as num? ?? 0).toDouble(),
+    expense: (j['expense'] as num? ?? 0).toDouble(),
+    createdAt:
+        DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+  );
 }
 
 class FinanceData {
@@ -656,93 +647,93 @@ class FinanceData {
   });
 
   Map<String, dynamic> toJson() => {
-        'darkMode': darkMode,
-        'privacyMode': privacyMode,
-        'biometricEnabled': biometricEnabled,
-        'notificationsEnabled': notificationsEnabled,
-        'notificationDaysBefore': notificationDaysBefore,
-        'onboardingCompleted': onboardingCompleted,
-        'primaryGoal': primaryGoal,
-        'copilotMemoryEnabled': copilotMemoryEnabled,
-        'copilotMemories': copilotMemories.map((e) => e.toJson()).toList(),
-        'trackingMonth': trackingMonth?.toIso8601String(),
-        'trackingOpeningCash': trackingOpeningCash,
-        'accounts': accounts.map((e) => e.toJson()).toList(),
-        'cards': cards.map((e) => e.toJson()).toList(),
-        'transactions': transactions.map((e) => e.toJson()).toList(),
-        'planned': planned.map((e) => e.toJson()).toList(),
-        'budgets': budgets.map((e) => e.toJson()).toList(),
-        'goals': goals.map((e) => e.toJson()).toList(),
-        'reserves': reserves.map((e) => e.toJson()).toList(),
-        'investments': investments.map((e) => e.toJson()).toList(),
-        'recurringRules': recurringRules.map((e) => e.toJson()).toList(),
-        'installmentPlans': installmentPlans.map((e) => e.toJson()).toList(),
-        'categories': categories.map((e) => e.toJson()).toList(),
-        'snapshots': snapshots.map((e) => e.toJson()).toList(),
-      };
+    'darkMode': darkMode,
+    'privacyMode': privacyMode,
+    'biometricEnabled': biometricEnabled,
+    'notificationsEnabled': notificationsEnabled,
+    'notificationDaysBefore': notificationDaysBefore,
+    'onboardingCompleted': onboardingCompleted,
+    'primaryGoal': primaryGoal,
+    'copilotMemoryEnabled': copilotMemoryEnabled,
+    'copilotMemories': copilotMemories.map((e) => e.toJson()).toList(),
+    'trackingMonth': trackingMonth?.toIso8601String(),
+    'trackingOpeningCash': trackingOpeningCash,
+    'accounts': accounts.map((e) => e.toJson()).toList(),
+    'cards': cards.map((e) => e.toJson()).toList(),
+    'transactions': transactions.map((e) => e.toJson()).toList(),
+    'planned': planned.map((e) => e.toJson()).toList(),
+    'budgets': budgets.map((e) => e.toJson()).toList(),
+    'goals': goals.map((e) => e.toJson()).toList(),
+    'reserves': reserves.map((e) => e.toJson()).toList(),
+    'investments': investments.map((e) => e.toJson()).toList(),
+    'recurringRules': recurringRules.map((e) => e.toJson()).toList(),
+    'installmentPlans': installmentPlans.map((e) => e.toJson()).toList(),
+    'categories': categories.map((e) => e.toJson()).toList(),
+    'snapshots': snapshots.map((e) => e.toJson()).toList(),
+  };
 
   String encode() => jsonEncode(toJson());
 
   factory FinanceData.fromJson(Map<String, dynamic> j) => FinanceData(
-        darkMode: j['darkMode'] as bool? ?? true,
-        privacyMode: j['privacyMode'] as bool? ?? false,
-        biometricEnabled: j['biometricEnabled'] as bool? ?? false,
-        notificationsEnabled: j['notificationsEnabled'] as bool? ?? false,
-        notificationDaysBefore:
-            (j['notificationDaysBefore'] as num? ?? 2).toInt(),
-        onboardingCompleted: j['onboardingCompleted'] as bool? ?? false,
-        primaryGoal: j['primaryGoal'] as String? ?? 'Controlar gastos',
-        copilotMemoryEnabled: j['copilotMemoryEnabled'] as bool? ?? true,
-        copilotMemories: ((j['copilotMemories'] as List?) ?? [])
-            .whereType<Map>()
-            .map((e) => CopilotMemoryItem.fromJson(Map<String, dynamic>.from(e)))
-            .where((e) => e.value.trim().isNotEmpty)
-            .take(40)
-            .toList(),
-        trackingMonth:
-            DateTime.tryParse(j['trackingMonth'] as String? ?? ''),
-        trackingOpeningCash:
-            (j['trackingOpeningCash'] as num? ?? 0).toDouble(),
-        accounts: ((j['accounts'] as List?) ?? [])
-            .map((e) => AccountItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        cards: ((j['cards'] as List?) ?? [])
-            .map((e) => CardItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        transactions: ((j['transactions'] as List?) ?? [])
-            .map((e) =>
-                TransactionItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        planned: ((j['planned'] as List?) ?? [])
-            .map((e) => PlannedItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        budgets: ((j['budgets'] as List?) ?? [])
-            .map((e) => BudgetItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        goals: ((j['goals'] as List?) ?? [])
-            .map((e) => GoalItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        reserves: ((j['reserves'] as List?) ?? [])
-            .map((e) => ReserveItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        investments: ((j['investments'] as List?) ?? [])
-            .map((e) =>
-                InvestmentItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        recurringRules: ((j['recurringRules'] as List?) ?? [])
-            .map((e) =>
-                RecurringRule.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        installmentPlans: ((j['installmentPlans'] as List?) ?? [])
-            .map((e) =>
-                InstallmentPlan.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        categories: ((j['categories'] as List?) ?? [])
-            .map((e) => CategoryItem.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-        snapshots: ((j['snapshots'] as List?) ?? [])
-            .map((e) =>
-                MonthlySnapshot.fromJson(Map<String, dynamic>.from(e as Map)))
-            .toList(),
-      );
+    darkMode: j['darkMode'] as bool? ?? true,
+    privacyMode: j['privacyMode'] as bool? ?? false,
+    biometricEnabled: j['biometricEnabled'] as bool? ?? false,
+    notificationsEnabled: j['notificationsEnabled'] as bool? ?? false,
+    notificationDaysBefore: (j['notificationDaysBefore'] as num? ?? 2).toInt(),
+    onboardingCompleted: j['onboardingCompleted'] as bool? ?? false,
+    primaryGoal: j['primaryGoal'] as String? ?? 'Controlar gastos',
+    copilotMemoryEnabled: j['copilotMemoryEnabled'] as bool? ?? true,
+    copilotMemories: ((j['copilotMemories'] as List?) ?? [])
+        .whereType<Map>()
+        .map((e) => CopilotMemoryItem.fromJson(Map<String, dynamic>.from(e)))
+        .where((e) => e.value.trim().isNotEmpty)
+        .take(40)
+        .toList(),
+    trackingMonth: DateTime.tryParse(j['trackingMonth'] as String? ?? ''),
+    trackingOpeningCash: (j['trackingOpeningCash'] as num? ?? 0).toDouble(),
+    accounts: ((j['accounts'] as List?) ?? [])
+        .map((e) => AccountItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    cards: ((j['cards'] as List?) ?? [])
+        .map((e) => CardItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    transactions: ((j['transactions'] as List?) ?? [])
+        .map(
+          (e) => TransactionItem.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
+        .toList(),
+    planned: ((j['planned'] as List?) ?? [])
+        .map((e) => PlannedItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    budgets: ((j['budgets'] as List?) ?? [])
+        .map((e) => BudgetItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    goals: ((j['goals'] as List?) ?? [])
+        .map((e) => GoalItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    reserves: ((j['reserves'] as List?) ?? [])
+        .map((e) => ReserveItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    investments: ((j['investments'] as List?) ?? [])
+        .map(
+          (e) => InvestmentItem.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
+        .toList(),
+    recurringRules: ((j['recurringRules'] as List?) ?? [])
+        .map((e) => RecurringRule.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    installmentPlans: ((j['installmentPlans'] as List?) ?? [])
+        .map(
+          (e) => InstallmentPlan.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
+        .toList(),
+    categories: ((j['categories'] as List?) ?? [])
+        .map((e) => CategoryItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    snapshots: ((j['snapshots'] as List?) ?? [])
+        .map(
+          (e) => MonthlySnapshot.fromJson(Map<String, dynamic>.from(e as Map)),
+        )
+        .toList(),
+  );
 }

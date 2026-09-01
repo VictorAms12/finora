@@ -81,7 +81,7 @@ class CopilotActionProposal {
           clean,
           amount,
           0,
-          months: (months ?? 6).clamp(1, 60),
+          months: (months ?? 6).clamp(1, 60).toInt(),
         );
 
       case CopilotActionType.createPlanned:
@@ -115,8 +115,8 @@ class CopilotActionProposal {
         final allowedCategories = transactionType == TransactionType.income
             ? store.incomeCategories
             : store.expenseCategories;
-        final resolvedCategory = category != null &&
-                allowedCategories.contains(category)
+        final resolvedCategory =
+            category != null && allowedCategories.contains(category)
             ? category!
             : allowedCategories.last;
 
@@ -234,7 +234,8 @@ class FinancialQueryEngine {
     var minimumMonth = DateTime.now();
     for (var i = 0; i < installments; i++) {
       final month = DateTime(DateTime.now().year, DateTime.now().month + i);
-      final projected = store.cashProjectedClosingForMonth(month) - monthly * (i + 1);
+      final projected =
+          store.cashProjectedClosingForMonth(month) - monthly * (i + 1);
       if (projected < minimum) {
         minimum = projected;
         minimumMonth = month;
@@ -246,10 +247,7 @@ class FinancialQueryEngine {
     return CopilotQueryResult(
       'Em ${installments}x, a parcela seria de ${_money(monthly)}. $risk '
       'A simulação usa seus compromissos já planejados e não inclui juros que não estejam cadastrados.',
-      followUps: const [
-        'Comparar com à vista',
-        'Ver próximos compromissos',
-      ],
+      followUps: const ['Comparar com à vista', 'Ver próximos compromissos'],
     );
   }
 
@@ -286,7 +284,10 @@ class FinancialQueryEngine {
     return CopilotQueryResult(
       'Em ${_monthName(month)}, sua média de despesas está em ${_money(average)} por dia '
       '(${_money(expense)} em $days dia(s) considerados).',
-      followUps: const ['Onde estou gastando mais?', 'Comparar com o mês passado'],
+      followUps: const [
+        'Onde estou gastando mais?',
+        'Comparar com o mês passado',
+      ],
     );
   }
 
@@ -309,24 +310,36 @@ class FinancialQueryEngine {
     return CopilotQueryResult(
       '${top.key} é sua maior categoria em ${_monthName(store.selectedMonth)}: '
       '${_money(top.value)}, cerca de $share% das despesas do período.',
-      followUps: const ['Comparar com meses anteriores', 'Ver movimentações dessa categoria'],
+      followUps: const [
+        'Comparar com meses anteriores',
+        'Ver movimentações dessa categoria',
+      ],
     );
   }
 
   CopilotQueryResult _recurringSummary(FinanceStore store) {
-    final active = store.data.recurringRules.where((rule) => rule.active).toList();
+    final active = store.data.recurringRules
+        .where((rule) => rule.active)
+        .toList();
     if (active.isEmpty) {
-      return const CopilotQueryResult('Você não tem recorrências ativas no momento.');
+      return const CopilotQueryResult(
+        'Você não tem recorrências ativas no momento.',
+      );
     }
     var monthlyEquivalent = 0.0;
-    for (final rule in active.where((rule) => rule.type == TransactionType.expense)) {
+    for (final rule in active.where(
+      (rule) => rule.type == TransactionType.expense,
+    )) {
       switch (rule.frequency) {
         case RecurrenceFrequency.weekly:
           monthlyEquivalent += rule.amount * 52 / 12;
+          break;
         case RecurrenceFrequency.monthly:
           monthlyEquivalent += rule.amount;
+          break;
         case RecurrenceFrequency.yearly:
           monthlyEquivalent += rule.amount / 12;
+          break;
       }
     }
     return CopilotQueryResult(
@@ -338,8 +351,14 @@ class FinancialQueryEngine {
 
   CopilotQueryResult? _categoryHistory(FinanceStore store, String clean) {
     final monthsMatch = RegExp(r'ultimos?\s+(\d{1,2})\s+mes').firstMatch(clean);
-    final asksHistory = monthsMatch != null ||
-        _hasAny(clean, ['nos ultimos meses', 'historico', 'histórico', 'quanto gastei com']);
+    final asksHistory =
+        monthsMatch != null ||
+        _hasAny(clean, [
+          'nos ultimos meses',
+          'historico',
+          'histórico',
+          'quanto gastei com',
+        ]);
     if (!asksHistory) return null;
 
     String? category;
@@ -351,35 +370,52 @@ class FinancialQueryEngine {
     }
     if (category == null) return null;
 
-    final months = (int.tryParse(monthsMatch?.group(1) ?? '') ?? 6).clamp(1, 24);
+    final months = (int.tryParse(monthsMatch?.group(1) ?? '') ?? 6)
+        .clamp(1, 24)
+        .toInt();
     final now = DateTime.now();
     var total = 0.0;
     for (var i = 0; i < months; i++) {
       final month = DateTime(now.year, now.month - i);
       total += store
           .transactionsForMonth(month)
-          .where((tx) => tx.type == TransactionType.expense && tx.category == category)
+          .where(
+            (tx) =>
+                tx.type == TransactionType.expense && tx.category == category,
+          )
           .fold<double>(0, (sum, tx) => sum + tx.amount);
     }
     return CopilotQueryResult(
       'Nos últimos $months meses, você gastou ${_money(total)} em $category, '
       'uma média de ${_money(total / months)} por mês.',
-      followUps: const ['Qual mês foi o mais alto?', 'Comparar com outra categoria'],
+      followUps: const [
+        'Qual mês foi o mais alto?',
+        'Comparar com outra categoria',
+      ],
     );
   }
 
   CopilotQueryResult? _projectionMonths(FinanceStore store, String clean) {
-    if (!_hasAny(clean, ['quanto vou ter', 'projecao daqui', 'projeção daqui'])) {
+    if (!_hasAny(clean, [
+      'quanto vou ter',
+      'projecao daqui',
+      'projeção daqui',
+    ])) {
       return null;
     }
     final match = RegExp(r'(\d{1,2})\s+mes').firstMatch(clean);
     if (match == null) return null;
-    final months = (int.tryParse(match.group(1) ?? '') ?? 1).clamp(1, 24);
+    final months = (int.tryParse(match.group(1) ?? '') ?? 1)
+        .clamp(1, 24)
+        .toInt();
     final target = DateTime(DateTime.now().year, DateTime.now().month + months);
     final projected = store.cashProjectedClosingForMonth(target);
     return CopilotQueryResult(
       'Mantendo o que já está planejado, o saldo projetado para ${_monthName(target)} é ${_money(projected)}.',
-      followUps: const ['O que está incluído nessa projeção?', 'Ver planejamento'],
+      followUps: const [
+        'O que está incluído nessa projeção?',
+        'Ver planejamento',
+      ],
     );
   }
 
@@ -388,7 +424,9 @@ class FinancialQueryEngine {
 
   int? _installmentsFromText(String text) {
     final x = RegExp(r'\b(\d{1,2})\s*x\b').firstMatch(text);
-    final words = RegExp(r'\bem\s+(\d{1,2})\s+(?:vezes|parcelas)\b').firstMatch(text);
+    final words = RegExp(
+      r'\bem\s+(\d{1,2})\s+(?:vezes|parcelas)\b',
+    ).firstMatch(text);
     final raw = x?.group(1) ?? words?.group(1);
     final value = int.tryParse(raw ?? '');
     if (value == null || value < 2 || value > 60) return null;
@@ -427,11 +465,29 @@ class FinancialQueryEngine {
   String _fold(String value) {
     var text = value.toLowerCase().trim();
     const replacements = {
-      'á': 'a', 'à': 'a', 'ã': 'a', 'â': 'a', 'ä': 'a',
-      'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
-      'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i',
-      'ó': 'o', 'ò': 'o', 'õ': 'o', 'ô': 'o', 'ö': 'o',
-      'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u', 'ç': 'c',
+      'á': 'a',
+      'à': 'a',
+      'ã': 'a',
+      'â': 'a',
+      'ä': 'a',
+      'é': 'e',
+      'è': 'e',
+      'ê': 'e',
+      'ë': 'e',
+      'í': 'i',
+      'ì': 'i',
+      'î': 'i',
+      'ï': 'i',
+      'ó': 'o',
+      'ò': 'o',
+      'õ': 'o',
+      'ô': 'o',
+      'ö': 'o',
+      'ú': 'u',
+      'ù': 'u',
+      'û': 'u',
+      'ü': 'u',
+      'ç': 'c',
     };
     replacements.forEach((from, to) => text = text.replaceAll(from, to));
     return text;
@@ -451,8 +507,18 @@ class FinancialQueryEngine {
 
   String _monthName(DateTime value) {
     const months = [
-      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+      'janeiro',
+      'fevereiro',
+      'março',
+      'abril',
+      'maio',
+      'junho',
+      'julho',
+      'agosto',
+      'setembro',
+      'outubro',
+      'novembro',
+      'dezembro',
     ];
     return '${months[value.month - 1]} de ${value.year}';
   }

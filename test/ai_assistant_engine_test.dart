@@ -40,7 +40,7 @@ void main() {
   }
 
   test('saldo de conta conhecida é respondido localmente sem Gemini', () {
-    final service = const FinoraAiService();
+    const service = FinoraAiService();
     final reply = service.tryLocalAnswer(
       storeWithData(),
       'Quanto tenho no Nubank?',
@@ -53,20 +53,22 @@ void main() {
   });
 
   test('pedido de lançamento em linguagem natural é detectado', () {
-    final service = const FinoraAiService();
+    const service = FinoraAiService();
 
     expect(
       service.looksLikeTransactionRequest('gastei 32,90 de gasolina no Nubank'),
       isTrue,
     );
     expect(
-      service.looksLikeTransactionRequest('quanto gastei com gasolina este mês?'),
+      service.looksLikeTransactionRequest(
+        'quanto gastei com gasolina este mês?',
+      ),
       isFalse,
     );
   });
 
   test('roteador identifica perguntas sobre cartão e planejamento', () {
-    final service = const FinoraAiService();
+    const service = FinoraAiService();
 
     expect(
       service.detectIntent('Como está a fatura do meu cartão?'),

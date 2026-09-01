@@ -5,6 +5,7 @@ import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
+import 'forms.dart';
 
 class CopilotMemoryScreen extends StatelessWidget {
   const CopilotMemoryScreen({super.key});
@@ -64,7 +65,11 @@ class CopilotMemoryScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          sectionTitle(context, 'LEMBRANÇAS', '${memories.length} item(ns) salvos'),
+          sectionTitle(
+            context,
+            'LEMBRANÇAS',
+            '${memories.length} item(ns) salvos',
+          ),
           const SizedBox(height: 7),
           if (memories.isEmpty)
             SurfaceCard(
@@ -117,9 +122,9 @@ class CopilotMemoryScreen extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 9.2,
                                 height: 1.4,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -189,7 +194,10 @@ class CopilotMemoryScreen extends StatelessWidget {
               children: [
                 Text(
                   editing == null ? 'Nova memória' : 'Editar memória',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -208,7 +216,8 @@ class CopilotMemoryScreen extends StatelessWidget {
                   maxLines: 4,
                   decoration: const InputDecoration(
                     labelText: 'O que o Finora deve lembrar',
-                    hintText: 'Ex.: Meu salário normalmente cai na Conta Principal.',
+                    hintText:
+                        'Ex.: Meu salário normalmente cai na Conta Principal.',
                   ),
                 ),
                 if (error != null) ...[
@@ -243,7 +252,9 @@ class CopilotMemoryScreen extends StatelessWidget {
                       }
                       Navigator.pop(sheetContext);
                     },
-                    child: Text(editing == null ? 'Salvar memória' : 'Atualizar'),
+                    child: Text(
+                      editing == null ? 'Salvar memória' : 'Atualizar',
+                    ),
                   ),
                 ),
               ],

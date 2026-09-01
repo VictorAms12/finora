@@ -124,7 +124,9 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                       _hasKey
                           ? Icons.check_circle_rounded
                           : Icons.warning_amber_rounded,
-                      color: _hasKey ? FinoraColors.income : FinoraColors.warning,
+                      color: _hasKey
+                          ? FinoraColors.income
+                          : FinoraColors.warning,
                     ),
                   ],
                 ),
@@ -200,8 +202,13 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                     '${context.watch<FinanceStore>().data.copilotMemories.length} lembrança(s) salva(s) · você mantém o controle',
                     style: const TextStyle(fontSize: 8.5),
                   ),
-                  value: context.watch<FinanceStore>().data.copilotMemoryEnabled,
-                  onChanged: context.read<FinanceStore>().setCopilotMemoryEnabled,
+                  value: context
+                      .watch<FinanceStore>()
+                      .data
+                      .copilotMemoryEnabled,
+                  onChanged: context
+                      .read<FinanceStore>()
+                      .setCopilotMemoryEnabled,
                 ),
                 const Divider(),
                 ListTile(
@@ -209,7 +216,10 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
                   leading: const Icon(Icons.memory_rounded),
                   title: const Text(
                     'Ver e editar memória',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   subtitle: const Text(
                     'Revise, edite ou apague tudo o que o Copilot lembra',
@@ -310,10 +320,7 @@ class _InfoLine extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  body,
-                  style: const TextStyle(fontSize: 8.8, height: 1.4),
-                ),
+                Text(body, style: const TextStyle(fontSize: 8.8, height: 1.4)),
               ],
             ),
           ),
