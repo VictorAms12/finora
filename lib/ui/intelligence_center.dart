@@ -19,7 +19,8 @@ class IntelligenceCenterScreen extends StatefulWidget {
   const IntelligenceCenterScreen({super.key});
 
   @override
-  State<IntelligenceCenterScreen> createState() => _IntelligenceCenterScreenState();
+  State<IntelligenceCenterScreen> createState() =>
+      _IntelligenceCenterScreenState();
 }
 
 class _IntelligenceCenterScreenState extends State<IntelligenceCenterScreen> {
@@ -81,7 +82,7 @@ class _IntelligenceCenterScreenState extends State<IntelligenceCenterScreen> {
         );
         setState(() {});
       },
-      listenOptions: const stt.SpeechListenOptions(
+      listenOptions: stt.SpeechListenOptions(
         localeId: 'pt_BR',
         partialResults: true,
         cancelOnError: true,
@@ -93,15 +94,13 @@ class _IntelligenceCenterScreenState extends State<IntelligenceCenterScreen> {
 
   Future<void> _pickReceipt() async {
     if (_processing) return;
-    final picked = await FilePicker.platform.pickFiles(
+    final file = await FilePicker.pickFile(
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp'],
-      withData: true,
     );
-    if (picked == null || picked.files.isEmpty) return;
-    final file = picked.files.single;
-    final bytes = file.bytes;
-    if (bytes == null || bytes.isEmpty) {
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) {
       _snack('Não consegui ler o arquivo selecionado.');
       return;
     }
@@ -273,7 +272,7 @@ class _IntelligenceCenterScreenState extends State<IntelligenceCenterScreen> {
                     alignment: Alignment.center,
                     child: Text(
                       '${report.healthScore}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: FinoraColors.investment,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -331,35 +330,35 @@ class _IntelligenceCenterScreenState extends State<IntelligenceCenterScreen> {
   }
 
   Widget _insightsTab(IntelligenceReport report) => ListView(
-        children: [
-          if (report.insights.isEmpty)
-            const SurfaceCard(
-              child: Text('Nenhum alerta relevante foi encontrado agora.'),
-            )
-          else
-            ...report.insights.map(_insightCard),
-          if (report.anomalies.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            const Text(
-              'Movimentações fora do padrão',
-              style: TextStyle(fontWeight: FontWeight.w900),
+    children: [
+      if (report.insights.isEmpty)
+        const SurfaceCard(
+          child: Text('Nenhum alerta relevante foi encontrado agora.'),
+        )
+      else
+        ...report.insights.map(_insightCard),
+      if (report.anomalies.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        const Text(
+          'Movimentações fora do padrão',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 8),
+        ...report.anomalies.map(
+          (item) => SurfaceCard(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.manage_search_rounded),
+              title: Text(item.title),
+              subtitle: Text(item.message),
+              trailing: Text('R\$ ${_money(item.amount)}'),
             ),
-            const SizedBox(height: 8),
-            ...report.anomalies.map(
-              (item) => SurfaceCard(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.manage_search_rounded),
-                  title: Text(item.title),
-                  subtitle: Text(item.message),
-                  trailing: Text('R\$ ${_money(item.amount)}'),
-                ),
-              ),
-            ),
-          ],
-        ],
-      );
+          ),
+        ),
+      ],
+    ],
+  );
 
   Widget _insightCard(IntelligenceInsight item) {
     final color = switch (item.severity) {
@@ -378,8 +377,10 @@ class _IntelligenceCenterScreenState extends State<IntelligenceCenterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.title,
-                    style: const TextStyle(fontWeight: FontWeight.w900)),
+                Text(
+                  item.title,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
                 const SizedBox(height: 4),
                 Text(item.message),
               ],
@@ -442,150 +443,156 @@ class _IntelligenceCenterScreenState extends State<IntelligenceCenterScreen> {
   }
 
   Widget _captureTab() => ListView(
-        children: [
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Registrar por voz',
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Fale naturalmente, revise o texto e deixe o Finora preparar o lançamento antes de confirmar.',
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _voiceController,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    hintText: 'Ex.: gastei 45 reais de gasolina no Nubank',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: _processing ? null : _toggleVoice,
-                        icon: Icon(_listening ? Icons.stop_rounded : Icons.mic_rounded),
-                        label: Text(_listening ? 'Parar' : 'Falar'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: _processing
-                            ? null
-                            : () => _interpret(_voiceController.text),
-                        icon: const Icon(Icons.auto_awesome_rounded),
-                        label: const Text('Preparar'),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          SurfaceCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Ler comprovante ou print',
-                  style: TextStyle(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Selecione JPG, PNG ou WebP. A imagem é enviada ao Gemini somente para esta leitura e não fica salva no Finora.',
-                ),
-                const SizedBox(height: 12),
-                FilledButton.tonalIcon(
-                  onPressed: _processing ? null : _pickReceipt,
-                  icon: const Icon(Icons.document_scanner_outlined),
-                  label: Text(_processing ? 'Analisando...' : 'Selecionar imagem'),
-                ),
-                if (_receipt != null) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    '${_receipt!.merchant} · R\$ ${_money(_receipt!.amount)} · ${(_receipt!.confidence * 100).round()}% de confiança',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (_clarification != null) ...[
-            const SizedBox(height: 10),
-            SurfaceCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_clarification!,
-                      style: const TextStyle(fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 7,
-                    runSpacing: 7,
-                    children: _choices
-                        .map(
-                          (choice) => ActionChip(
-                            label: Text(choice),
-                            onPressed: () => _answerClarification(choice),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (_suggestion != null) ...[
-            const SizedBox(height: 10),
-            _suggestionCard(_suggestion!),
-          ],
-        ],
-      );
-
-  Widget _suggestionCard(AiTransactionSuggestion item) => SurfaceCard(
+    children: [
+      SurfaceCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Confira antes de registrar',
-                style: TextStyle(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 8),
-            Text(item.title),
-            Text('R\$ ${_money(item.amount)} · ${item.category}'),
-            Text(
-              item.paymentKind == PaymentKind.card
-                  ? 'Cartão · ${context.read<FinanceStore>().findCard(item.cardId)?.name ?? item.accountName}'
-                  : 'Conta · ${item.accountName}',
+            const Text(
+              'Registrar por voz',
+              style: TextStyle(fontWeight: FontWeight.w900),
             ),
-            Text('Data · ${_date(item.date)}'),
+            const SizedBox(height: 6),
+            const Text(
+              'Fale naturalmente, revise o texto e deixe o Finora preparar o lançamento antes de confirmar.',
+            ),
             const SizedBox(height: 12),
+            TextField(
+              controller: _voiceController,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText: 'Ex.: gastei 45 reais de gasolina no Nubank',
+              ),
+            ),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => setState(() => _suggestion = null),
-                    child: const Text('Descartar'),
+                  child: OutlinedButton.icon(
+                    onPressed: _processing ? null : _toggleVoice,
+                    icon: Icon(
+                      _listening ? Icons.stop_rounded : Icons.mic_rounded,
+                    ),
+                    label: Text(_listening ? 'Parar' : 'Falar'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: FilledButton(
-                    onPressed: _confirmSuggestion,
-                    child: const Text('Confirmar'),
+                  child: FilledButton.icon(
+                    onPressed: _processing
+                        ? null
+                        : () => _interpret(_voiceController.text),
+                    icon: const Icon(Icons.auto_awesome_rounded),
+                    label: const Text('Preparar'),
                   ),
                 ),
               ],
             ),
           ],
         ),
-      );
+      ),
+      const SizedBox(height: 10),
+      SurfaceCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Ler comprovante ou print',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Selecione JPG, PNG ou WebP. A imagem é enviada ao Gemini somente para esta leitura e não fica salva no Finora.',
+            ),
+            const SizedBox(height: 12),
+            FilledButton.tonalIcon(
+              onPressed: _processing ? null : _pickReceipt,
+              icon: const Icon(Icons.document_scanner_outlined),
+              label: Text(_processing ? 'Analisando...' : 'Selecionar imagem'),
+            ),
+            if (_receipt != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                '${_receipt!.merchant} · R\$ ${_money(_receipt!.amount)} · ${(_receipt!.confidence * 100).round()}% de confiança',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      ),
+      if (_clarification != null) ...[
+        const SizedBox(height: 10),
+        SurfaceCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _clarification!,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: _choices
+                    .map(
+                      (choice) => ActionChip(
+                        label: Text(choice),
+                        onPressed: () => _answerClarification(choice),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ),
+        ),
+      ],
+      if (_suggestion != null) ...[
+        const SizedBox(height: 10),
+        _suggestionCard(_suggestion!),
+      ],
+    ],
+  );
+
+  Widget _suggestionCard(AiTransactionSuggestion item) => SurfaceCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'Confira antes de registrar',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 8),
+        Text(item.title),
+        Text('R\$ ${_money(item.amount)} · ${item.category}'),
+        Text(
+          item.paymentKind == PaymentKind.card
+              ? 'Cartão · ${context.read<FinanceStore>().findCard(item.cardId)?.name ?? item.accountName}'
+              : 'Conta · ${item.accountName}',
+        ),
+        Text('Data · ${_date(item.date)}'),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => setState(() => _suggestion = null),
+                child: const Text('Descartar'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: FilledButton(
+                onPressed: _confirmSuggestion,
+                child: const Text('Confirmar'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 
   void _snack(String text) {
     if (!mounted) return;
