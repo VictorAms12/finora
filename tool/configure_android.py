@@ -12,6 +12,9 @@ def configure_manifest() -> None:
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 """
     if "android.permission.INTERNET" not in text:
         text = text.replace(">", ">" + permissions, 1)
@@ -21,6 +24,9 @@ def configure_manifest() -> None:
             "android.permission.POST_NOTIFICATIONS",
             "android.permission.RECEIVE_BOOT_COMPLETED",
             "android.permission.RECORD_AUDIO",
+            "android.permission.BLUETOOTH",
+            "android.permission.BLUETOOTH_ADMIN",
+            "android.permission.BLUETOOTH_CONNECT",
         ):
             if permission not in text:
                 text = text.replace(
@@ -28,6 +34,16 @@ def configure_manifest() -> None:
                     f'>\n    <uses-permission android:name="{permission}" />',
                     1,
                 )
+
+    speech_queries = """
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+"""
+    if "android.speech.RecognitionService" not in text:
+        text = text.replace("<application", speech_queries + "\n    <application", 1)
 
     if "android:allowBackup=" not in text:
         text = text.replace(
@@ -46,8 +62,8 @@ def configure_manifest() -> None:
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.QUICKBOOT_POWER_ON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWER_ON" />
             </intent-filter>
         </receiver>
 """
