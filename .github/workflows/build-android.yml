@@ -148,8 +148,8 @@ jobs:
           {
             echo '### Android compilado com assinatura efêmera de CI'
             echo ''
-            echo 'A compilação foi validada, mas APK/AAB não foram publicados para evitar que uma chave descartável vire baseline de instalação.'
-            echo 'Configure os secrets descritos em `docs/SIGNING.md` para publicar releases instaláveis e atualizáveis.'
+            echo 'O APK/AAB abaixo é adequado para teste e instalação manual, mas a chave é descartável e não deve ser usada como baseline de atualização de uma release de produção.'
+            echo 'Configure os secrets descritos em `docs/SIGNING.md` para publicar releases instaláveis e atualizáveis com assinatura estável.'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publicar APK
@@ -166,6 +166,24 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Finora-AAB-v${{ env.FINORA_VERSION }}
+          if-no-files-found: error
+          retention-days: 14
+          path: build/app/outputs/bundle/release/app-release.aab
+
+      - name: Publicar APK CI efêmero
+        if: steps.signing.outputs.stable != 'true' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finora-APK-v${{ env.FINORA_VERSION }}-ci-ephemeral
+          if-no-files-found: error
+          retention-days: 14
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publicar AAB CI efêmero
+        if: steps.signing.outputs.stable != 'true' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finora-AAB-v${{ env.FINORA_VERSION }}-ci-ephemeral
           if-no-files-found: error
           retention-days: 14
           path: build/app/outputs/bundle/release/app-release.aab
