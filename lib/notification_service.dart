@@ -6,6 +6,7 @@ class NotificationService {
 
   static const int dailyReminderId = 3505;
   static const int testNotificationId = 3506;
+  static const int smartInsightNotificationId = 3510;
 
   static final FlutterLocalNotificationsPlugin plugin =
       FlutterLocalNotificationsPlugin();
@@ -109,6 +110,20 @@ class NotificationService {
       notificationDetails: _details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       payload: 'planning',
+    );
+  }
+
+  static Future<void> showSmartInsight({
+    required String title,
+    required String body,
+  }) async {
+    await initialize();
+    await plugin.show(
+      id: smartInsightNotificationId,
+      title: title,
+      body: body,
+      notificationDetails: _details,
+      payload: 'intelligence',
     );
   }
 

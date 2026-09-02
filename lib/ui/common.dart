@@ -133,6 +133,7 @@ class PageScaffold extends StatelessWidget {
 class SurfaceCard extends StatelessWidget {
   final Widget child;
   final EdgeInsets padding;
+  final EdgeInsets? margin;
   final Color? borderColor;
   final VoidCallback? onTap;
 
@@ -140,6 +141,7 @@ class SurfaceCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
+    this.margin,
     this.borderColor,
     this.onTap,
   });
@@ -147,6 +149,7 @@ class SurfaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = Container(
+      margin: margin,
       padding: padding,
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,

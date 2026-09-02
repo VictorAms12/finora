@@ -130,6 +130,7 @@ class GeminiService {
           .timeout(const Duration(seconds: 15));
       request.headers.contentType = ContentType.json;
       request.headers.set('x-goog-api-key', apiKey);
+      request.headers.set('Api-Revision', '2026-05-20');
       request.write(jsonEncode(body));
 
       final response = await request.close().timeout(const Duration(seconds: 35));
@@ -242,6 +243,14 @@ class GeminiService {
 
     text = text.replaceAll(RegExp(r'```(?:json|markdown|md|text)?', caseSensitive: false), '');
     text = text.replaceAll('```', '');
+    text = text.replaceAll(
+      RegExp(
+        r'<analysis\b[^>]*>.*?</analysis>',
+        caseSensitive: false,
+        dotAll: true,
+      ),
+      '',
+    );
     text = text.replaceAll(
       RegExp(
         r'</?(?:analysis|assistant|response|answer|final|message|content|result)[^>]*>',

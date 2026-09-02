@@ -11,6 +11,10 @@ def configure_manifest() -> None:
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 """
     if "android.permission.INTERNET" not in text:
         text = text.replace(">", ">" + permissions, 1)
@@ -19,6 +23,10 @@ def configure_manifest() -> None:
             "android.permission.USE_BIOMETRIC",
             "android.permission.POST_NOTIFICATIONS",
             "android.permission.RECEIVE_BOOT_COMPLETED",
+            "android.permission.RECORD_AUDIO",
+            "android.permission.BLUETOOTH",
+            "android.permission.BLUETOOTH_ADMIN",
+            "android.permission.BLUETOOTH_CONNECT",
         ):
             if permission not in text:
                 text = text.replace(
@@ -26,6 +34,16 @@ def configure_manifest() -> None:
                     f'>\n    <uses-permission android:name="{permission}" />',
                     1,
                 )
+
+    speech_queries = """
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+"""
+    if "android.speech.RecognitionService" not in text:
+        text = text.replace("<application", speech_queries + "\n    <application", 1)
 
     if "android:allowBackup=" not in text:
         text = text.replace(
