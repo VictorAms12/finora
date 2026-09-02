@@ -1,7 +1,7 @@
 from pathlib import Path
 
-path = Path('lib/ui/intelligence_center.dart')
-text = path.read_text(encoding='utf-8')
+ui = Path('lib/ui/intelligence_center.dart')
+text = ui.read_text(encoding='utf-8')
 
 text = text.replace(
     'listenOptions: const stt.SpeechListenOptions(',
@@ -32,14 +32,44 @@ new = '''    final file = await FilePicker.pickFile(
       return;
     }
 '''
-if old not in text:
+if old in text:
+    text = text.replace(old, new)
+elif new not in text:
     raise SystemExit('file_picker block not found')
-text = text.replace(old, new)
 
 text = text.replace(
     '''                      style: TextStyle(\n                        color: FinoraColors.investment,''',
     '''                      style: const TextStyle(\n                        color: FinoraColors.investment,''',
     1,
 )
+ui.write_text(text, encoding='utf-8')
 
-path.write_text(text, encoding='utf-8')
+android = Path('tool/configure_android.py')
+cfg = android.read_text(encoding='utf-8')
+
+if 'android.permission.BLUETOOTH_CONNECT' not in cfg:
+    cfg = cfg.replace(
+        '    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n',
+        '    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n'
+        '    <uses-permission android:name="android.permission.BLUETOOTH" />\n'
+        '    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />\n'
+        '    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />\n',
+        1,
+    )
+    cfg = cfg.replace(
+        '            "android.permission.RECORD_AUDIO",\n',
+        '            "android.permission.RECORD_AUDIO",\n'
+        '            "android.permission.BLUETOOTH",\n'
+        '            "android.permission.BLUETOOTH_ADMIN",\n'
+        '            "android.permission.BLUETOOTH_CONNECT",\n',
+        1,
+    )
+
+queries_code = '''\n    speech_queries = """\n    <queries>\n        <intent>\n            <action android:name="android.speech.RecognitionService" />\n        </intent>\n    </queries>\n"""\n    if "android.speech.RecognitionService" not in text:\n        text = text.replace("<application", speech_queries + "\\n    <application", 1)\n'''
+if 'speech_queries = """' not in cfg:
+    marker = '    if "android:allowBackup=" not in text:\n'
+    if marker not in cfg:
+        raise SystemExit('manifest query insertion marker not found')
+    cfg = cfg.replace(marker, queries_code + '\n' + marker, 1)
+
+android.write_text(cfg, encoding='utf-8')
