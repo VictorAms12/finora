@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Baixar branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: audit/finora-v045-total-hardening
           fetch-depth: 0
