@@ -1,8 +1,9 @@
 from pathlib import Path
+import os
 import re
 
 
-def configure_manifest() -> None:
+def configure_manifest(app_name: str) -> None:
     manifest = Path("android/app/src/main/AndroidManifest.xml")
     text = manifest.read_text(encoding="utf-8")
 
@@ -52,6 +53,20 @@ def configure_manifest() -> None:
             1,
         )
 
+    if "android:label=" in text:
+        text = re.sub(
+            r'android:label="[^"]*"',
+            f'android:label="{app_name}"',
+            text,
+            count=1,
+        )
+    else:
+        text = text.replace(
+            "<application",
+            f'<application\n        android:label="{app_name}"',
+            1,
+        )
+
     receivers = """
         <receiver
             android:exported="false"
@@ -73,11 +88,12 @@ def configure_manifest() -> None:
     manifest.write_text(text, encoding="utf-8")
 
 
-def configure_activity() -> None:
-    activity = Path("android/app/src/main/kotlin/com/finora/finora/MainActivity.kt")
+def configure_activity(application_id: str) -> None:
+    package_path = Path(*application_id.split("."))
+    activity = Path("android/app/src/main/kotlin") / package_path / "MainActivity.kt"
     activity.parent.mkdir(parents=True, exist_ok=True)
     activity.write_text(
-        """package com.finora.finora
+        f"""package {application_id}
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 
@@ -103,7 +119,7 @@ def configure_styles() -> None:
         style_path.write_text(style, encoding="utf-8")
 
 
-def configure_gradle() -> None:
+def configure_gradle(application_id: str) -> None:
     gradle = Path("android/app/build.gradle.kts")
     app = gradle.read_text(encoding="utf-8")
 
@@ -119,6 +135,17 @@ if (keystorePropertiesFile.exists()) {
 """
     if "val keystoreProperties = Properties()" not in app:
         app = imports + app
+
+    app = re.sub(
+        r'namespace\s*=\s*"[^"]+"',
+        f'namespace = "{application_id}"',
+        app,
+    )
+    app = re.sub(
+        r'applicationId\s*=\s*"[^"]+"',
+        f'applicationId = "{application_id}"',
+        app,
+    )
 
     app = re.sub(
         r"compileSdk\s*=\s*flutter\.compileSdkVersion",
@@ -205,12 +232,17 @@ def configure_android_plugin() -> None:
 
 
 def main() -> None:
-    configure_activity()
-    configure_manifest()
+    application_id = os.environ.get("FINORA_APPLICATION_ID", "com.finora.finora").strip()
+    app_name = os.environ.get("FINORA_APP_NAME", "Finora").strip() or "Finora"
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+", application_id):
+        raise ValueError(f"FINORA_APPLICATION_ID inválido: {application_id}")
+
+    configure_activity(application_id)
+    configure_manifest(app_name)
     configure_styles()
-    configure_gradle()
+    configure_gradle(application_id)
     configure_android_plugin()
-    print("Android configurado para o Finora.")
+    print(f"Android configurado para {app_name} ({application_id}).")
 
 
 if __name__ == "__main__":
