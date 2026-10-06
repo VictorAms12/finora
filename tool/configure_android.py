@@ -234,7 +234,7 @@ def configure_android_plugin() -> None:
 def main() -> None:
     application_id = os.environ.get("FINORA_APPLICATION_ID", "com.finora.finora").strip()
     app_name = os.environ.get("FINORA_APP_NAME", "Finora").strip() or "Finora"
-    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+", application_id):
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+", application_id):
         raise ValueError(f"FINORA_APPLICATION_ID inválido: {application_id}")
 
     configure_activity(application_id)
