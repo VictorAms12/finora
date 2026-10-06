@@ -84,6 +84,23 @@ extension FinanceStoreTransactions on FinanceStore {
     return true;
   }
 
+  bool duplicateTransaction(TransactionItem item, {DateTime? date}) {
+    if (item.type == TransactionType.transfer) return false;
+    final copy = TransactionItem(
+      id: FinanceStore.newId(),
+      type: item.type,
+      title: item.title,
+      category: item.category,
+      amount: item.amount,
+      date: date ?? item.date,
+      account: item.account,
+      paymentKind: item.paymentKind,
+      cardId: item.cardId,
+      note: item.note,
+    );
+    return addTransaction(copy);
+  }
+
   DateTime? _earliestPastMonth(DateTime a, [DateTime? b]) {
     final current = DateTime(DateTime.now().year, DateTime.now().month);
     final first = monthStart(a);
