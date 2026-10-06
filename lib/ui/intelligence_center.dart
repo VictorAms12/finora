@@ -86,7 +86,7 @@ class _IntelligenceCenterScreenState extends State<IntelligenceCenterScreen> {
         localeId: 'pt_BR',
         partialResults: true,
         cancelOnError: true,
-        pauseFor: Duration(seconds: 4),
+        pauseFor: const Duration(seconds: 4),
         listenFor: Duration(seconds: 35),
       ),
     );
