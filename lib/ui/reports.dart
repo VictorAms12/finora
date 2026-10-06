@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
@@ -20,6 +21,59 @@ class ReportsScreen extends StatelessWidget {
         ? null
         : ((store.monthExpense - previous) / previous) * 100;
     final snapshot = store.snapshotForMonth(store.selectedMonth);
+
+    double averageIncome(int months) {
+      var total = 0.0;
+      for (var i = 0; i < months; i++) {
+        total += store.incomeForMonth(
+          DateTime(
+            store.selectedMonth.year,
+            store.selectedMonth.month - i,
+          ),
+        );
+      }
+      return total / months;
+    }
+
+    double averageExpense(int months) {
+      var total = 0.0;
+      for (var i = 0; i < months; i++) {
+        total += store.expenseForMonth(
+          DateTime(
+            store.selectedMonth.year,
+            store.selectedMonth.month - i,
+          ),
+        );
+      }
+      return total / months;
+    }
+
+    final expenseBySource = <String, double>{};
+    for (final tx in store.monthTransactions) {
+      if (tx.type != TransactionType.expense) continue;
+      final source = tx.paymentKind == PaymentKind.card
+          ? 'Cartão · ${store.findCard(tx.cardId)?.name ?? tx.account}'
+          : 'Conta · ${tx.account}';
+      expenseBySource[source] = (expenseBySource[source] ?? 0) + tx.amount;
+    }
+    final sources = expenseBySource.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final largestExpenses = store.monthTransactions
+        .where((tx) => tx.type == TransactionType.expense)
+        .toList()
+      ..sort((a, b) => b.amount.compareTo(a.amount));
+
+    var monthlyRecurringExpense = 0.0;
+    for (final rule in store.data.recurringRules.where(
+      (rule) => rule.active && rule.type == TransactionType.expense,
+    )) {
+      monthlyRecurringExpense += switch (rule.frequency) {
+        RecurrenceFrequency.weekly => rule.amount * 4.345,
+        RecurrenceFrequency.monthly => rule.amount,
+        RecurrenceFrequency.yearly => rule.amount / 12,
+      };
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Relatórios')),
@@ -219,6 +273,129 @@ class ReportsScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (!store.selectedIsFuture) ...[
+            const SizedBox(height: 10),
+            SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('MÉDIAS DO HISTÓRICO', style: eyebrowStyle(context)),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _metric(
+                          context,
+                          'Gasto médio · 3m',
+                          money(context, averageExpense(3)),
+                          FinoraColors.expense,
+                        ),
+                      ),
+                      Expanded(
+                        child: _metric(
+                          context,
+                          'Gasto médio · 6m',
+                          money(context, averageExpense(6)),
+                          FinoraColors.warning,
+                        ),
+                      ),
+                      Expanded(
+                        child: _metric(
+                          context,
+                          'Receita média · 6m',
+                          money(context, averageIncome(6)),
+                          FinoraColors.income,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Compromissos recorrentes equivalem a cerca de ${money(context, monthlyRecurringExpense)} por mês.',
+                    style: TextStyle(
+                      fontSize: 8.7,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (sources.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SurfaceCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('GASTOS POR ORIGEM', style: eyebrowStyle(context)),
+                    const SizedBox(height: 6),
+                    ...sources.take(8).map(
+                      (entry) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          entry.key,
+                          style: const TextStyle(
+                            fontSize: 9.8,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        trailing: Text(
+                          money(context, entry.value),
+                          style: const TextStyle(
+                            color: FinoraColors.expense,
+                            fontSize: 9.3,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (largestExpenses.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SurfaceCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('MAIORES DESPESAS', style: eyebrowStyle(context)),
+                    const SizedBox(height: 6),
+                    ...largestExpenses.take(5).map(
+                      (item) => ListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          categoryIcon(item.category),
+                          color: FinoraColors.expense,
+                          size: 18,
+                        ),
+                        title: Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontSize: 9.8,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${item.category} · ${shortDate(item.date)}',
+                          style: const TextStyle(fontSize: 8.1),
+                        ),
+                        trailing: Text(
+                          money(context, item.amount),
+                          style: const TextStyle(
+                            color: FinoraColors.expense,
+                            fontSize: 9.3,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
           const SizedBox(height: 10),
           SurfaceCard(
             child: categories.isEmpty

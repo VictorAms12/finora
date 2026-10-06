@@ -4,6 +4,7 @@ import 'accounts.dart';
 import 'categories_settings.dart';
 import 'common.dart';
 import 'goals_reserves.dart';
+import 'global_search.dart';
 import 'intelligence_center.dart';
 import 'reports.dart';
 
@@ -19,6 +20,14 @@ class MoreScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Column(
           children: [
+            _item(
+              context,
+              Icons.manage_search_rounded,
+              'Busca global',
+              'Encontre qualquer dado em todo o Finora',
+              Theme.of(context).colorScheme.primary,
+              const GlobalSearchScreen(),
+            ),
             _item(
               context,
               Icons.auto_awesome_rounded,

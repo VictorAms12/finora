@@ -172,7 +172,9 @@ Future<void> showReserveMovement(
   ReserveItem reserve,
 ) async {
   final controller = TextEditingController();
+  final store = context.read<FinanceStore>();
   var adding = true;
+  var accountName = '';
   String? errorText;
 
   await showDialog<void>(
@@ -180,71 +182,91 @@ Future<void> showReserveMovement(
     builder: (dialogContext) => StatefulBuilder(
       builder: (context, setLocal) => AlertDialog(
         title: const Text('Movimentar reserva'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              '${reserve.name} · ${money(context, reserve.saved)} guardados',
-              style: TextStyle(
-                fontSize: 9.2,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(
-                  value: true,
-                  icon: Icon(Icons.add_rounded),
-                  label: Text('Aportar'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                '${reserve.name} · ${money(context, reserve.saved)} guardados',
+                style: TextStyle(
+                  fontSize: 9.2,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
-                ButtonSegment(
-                  value: false,
-                  icon: Icon(Icons.remove_rounded),
-                  label: Text('Retirar'),
+              ),
+              const SizedBox(height: 12),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.add_rounded),
+                    label: Text('Aportar'),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.remove_rounded),
+                    label: Text('Retirar'),
+                  ),
+                ],
+                selected: {adding},
+                onSelectionChanged: (values) {
+                  if (values.isEmpty) return;
+                  setLocal(() {
+                    adding = values.first;
+                    errorText = null;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: adding ? 'Valor do aporte' : 'Valor da retirada',
+                  prefixText: 'R\$ ',
+                ),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: accountName,
+                decoration: const InputDecoration(
+                  labelText: 'Movimentar saldo da conta',
+                  helperText:
+                      'Opcional. Escolha a conta para refletir o aporte ou retirada no saldo.',
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('Somente acompanhamento'),
+                  ),
+                  ...store.data.accounts.map(
+                    (account) => DropdownMenuItem(
+                      value: account.name,
+                      child: Text(account.name),
+                    ),
+                  ),
+                ],
+                onChanged: (value) => setLocal(() {
+                  accountName = value ?? '';
+                  errorText = null;
+                }),
+              ),
+              if (errorText != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  errorText!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
-              selected: {adding},
-              onSelectionChanged: (values) {
-                if (values.isEmpty) return;
-                setLocal(() {
-                  adding = values.first;
-                  errorText = null;
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: adding ? 'Valor do aporte' : 'Valor da retirada',
-                prefixText: 'R\$ ',
-              ),
-            ),
-            if (errorText != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                errorText!,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.error,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
             ],
-            const SizedBox(height: 8),
-            Text(
-              'Essa ação atualiza apenas o acompanhamento da reserva; não cria uma movimentação bancária automática.',
-              style: TextStyle(
-                fontSize: 8.3,
-                height: 1.35,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -259,11 +281,18 @@ Future<void> showReserveMovement(
                 return;
               }
 
-              final store = context.read<FinanceStore>();
-              if (adding) {
-                store.contributeReserve(reserve.id, value);
-              } else if (!store.withdrawReserve(reserve.id, value)) {
-                setLocal(() => errorText = 'A retirada não pode ser maior que o valor guardado.');
+              final ok = store.moveReserveFunds(
+                reserveId: reserve.id,
+                value: value,
+                withdraw: !adding,
+                accountName: accountName,
+              );
+              if (!ok) {
+                setLocal(
+                  () => errorText = adding
+                      ? 'Não foi possível registrar o aporte.'
+                      : 'A retirada não pode ser maior que o valor guardado.',
+                );
                 return;
               }
               Navigator.pop(dialogContext);
@@ -274,4 +303,5 @@ Future<void> showReserveMovement(
       ),
     ),
   );
+  controller.dispose();
 }

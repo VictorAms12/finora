@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
 import 'forms.dart';
+import 'global_search.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -17,6 +19,39 @@ class DashboardScreen extends StatelessWidget {
         : ((store.monthBalance / store.monthIncome) * 100).round();
     final recent = store.monthTransactions.take(5).toList();
     final snapshot = store.snapshotForMonth(store.selectedMonth);
+    final previousIncome = store.incomeForMonth(store.previousSelectedMonth);
+    final previousExpense = store.expenseForMonth(store.previousSelectedMonth);
+    final expenseDelta = previousExpense <= 0
+        ? null
+        : ((store.monthExpense - previousExpense) / previousExpense) * 100;
+    final incomeDelta = previousIncome <= 0
+        ? null
+        : ((store.monthIncome - previousIncome) / previousIncome) * 100;
+    final trendExpenses = List<double>.generate(6, (index) {
+      final month = DateTime(
+        store.selectedMonth.year,
+        store.selectedMonth.month - (5 - index),
+      );
+      return store.expenseForMonth(month);
+    });
+    final today = DateTime.now();
+    final todayOnly = DateTime(today.year, today.month, today.day);
+    final weekLimit = todayOnly.add(const Duration(days: 7));
+    final upcomingWeek = store.data.planned
+        .where(
+          (item) =>
+              item.status == PlannedStatus.planned &&
+              !DateTime(item.date.year, item.date.month, item.date.day)
+                  .isBefore(todayOnly) &&
+              DateTime(item.date.year, item.date.month, item.date.day)
+                  .isBefore(weekLimit),
+        )
+        .toList();
+    final upcomingWeekTotal = upcomingWeek.fold<double>(
+      0,
+      (sum, item) =>
+          item.type == TransactionType.income ? sum - item.amount : sum + item.amount,
+    );
 
     final primaryLabel = store.selectedIsFuture
         ? 'SALDO PROJETADO'
@@ -33,6 +68,14 @@ class DashboardScreen extends StatelessWidget {
       eyebrow: 'VISÃO GERAL',
       title: 'Início',
       actions: [
+        IconButton(
+          tooltip: 'Buscar',
+          onPressed: () => Navigator.push(
+            context,
+            PremiumRoute(page: const GlobalSearchScreen()),
+          ),
+          icon: const Icon(Icons.search_rounded),
+        ),
         IconButton(
           tooltip: 'Ocultar valores',
           onPressed: () => store.setPrivacyMode(!store.data.privacyMode),
@@ -284,6 +327,96 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (!store.selectedIsFuture) ...[
+            const SizedBox(height: 14),
+            sectionTitle(context, 'RITMO DO MÊS', 'Comparação e tendência recente'),
+            const SizedBox(height: 7),
+            SurfaceCard(
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _comparisonMetric(
+                          context,
+                          'Entradas',
+                          store.monthIncome,
+                          incomeDelta,
+                          positiveIsGood: true,
+                        ),
+                      ),
+                      _line(context),
+                      Expanded(
+                        child: _comparisonMetric(
+                          context,
+                          'Saídas',
+                          store.monthExpense,
+                          expenseDelta,
+                          positiveIsGood: false,
+                        ),
+                      ),
+                      _line(context),
+                      Expanded(
+                        child: _mini(
+                          context,
+                          'Resultado',
+                          store.monthBalance,
+                          FinoraColors.balance,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'GASTOS DOS ÚLTIMOS 6 MESES',
+                      style: eyebrowStyle(context),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _TrendBars(values: trendExpenses),
+                ],
+              ),
+            ),
+          ],
+          if (store.selectedIsCurrent && upcomingWeek.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SurfaceCard(
+              padding: const EdgeInsets.all(13),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.upcoming_outlined,
+                    color: FinoraColors.warning,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Próximos 7 dias',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${upcomingWeek.length} compromisso(s) · impacto líquido de ${money(context, upcomingWeekTotal.abs())}',
+                          style: TextStyle(
+                            fontSize: 8.8,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (store.selectedIsCurrent && store.currentCashShortfall > 0) ...[
             const SizedBox(height: 10),
             SurfaceCard(
@@ -566,4 +699,107 @@ class DashboardScreen extends StatelessWidget {
       ],
     ),
   );
+}
+
+
+Widget _comparisonMetric(
+  BuildContext context,
+  String label,
+  double value,
+  double? delta, {
+  required bool positiveIsGood,
+}) {
+  final deltaValue = delta;
+  final improving = deltaValue == null
+      ? null
+      : positiveIsGood
+          ? deltaValue >= 0
+          : deltaValue <= 0;
+  final color = improving == null
+      ? Theme.of(context).colorScheme.onSurfaceVariant
+      : improving
+          ? FinoraColors.income
+          : FinoraColors.expense;
+  final deltaText = deltaValue == null
+      ? 'sem base anterior'
+      : '${deltaValue >= 0 ? '+' : ''}${deltaValue.toStringAsFixed(0)}% vs mês anterior';
+
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 8.2,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          money(context, value),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 10.4,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          deltaText,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 7.7,
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _TrendBars extends StatelessWidget {
+  final List<double> values;
+
+  const _TrendBars({required this.values});
+
+  @override
+  Widget build(BuildContext context) {
+    final maxValue = values.fold<double>(
+      0,
+      (current, value) => value > current ? value : current,
+    );
+    return SizedBox(
+      height: 58,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var index = 0; index < values.length; index++) ...[
+            Expanded(
+              child: Tooltip(
+                message: money(context, values[index]),
+                child: Container(
+                  height: maxValue <= 0
+                      ? 4
+                      : 6 + (46 * (values[index] / maxValue)),
+                  decoration: BoxDecoration(
+                    color: index == values.length - 1
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withValues(alpha: .32),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            ),
+            if (index != values.length - 1) const SizedBox(width: 6),
+          ],
+        ],
+      ),
+    );
+  }
 }

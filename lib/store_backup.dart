@@ -1,24 +1,46 @@
 part of 'store.dart';
 
+class FinoraBackupInfo {
+  final int version;
+  final DateTime? exportedAt;
+  final int accounts;
+  final int cards;
+  final int transactions;
+  final int planned;
+  final int goals;
+  final int reserves;
+  final int investments;
+
+  const FinoraBackupInfo({
+    required this.version,
+    required this.exportedAt,
+    required this.accounts,
+    required this.cards,
+    required this.transactions,
+    required this.planned,
+    required this.goals,
+    required this.reserves,
+    required this.investments,
+  });
+
+  int get totalItems =>
+      accounts +
+      cards +
+      transactions +
+      planned +
+      goals +
+      reserves +
+      investments;
+}
+
 extension FinanceStoreBackup on FinanceStore {
   static const _backupPrefix = 'FINORA-BACKUP-1:';
   static const _backupVersion = 1;
 
-  String exportBackupText() {
-    final envelope = <String, dynamic>{
-      'format': 'finora-backup',
-      'version': _backupVersion,
-      'exportedAt': DateTime.now().toIso8601String(),
-      'data': data.toJson(),
-    };
-    final json = jsonEncode(envelope);
-    return '$_backupPrefix${base64Url.encode(utf8.encode(json))}';
-  }
-
-  Future<bool> restoreBackupText(String input) async {
+  Map<String, dynamic>? _decodeBackupMap(String input) {
     try {
       final trimmed = input.trim();
-      if (trimmed.isEmpty) return false;
+      if (trimmed.isEmpty) return null;
 
       dynamic decoded;
       if (trimmed.startsWith(_backupPrefix)) {
@@ -27,9 +49,69 @@ extension FinanceStoreBackup on FinanceStore {
       } else {
         decoded = jsonDecode(trimmed);
       }
+      if (decoded is! Map) return null;
+      return Map<String, dynamic>.from(decoded);
+    } catch (_) {
+      return null;
+    }
+  }
 
-      if (decoded is! Map) return false;
-      final map = Map<String, dynamic>.from(decoded);
+  FinoraBackupInfo? inspectBackupText(String input) {
+    try {
+      final map = _decodeBackupMap(input);
+      if (map == null) return null;
+
+      var version = 1;
+      DateTime? exportedAt;
+      if (map['format'] == 'finora-backup') {
+        version = (map['version'] as num?)?.toInt() ?? 0;
+        if (version < 1 || version > _backupVersion) return null;
+        exportedAt = DateTime.tryParse(map['exportedAt']?.toString() ?? '');
+      }
+
+      final rawData = map['format'] == 'finora-backup' ? map['data'] : map;
+      if (rawData is! Map) return null;
+      final dataMap = Map<String, dynamic>.from(rawData);
+
+      // A conversão completa valida tipos, datas e compatibilidade antes de
+      // oferecer a restauração ao usuário.
+      FinanceData.fromJson(dataMap);
+
+      int count(String key) => (dataMap[key] as List?)?.length ?? 0;
+      return FinoraBackupInfo(
+        version: version,
+        exportedAt: exportedAt,
+        accounts: count('accounts'),
+        cards: count('cards'),
+        transactions: count('transactions'),
+        planned: count('planned'),
+        goals: count('goals'),
+        reserves: count('reserves'),
+        investments: count('investments'),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String exportBackupText() {
+    final now = DateTime.now();
+    data.lastBackupAt = now;
+    commit();
+    final envelope = <String, dynamic>{
+      'format': 'finora-backup',
+      'version': _backupVersion,
+      'exportedAt': now.toIso8601String(),
+      'data': data.toJson(),
+    };
+    final json = jsonEncode(envelope);
+    return '$_backupPrefix${base64Url.encode(utf8.encode(json))}';
+  }
+
+  Future<bool> restoreBackupText(String input) async {
+    try {
+      final map = _decodeBackupMap(input);
+      if (map == null) return false;
 
       if (map['format'] == 'finora-backup') {
         final version = (map['version'] as num?)?.toInt() ?? 0;

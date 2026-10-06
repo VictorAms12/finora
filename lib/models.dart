@@ -446,6 +446,10 @@ class InvestmentItem {
   String assetClass;
   double amount;
   double estimatedReturn;
+  double investedAmount;
+  double quantity;
+  double averagePrice;
+  double currentPrice;
 
   InvestmentItem({
     required this.id,
@@ -453,7 +457,20 @@ class InvestmentItem {
     required this.assetClass,
     required this.amount,
     required this.estimatedReturn,
-  });
+    double? investedAmount,
+    this.quantity = 0,
+    this.averagePrice = 0,
+    this.currentPrice = 0,
+  }) : investedAmount = investedAmount ?? amount;
+
+  double get profitLoss => amount - investedAmount;
+
+  double get profitLossPercent => investedAmount <= 0
+      ? 0
+      : (profitLoss / investedAmount) * 100;
+
+  bool get hasPositionDetails =>
+      quantity > 0 && (averagePrice > 0 || currentPrice > 0);
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -461,15 +478,26 @@ class InvestmentItem {
     'assetClass': assetClass,
     'amount': amount,
     'estimatedReturn': estimatedReturn,
+    'investedAmount': investedAmount,
+    'quantity': quantity,
+    'averagePrice': averagePrice,
+    'currentPrice': currentPrice,
   };
 
-  factory InvestmentItem.fromJson(Map<String, dynamic> j) => InvestmentItem(
-    id: j['id'] as String,
-    name: j['name'] as String? ?? 'Investimento',
-    assetClass: j['assetClass'] as String? ?? 'Renda fixa',
-    amount: (j['amount'] as num? ?? 0).toDouble(),
-    estimatedReturn: (j['estimatedReturn'] as num? ?? 0).toDouble(),
-  );
+  factory InvestmentItem.fromJson(Map<String, dynamic> j) {
+    final amount = (j['amount'] as num? ?? 0).toDouble();
+    return InvestmentItem(
+      id: j['id'] as String,
+      name: j['name'] as String? ?? 'Investimento',
+      assetClass: j['assetClass'] as String? ?? 'Renda fixa',
+      amount: amount,
+      estimatedReturn: (j['estimatedReturn'] as num? ?? 0).toDouble(),
+      investedAmount: (j['investedAmount'] as num?)?.toDouble() ?? amount,
+      quantity: (j['quantity'] as num? ?? 0).toDouble(),
+      averagePrice: (j['averagePrice'] as num? ?? 0).toDouble(),
+      currentPrice: (j['currentPrice'] as num? ?? 0).toDouble(),
+    );
+  }
 }
 
 class RecurringRule {
@@ -601,6 +629,55 @@ class InstallmentPlan {
   );
 }
 
+enum FundingTargetType { goal, reserve, investment }
+
+class FundingMovementItem {
+  final String id;
+  FundingTargetType targetType;
+  String targetId;
+  String accountName;
+  double amount;
+  DateTime date;
+  String note;
+
+  FundingMovementItem({
+    required this.id,
+    required this.targetType,
+    required this.targetId,
+    required this.accountName,
+    required this.amount,
+    required this.date,
+    this.note = '',
+  });
+
+  bool get isContribution => amount >= 0;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'targetType': targetType.name,
+    'targetId': targetId,
+    'accountName': accountName,
+    'amount': amount,
+    'date': date.toIso8601String(),
+    'note': note,
+  };
+
+  factory FundingMovementItem.fromJson(Map<String, dynamic> j) =>
+      FundingMovementItem(
+        id: j['id'] as String? ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        targetType: FundingTargetType.values.firstWhere(
+          (value) => value.name == j['targetType'],
+          orElse: () => FundingTargetType.goal,
+        ),
+        targetId: j['targetId'] as String? ?? '',
+        accountName: j['accountName'] as String? ?? '',
+        amount: (j['amount'] as num? ?? 0).toDouble(),
+        date: DateTime.tryParse(j['date'] as String? ?? '') ?? DateTime.now(),
+        note: j['note'] as String? ?? '',
+      );
+}
+
 class MonthlySnapshot {
   final String id;
   DateTime month;
@@ -644,10 +721,13 @@ class MonthlySnapshot {
 
 class FinanceData {
   bool darkMode;
+  String accentLight;
+  String accentDark;
   bool privacyMode;
   bool biometricEnabled;
   bool notificationsEnabled;
   int notificationDaysBefore;
+  DateTime? lastBackupAt;
   bool onboardingCompleted;
   String primaryGoal;
   bool copilotMemoryEnabled;
@@ -670,14 +750,18 @@ class FinanceData {
   final List<RecurringRule> recurringRules;
   final List<InstallmentPlan> installmentPlans;
   final List<CategoryItem> categories;
+  final List<FundingMovementItem> fundingMovements;
   final List<MonthlySnapshot> snapshots;
 
   FinanceData({
     required this.darkMode,
+    this.accentLight = 'gold',
+    this.accentDark = 'gold',
     required this.privacyMode,
     required this.biometricEnabled,
     required this.notificationsEnabled,
     required this.notificationDaysBefore,
+    this.lastBackupAt,
     required this.onboardingCompleted,
     required this.primaryGoal,
     required this.copilotMemoryEnabled,
@@ -700,15 +784,20 @@ class FinanceData {
     required this.recurringRules,
     required this.installmentPlans,
     required this.categories,
+    List<FundingMovementItem>? fundingMovements,
     required this.snapshots,
-  }) : copilotChat = copilotChat ?? [];
+  })  : copilotChat = copilotChat ?? [],
+        fundingMovements = fundingMovements ?? [];
 
   Map<String, dynamic> toJson() => {
     'darkMode': darkMode,
+    'accentLight': accentLight,
+    'accentDark': accentDark,
     'privacyMode': privacyMode,
     'biometricEnabled': biometricEnabled,
     'notificationsEnabled': notificationsEnabled,
     'notificationDaysBefore': notificationDaysBefore,
+    'lastBackupAt': lastBackupAt?.toIso8601String(),
     'onboardingCompleted': onboardingCompleted,
     'primaryGoal': primaryGoal,
     'copilotMemoryEnabled': copilotMemoryEnabled,
@@ -731,6 +820,7 @@ class FinanceData {
     'recurringRules': recurringRules.map((e) => e.toJson()).toList(),
     'installmentPlans': installmentPlans.map((e) => e.toJson()).toList(),
     'categories': categories.map((e) => e.toJson()).toList(),
+    'fundingMovements': fundingMovements.map((e) => e.toJson()).toList(),
     'snapshots': snapshots.map((e) => e.toJson()).toList(),
   };
 
@@ -738,10 +828,13 @@ class FinanceData {
 
   factory FinanceData.fromJson(Map<String, dynamic> j) => FinanceData(
     darkMode: j['darkMode'] as bool? ?? true,
+    accentLight: j['accentLight'] as String? ?? 'gold',
+    accentDark: j['accentDark'] as String? ?? 'gold',
     privacyMode: j['privacyMode'] as bool? ?? false,
     biometricEnabled: j['biometricEnabled'] as bool? ?? false,
     notificationsEnabled: j['notificationsEnabled'] as bool? ?? false,
     notificationDaysBefore: (j['notificationDaysBefore'] as num? ?? 2).toInt(),
+    lastBackupAt: DateTime.tryParse(j['lastBackupAt'] as String? ?? ''),
     onboardingCompleted: j['onboardingCompleted'] as bool? ?? false,
     primaryGoal: j['primaryGoal'] as String? ?? 'Controlar gastos',
     copilotMemoryEnabled: j['copilotMemoryEnabled'] as bool? ?? true,
@@ -812,6 +905,13 @@ class FinanceData {
         .toList(),
     categories: ((j['categories'] as List?) ?? [])
         .map((e) => CategoryItem.fromJson(Map<String, dynamic>.from(e as Map)))
+        .toList(),
+    fundingMovements: ((j['fundingMovements'] as List?) ?? [])
+        .whereType<Map>()
+        .map(
+          (e) => FundingMovementItem.fromJson(Map<String, dynamic>.from(e)),
+        )
+        .where((e) => e.targetId.isNotEmpty && e.amount.isFinite && e.amount != 0)
         .toList(),
     snapshots: ((j['snapshots'] as List?) ?? [])
         .map(

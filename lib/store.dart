@@ -290,7 +290,13 @@ class FinanceStore extends ChangeNotifier {
       data.reserves.fold<double>(0, (sum, item) => sum + item.saved);
   double get investmentBalance =>
       data.investments.fold<double>(0, (sum, item) => sum + item.amount);
-  double get netWorth => cashBalance + reserveBalance + investmentBalance;
+  double get linkedGoalBalance => data.fundingMovements
+      .where((item) => item.targetType == FundingTargetType.goal)
+      .fold<double>(0, (sum, item) => sum + item.amount)
+      .clamp(0.0, double.infinity)
+      .toDouble();
+  double get netWorth =>
+      cashBalance + reserveBalance + investmentBalance + linkedGoalBalance;
 
   List<TransactionItem> transactionsForMonth(DateTime month) {
     final key = _monthKey(month);

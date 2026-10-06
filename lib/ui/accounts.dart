@@ -305,6 +305,17 @@ class CardInvoiceScreen extends StatelessWidget {
                 store.sameMonth(e.invoiceMonth!, nextMonth))
             .fold<double>(0, (sum, item) => sum + item.amount);
 
+    final usageRatio = card.limit <= 0
+        ? 0.0
+        : (card.used / card.limit).clamp(0.0, 2.0).toDouble();
+    final invoiceHistory = List<DateTime>.generate(
+      6,
+      (index) => DateTime(
+        store.selectedMonth.year,
+        store.selectedMonth.month - index,
+      ),
+    );
+
     final futureInstallments = store.data.planned
         .where((e) =>
             e.status == PlannedStatus.planned &&
@@ -395,6 +406,90 @@ class CardInvoiceScreen extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+          if (usageRatio >= .80) ...[
+            const SizedBox(height: 10),
+            SurfaceCard(
+              borderColor: (usageRatio >= 1
+                      ? FinoraColors.expense
+                      : FinoraColors.warning)
+                  .withValues(alpha: .30),
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(
+                    usageRatio >= 1
+                        ? Icons.error_outline_rounded
+                        : Icons.warning_amber_rounded,
+                    color: usageRatio >= 1
+                        ? FinoraColors.expense
+                        : FinoraColors.warning,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      usageRatio >= 1
+                          ? 'O uso rastreado atingiu ou ultrapassou o limite deste cartão.'
+                          : 'Você já usou ${(usageRatio * 100).round()}% do limite deste cartão.',
+                      style: const TextStyle(
+                        fontSize: 9.2,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          sectionTitle(context, 'HISTÓRICO DE FATURAS', 'Últimos 6 meses'),
+          const SizedBox(height: 7),
+          SurfaceCard(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            child: Column(
+              children: invoiceHistory.map((month) {
+                final total = store.invoiceTotalForMonth(card.id, month);
+                final paid = store.invoicePaidForMonth(card.id, month);
+                final open = (total - paid)
+                    .clamp(0.0, double.infinity)
+                    .toDouble();
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    monthLabel(month),
+                    style: const TextStyle(
+                      fontSize: 10.4,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  subtitle: Text(
+                    paid > 0
+                        ? 'Total ${money(context, total)} · pago ${money(context, paid)}'
+                        : 'Compras ${money(context, total)}',
+                    style: const TextStyle(fontSize: 8.2),
+                  ),
+                  trailing: Text(
+                    open <= 0 ? 'Fechada' : money(context, open),
+                    style: TextStyle(
+                      fontSize: 9.2,
+                      fontWeight: FontWeight.w900,
+                      color: open <= 0
+                          ? FinoraColors.income
+                          : FinoraColors.expense,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Compras feitas após o dia ${card.closeDay} são direcionadas automaticamente para a fatura seguinte.',
+            style: TextStyle(
+              fontSize: 8.3,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 14),

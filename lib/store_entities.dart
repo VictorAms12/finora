@@ -257,6 +257,9 @@ extension FinanceStoreEntities on FinanceStore {
 
   void deleteGoal(String id) {
     data.goals.removeWhere((e) => e.id == id);
+    data.fundingMovements.removeWhere(
+      (e) => e.targetType == FundingTargetType.goal && e.targetId == id,
+    );
     commit();
   }
 
@@ -305,6 +308,9 @@ extension FinanceStoreEntities on FinanceStore {
 
   void deleteReserve(String id) {
     data.reserves.removeWhere((e) => e.id == id);
+    data.fundingMovements.removeWhere(
+      (e) => e.targetType == FundingTargetType.reserve && e.targetId == id,
+    );
     commit();
   }
 
@@ -312,10 +318,25 @@ extension FinanceStoreEntities on FinanceStore {
     String name,
     String assetClass,
     double amount,
-    double estimatedReturn,
-  ) {
+    double estimatedReturn, {
+    double? investedAmount,
+    double quantity = 0,
+    double averagePrice = 0,
+    double currentPrice = 0,
+  }) {
     final clean = name.trim();
-    if (clean.isEmpty || !isValidAmount(amount) || !estimatedReturn.isFinite) {
+    final cost = investedAmount ?? amount;
+    if (clean.isEmpty ||
+        !isValidAmount(amount) ||
+        !estimatedReturn.isFinite ||
+        !cost.isFinite ||
+        cost < 0 ||
+        !quantity.isFinite ||
+        quantity < 0 ||
+        !averagePrice.isFinite ||
+        averagePrice < 0 ||
+        !currentPrice.isFinite ||
+        currentPrice < 0) {
       return false;
     }
     data.investments.add(
@@ -325,6 +346,10 @@ extension FinanceStoreEntities on FinanceStore {
         assetClass: assetClass,
         amount: amount,
         estimatedReturn: estimatedReturn,
+        investedAmount: cost,
+        quantity: quantity,
+        averagePrice: averagePrice,
+        currentPrice: currentPrice,
       ),
     );
     commit();
@@ -336,22 +361,98 @@ extension FinanceStoreEntities on FinanceStore {
     String name,
     String assetClass,
     double amount,
-    double estimatedReturn,
-  ) {
+    double estimatedReturn, {
+    double? investedAmount,
+    double? quantity,
+    double? averagePrice,
+    double? currentPrice,
+  }) {
     final clean = name.trim();
-    if (clean.isEmpty || !isValidAmount(amount) || !estimatedReturn.isFinite) {
+    final cost = investedAmount ?? item.investedAmount;
+    final qty = quantity ?? item.quantity;
+    final avg = averagePrice ?? item.averagePrice;
+    final current = currentPrice ?? item.currentPrice;
+    if (clean.isEmpty ||
+        !isValidAmount(amount) ||
+        !estimatedReturn.isFinite ||
+        !cost.isFinite ||
+        cost < 0 ||
+        !qty.isFinite ||
+        qty < 0 ||
+        !avg.isFinite ||
+        avg < 0 ||
+        !current.isFinite ||
+        current < 0) {
       return false;
     }
     item.name = clean;
     item.assetClass = assetClass;
     item.amount = amount;
     item.estimatedReturn = estimatedReturn;
+    item.investedAmount = cost;
+    item.quantity = qty;
+    item.averagePrice = avg;
+    item.currentPrice = current;
+    commit();
+    return true;
+  }
+
+  bool moveInvestmentFunds({
+    required String investmentId,
+    required double value,
+    required bool withdraw,
+    String? accountName,
+    DateTime? date,
+  }) {
+    if (!isValidAmount(value)) return false;
+    final index = data.investments.indexWhere((e) => e.id == investmentId);
+    if (index == -1) return false;
+    final item = data.investments[index];
+    if (withdraw && value > item.amount) return false;
+
+    AccountItem? account;
+    final cleanAccount = accountName?.trim() ?? '';
+    if (cleanAccount.isNotEmpty) {
+      account = findAccount(cleanAccount);
+      if (account == null) return false;
+    }
+
+    if (withdraw) {
+      final previousAmount = item.amount;
+      final ratio = previousAmount <= 0
+          ? 1.0
+          : (value / previousAmount).clamp(0.0, 1.0).toDouble();
+      item.amount = (item.amount - value).clamp(0.0, double.infinity).toDouble();
+      item.investedAmount =
+          (item.investedAmount * (1 - ratio)).clamp(0.0, double.infinity).toDouble();
+      if (account != null) account.balance += value;
+    } else {
+      item.amount += value;
+      item.investedAmount += value;
+      if (account != null) account.balance -= value;
+    }
+
+    if (account != null) {
+      data.fundingMovements.add(
+        FundingMovementItem(
+          id: FinanceStore.newId(),
+          targetType: FundingTargetType.investment,
+          targetId: investmentId,
+          accountName: account.name,
+          amount: withdraw ? -value : value,
+          date: date ?? DateTime.now(),
+        ),
+      );
+    }
     commit();
     return true;
   }
 
   void deleteInvestment(String id) {
     data.investments.removeWhere((e) => e.id == id);
+    data.fundingMovements.removeWhere(
+      (e) => e.targetType == FundingTargetType.investment && e.targetId == id,
+    );
     commit();
   }
 
@@ -427,6 +528,11 @@ extension FinanceStoreEntities on FinanceStore {
       (e) => e.defaultAccountName == oldName,
     )) {
       card.defaultAccountName = clean;
+    }
+    for (final movement in data.fundingMovements.where(
+      (e) => e.accountName == oldName,
+    )) {
+      movement.accountName = clean;
     }
     commit();
     return true;
@@ -586,6 +692,111 @@ extension FinanceStoreEntities on FinanceStore {
     if (value > item.saved) return false;
     item.saved -= value;
     if (item.saved.abs() < 0.000001) item.saved = 0;
+    commit();
+    return true;
+  }
+
+  List<FundingMovementItem> fundingHistory(
+    FundingTargetType targetType,
+    String targetId,
+  ) {
+    final items = data.fundingMovements
+        .where(
+          (movement) =>
+              movement.targetType == targetType &&
+              movement.targetId == targetId,
+        )
+        .toList();
+    items.sort((a, b) => b.date.compareTo(a.date));
+    return items;
+  }
+
+  bool moveGoalFunds({
+    required String goalId,
+    required double value,
+    required bool withdraw,
+    String? accountName,
+    DateTime? date,
+  }) {
+    if (!isValidAmount(value)) return false;
+    final index = data.goals.indexWhere((e) => e.id == goalId);
+    if (index == -1) return false;
+    final goal = data.goals[index];
+    if (withdraw && value > goal.saved) return false;
+
+    AccountItem? account;
+    final cleanAccount = accountName?.trim() ?? '';
+    if (cleanAccount.isNotEmpty) {
+      account = findAccount(cleanAccount);
+      if (account == null) return false;
+    }
+
+    if (withdraw) {
+      goal.saved -= value;
+      if (goal.saved.abs() < 0.000001) goal.saved = 0;
+      if (account != null) account.balance += value;
+    } else {
+      goal.saved += value;
+      if (account != null) account.balance -= value;
+    }
+
+    if (account != null) {
+      data.fundingMovements.add(
+        FundingMovementItem(
+          id: FinanceStore.newId(),
+          targetType: FundingTargetType.goal,
+          targetId: goalId,
+          accountName: account.name,
+          amount: withdraw ? -value : value,
+          date: date ?? DateTime.now(),
+        ),
+      );
+    }
+    commit();
+    return true;
+  }
+
+  bool moveReserveFunds({
+    required String reserveId,
+    required double value,
+    required bool withdraw,
+    String? accountName,
+    DateTime? date,
+  }) {
+    if (!isValidAmount(value)) return false;
+    final index = data.reserves.indexWhere((e) => e.id == reserveId);
+    if (index == -1) return false;
+    final reserve = data.reserves[index];
+    if (withdraw && value > reserve.saved) return false;
+
+    AccountItem? account;
+    final cleanAccount = accountName?.trim() ?? '';
+    if (cleanAccount.isNotEmpty) {
+      account = findAccount(cleanAccount);
+      if (account == null) return false;
+    }
+
+    if (withdraw) {
+      reserve.saved -= value;
+      if (reserve.saved.abs() < 0.000001) reserve.saved = 0;
+      if (account != null) account.balance += value;
+    } else {
+      reserve.saved += value;
+      if (account != null) account.balance -= value;
+    }
+
+    if (account != null) {
+      data.fundingMovements.add(
+        FundingMovementItem(
+          id: FinanceStore.newId(),
+          targetType: FundingTargetType.reserve,
+          targetId: reserveId,
+          accountName: account.name,
+          amount: withdraw ? -value : value,
+          date: date ?? DateTime.now(),
+        ),
+      );
+    }
     commit();
     return true;
   }

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../app_info.dart';
@@ -9,6 +8,7 @@ import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
 import 'data_health.dart';
+import 'backup_center.dart';
 import 'ai_settings.dart';
 import 'forms.dart';
 
@@ -207,41 +207,27 @@ class SettingsScreen extends StatelessWidget {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(
-                    Icons.content_copy_rounded,
+                    Icons.move_to_inbox_outlined,
                     color: FinoraColors.investment,
                   ),
                   title: const Text(
-                    'Copiar backup completo',
+                    'Backup e migração',
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  subtitle: const Text(
-                    'Copia todos os dados do Finora para a área de transferência',
-                    style: TextStyle(fontSize: 8.5),
+                  subtitle: Text(
+                    store.data.lastBackupAt == null
+                        ? 'Exportar arquivo, validar e restaurar backups'
+                        : 'Último backup manual em ${store.data.lastBackupAt!.day.toString().padLeft(2, '0')}/${store.data.lastBackupAt!.month.toString().padLeft(2, '0')}/${store.data.lastBackupAt!.year}',
+                    style: const TextStyle(fontSize: 8.5),
                   ),
-                  onTap: () => _copyBackup(context),
-                ),
-                const Divider(),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.restore_rounded,
-                    color: FinoraColors.warning,
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.push(
+                    context,
+                    PremiumRoute(page: const BackupCenterScreen()),
                   ),
-                  title: const Text(
-                    'Restaurar backup',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  subtitle: const Text(
-                    'Substitui os dados atuais por um backup do Finora',
-                    style: TextStyle(fontSize: 8.5),
-                  ),
-                  onTap: () => _restoreBackup(context),
                 ),
               ],
             ),
@@ -295,79 +281,6 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Future<void> _copyBackup(BuildContext context) async {
-    final store = context.read<FinanceStore>();
-    await Clipboard.setData(ClipboardData(text: store.exportBackupText()));
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Backup completo copiado. Guarde esse código em local seguro.',
-        ),
-      ),
-    );
-  }
-
-  Future<void> _restoreBackup(BuildContext context) async {
-    final controller = TextEditingController();
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Restaurar backup'),
-        content: SizedBox(
-          width: 520,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Cole o código de backup do Finora. Os dados atuais serão substituídos.',
-                style: TextStyle(fontSize: 11),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                minLines: 4,
-                maxLines: 8,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: const InputDecoration(
-                  labelText: 'Código do backup',
-                  alignLabelWithHint: true,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Restaurar'),
-          ),
-        ],
-      ),
-    );
-    final backupText = controller.text;
-    controller.dispose();
-    if (accepted != true || !context.mounted) return;
-
-    final ok = await context.read<FinanceStore>().restoreBackupText(backupText);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          ok
-              ? 'Backup restaurado com sucesso.'
-              : 'Backup inválido ou incompatível.',
-        ),
       ),
     );
   }
