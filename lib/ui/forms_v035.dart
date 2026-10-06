@@ -306,6 +306,31 @@ Widget _smallQuickAction(
       ),
     );
 
+Widget _formSheetBody(
+  BuildContext sheetContext,
+  Widget child, {
+  bool scrollable = true,
+}) {
+  final content = scrollable ? SingleChildScrollView(child: child) : child;
+  return SafeArea(
+    top: false,
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(
+        14,
+        0,
+        14,
+        MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(sheetContext).height * .88,
+        ),
+        child: content,
+      ),
+    ),
+  );
+}
+
 Future<void> showTransactionForm(
   BuildContext context,
   TransactionType type, {
@@ -369,16 +394,10 @@ Future<void> showTransactionForm(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (sheetContext) => Padding(
-      padding: EdgeInsets.fromLTRB(
-        14,
-        0,
-        14,
-        MediaQuery.of(sheetContext).viewInsets.bottom + 16,
-      ),
-      child: StatefulBuilder(
-        builder: (_, setLocal) => SingleChildScrollView(
-          child: Column(
+    builder: (sheetContext) => StatefulBuilder(
+      builder: (_, setLocal) => _formSheetBody(
+        sheetContext,
+        Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
