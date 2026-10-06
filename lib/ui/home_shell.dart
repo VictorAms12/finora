@@ -164,9 +164,13 @@ class _HomeShellState extends State<HomeShell> {
         ? (accent ?? FinoraColors.goldBright)
         : Theme.of(context).colorScheme.onSurfaceVariant;
     return Expanded(
-      child: InkWell(
-        onTap: () => go(page),
-        child: Padding(
+      child: Semantics(
+        button: true,
+        selected: active,
+        label: label,
+        child: InkWell(
+          onTap: () => go(page),
+          child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 9),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -186,6 +190,7 @@ class _HomeShellState extends State<HomeShell> {
                 ),
               ),
             ],
+          ),
           ),
         ),
       ),
