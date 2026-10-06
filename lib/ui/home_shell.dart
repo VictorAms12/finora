@@ -8,6 +8,7 @@ import 'dashboard.dart';
 import 'desktop_actions.dart';
 import 'finora_logo.dart';
 import 'forms.dart';
+import 'global_search.dart';
 import 'more.dart';
 import 'planning.dart';
 import 'transactions.dart';
@@ -66,6 +67,11 @@ class _HomeShellState extends State<HomeShell> {
               desktop
               ? showDesktopQuickActions(context)
               : showQuickActions(context),
+          const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
+              Navigator.push(
+                context,
+                PremiumRoute(page: const GlobalSearchScreen()),
+              ),
           const SingleActivator(LogicalKeyboardKey.digit1, control: true): () =>
               go(0),
           const SingleActivator(LogicalKeyboardKey.digit2, control: true): () =>
@@ -276,7 +282,7 @@ class _DesktopSidebar extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
-              'Finora Desktop · v$finoraVersion\nCtrl + N para novo lançamento',
+              'Finora Desktop · v$finoraVersion\nCtrl + N novo · Ctrl + K buscar',
               style: TextStyle(
                 fontSize: 9,
                 height: 1.5,
