@@ -814,9 +814,11 @@ Future<void> showTransactionDetails(BuildContext context, TransactionItem item) 
                 if (item.type != TransactionType.transfer) ...[
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(sheetContext);
-                        showTransactionForm(context, item.type, editing: item);
+                        await Future<void>.delayed(const Duration(milliseconds: 220));
+                        if (!context.mounted) return;
+                        await showTransactionForm(context, item.type, editing: item);
                       },
                       icon: const Icon(Icons.edit_outlined),
                       label: const Text('Editar'),
@@ -1066,9 +1068,11 @@ Future<void> showRecurringDetails(BuildContext context, RecurringRule item) asyn
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(sheetContext);
-                      showRecurringEditForm(context, item);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await showRecurringEditForm(context, item);
                     },
                     icon: const Icon(Icons.edit_outlined),
                     label: const Text('Editar'),
