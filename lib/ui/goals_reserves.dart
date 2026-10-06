@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
@@ -53,6 +54,10 @@ class GoalsScreen extends StatelessWidget {
                     goal.deadline.isBefore(DateTime(now.year, now.month, now.day));
                 final months = rawMonths.clamp(1, 1200);
                 final monthly = remaining / months;
+                final funding = store.fundingHistory(
+                  FundingTargetType.goal,
+                  goal.id,
+                );
 
                 return SurfaceCard(
                   child: Column(
@@ -134,10 +139,21 @@ class GoalsScreen extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (funding.isNotEmpty)
+                            TextButton(
+                              onPressed: () => _showFundingHistory(
+                                context,
+                                store,
+                                FundingTargetType.goal,
+                                goal.id,
+                                goal.name,
+                              ),
+                              child: const Text('Histórico'),
+                            ),
                           TextButton(
                             onPressed: () =>
                                 showContribution(context, true, goal.id),
-                            child: const Text('+ Aporte'),
+                            child: const Text('Movimentar'),
                           ),
                         ],
                       ),
@@ -200,6 +216,10 @@ class ReservesScreen extends StatelessWidget {
                 final excess = (reserve.saved - reserve.target)
                     .clamp(0.0, double.infinity)
                     .toDouble();
+                final funding = store.fundingHistory(
+                  FundingTargetType.reserve,
+                  reserve.id,
+                );
 
                 return SurfaceCard(
                   child: Column(
@@ -298,6 +318,17 @@ class ReservesScreen extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (funding.isNotEmpty)
+                            TextButton(
+                              onPressed: () => _showFundingHistory(
+                                context,
+                                store,
+                                FundingTargetType.reserve,
+                                reserve.id,
+                                reserve.name,
+                              ),
+                              child: const Text('Histórico'),
+                            ),
                           TextButton.icon(
                             onPressed: () => reserve_ui.showReserveMovement(
                               context,
@@ -317,6 +348,75 @@ class ReservesScreen extends StatelessWidget {
   }
 }
 
+Future<void> _showFundingHistory(
+  BuildContext context,
+  FinanceStore store,
+  FundingTargetType type,
+  String targetId,
+  String title,
+) async {
+  final history = store.fundingHistory(type, targetId);
+  await showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    builder: (sheetContext) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
+        child: history.isEmpty
+            ? const Center(child: Text('Nenhuma movimentação vinculada.'))
+            : ListView(
+                shrinkWrap: true,
+                children: [
+                  Text(
+                    'Histórico · $title',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Somente aportes/retiradas que movimentaram uma conta aparecem aqui.',
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...history.take(30).map(
+                    (movement) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        movement.isContribution
+                            ? Icons.south_west_rounded
+                            : Icons.north_east_rounded,
+                        color: movement.isContribution
+                            ? FinoraColors.income
+                            : FinoraColors.warning,
+                      ),
+                      title: Text(
+                        movement.isContribution ? 'Aporte' : 'Retirada',
+                        style: const TextStyle(
+                          fontSize: 10.8,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      subtitle: Text(
+                        '${movement.accountName} · ${shortDate(movement.date)}',
+                        style: const TextStyle(fontSize: 8.5),
+                      ),
+                      trailing: Text(
+                        '${movement.isContribution ? '+' : '-'}${money(context, movement.amount.abs())}',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    ),
+  );
+}
 class InvestmentsScreen extends StatelessWidget {
   const InvestmentsScreen({super.key});
 
