@@ -48,9 +48,11 @@ Future<void> showQuickActions(BuildContext context) async {
                       label: 'Despesa',
                       subtitle: 'Saiu dinheiro',
                       color: FinoraColors.expense,
-                      onTap: () {
+                      onTap: () async {
                         Navigator.pop(sheetContext);
-                        v035.showTransactionForm(
+                        await Future<void>.delayed(const Duration(milliseconds: 220));
+                        if (!context.mounted) return;
+                        await v035.showTransactionForm(
                           context,
                           TransactionType.expense,
                         );
@@ -65,9 +67,11 @@ Future<void> showQuickActions(BuildContext context) async {
                       label: 'Receita',
                       subtitle: 'Entrou dinheiro',
                       color: FinoraColors.income,
-                      onTap: () {
+                      onTap: () async {
                         Navigator.pop(sheetContext);
-                        v035.showTransactionForm(
+                        await Future<void>.delayed(const Duration(milliseconds: 220));
+                        if (!context.mounted) return;
+                        await v035.showTransactionForm(
                           context,
                           TransactionType.income,
                         );
@@ -81,9 +85,11 @@ Future<void> showQuickActions(BuildContext context) async {
                 color: FinoraColors.goldBright.withValues(alpha: .08),
                 borderRadius: BorderRadius.circular(18),
                 child: InkWell(
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(sheetContext);
-                    showSalaryForm(context);
+                    await Future<void>.delayed(const Duration(milliseconds: 220));
+                    if (!context.mounted) return;
+                    await showSalaryForm(context);
                   },
                   borderRadius: BorderRadius.circular(18),
                   child: Padding(
@@ -144,9 +150,11 @@ Future<void> showQuickActions(BuildContext context) async {
                     Icons.swap_horiz_rounded,
                     'Transferir',
                     FinoraColors.balance,
-                    () {
+                    () async {
                       Navigator.pop(sheetContext);
-                      v035.showTransferForm(context);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await v035.showTransferForm(context);
                     },
                   ),
                   _smallQuickAction(
@@ -154,9 +162,11 @@ Future<void> showQuickActions(BuildContext context) async {
                     Icons.event_note_rounded,
                     'Previsto',
                     FinoraColors.warning,
-                    () {
+                    () async {
                       Navigator.pop(sheetContext);
-                      showPlannedForm(context);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await showPlannedForm(context);
                     },
                   ),
                   _smallQuickAction(
@@ -164,9 +174,11 @@ Future<void> showQuickActions(BuildContext context) async {
                     Icons.speed_rounded,
                     'Orçamento',
                     FinoraColors.goldBright,
-                    () {
+                    () async {
                       Navigator.pop(sheetContext);
-                      v035.showBudgetForm(context);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await v035.showBudgetForm(context);
                     },
                   ),
                 ],
@@ -187,9 +199,11 @@ Future<void> showQuickActions(BuildContext context) async {
                     Icons.track_changes_rounded,
                     'Meta',
                     FinoraColors.goal,
-                    () {
+                    () async {
                       Navigator.pop(sheetContext);
-                      v035.showGoalForm(context);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await v035.showGoalForm(context);
                     },
                   ),
                   _smallQuickAction(
@@ -197,9 +211,11 @@ Future<void> showQuickActions(BuildContext context) async {
                     Icons.shield_outlined,
                     'Reserva',
                     FinoraColors.warning,
-                    () {
+                    () async {
                       Navigator.pop(sheetContext);
-                      showReserveForm(context);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await showReserveForm(context);
                     },
                   ),
                   _smallQuickAction(
@@ -207,9 +223,11 @@ Future<void> showQuickActions(BuildContext context) async {
                     Icons.show_chart_rounded,
                     'Investir',
                     FinoraColors.investment,
-                    () {
+                    () async {
                       Navigator.pop(sheetContext);
-                      v035.showInvestmentForm(context);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await v035.showInvestmentForm(context);
                     },
                   ),
                   _smallQuickAction(
@@ -217,9 +235,11 @@ Future<void> showQuickActions(BuildContext context) async {
                     Icons.account_balance_wallet_outlined,
                     'Conta',
                     FinoraColors.goldBright,
-                    () {
+                    () async {
                       Navigator.pop(sheetContext);
-                      v035.showAccountForm(context);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await v035.showAccountForm(context);
                     },
                   ),
                   _smallQuickAction(
@@ -227,9 +247,11 @@ Future<void> showQuickActions(BuildContext context) async {
                     Icons.credit_card_rounded,
                     'Cartão',
                     FinoraColors.investment,
-                    () {
+                    () async {
                       Navigator.pop(sheetContext);
-                      v035.showCardForm(context);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await v035.showCardForm(context);
                     },
                   ),
                   _smallQuickAction(
@@ -237,9 +259,11 @@ Future<void> showQuickActions(BuildContext context) async {
                     Icons.category_outlined,
                     'Categoria',
                     Colors.grey,
-                    () {
+                    () async {
                       Navigator.pop(sheetContext);
-                      v035.showCategoryForm(context);
+                      await Future<void>.delayed(const Duration(milliseconds: 220));
+                      if (!context.mounted) return;
+                      await v035.showCategoryForm(context);
                     },
                   ),
                 ],

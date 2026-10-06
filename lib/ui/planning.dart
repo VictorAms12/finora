@@ -227,11 +227,13 @@ class PlanningScreen extends StatelessWidget {
           const SizedBox(height: 7),
           SurfaceCard(
             child: store.data.recurringRules.isEmpty
-                ? const EmptyState(
+                ? EmptyState(
                     icon: Icons.repeat_rounded,
                     title: 'Sem recorrências',
                     subtitle:
-                        'Marque um lançamento como semanal, mensal ou anual.',
+                        'Crie uma receita ou despesa recorrente para automatizar o planejamento.',
+                    actionLabel: 'Criar lançamento',
+                    onAction: () => showQuickActions(context),
                   )
                 : Column(
                     children: store.data.recurringRules.map((item) {
@@ -291,11 +293,13 @@ class PlanningScreen extends StatelessWidget {
           const SizedBox(height: 7),
           SurfaceCard(
             child: store.data.installmentPlans.isEmpty
-                ? const EmptyState(
+                ? EmptyState(
                     icon: Icons.credit_card_outlined,
                     title: 'Nenhum parcelamento',
                     subtitle:
                         'Ao parcelar uma despesa, as próximas parcelas entram no planejamento.',
+                    actionLabel: 'Adicionar despesa',
+                    onAction: () => showQuickActions(context),
                   )
                 : Column(
                     children: store.data.installmentPlans.map((item) {

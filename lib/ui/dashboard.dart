@@ -455,10 +455,12 @@ class DashboardScreen extends StatelessWidget {
           SurfaceCard(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             child: store.selectedPlanned.isEmpty
-                ? const EmptyState(
+                ? EmptyState(
                     icon: Icons.event_available_outlined,
                     title: 'Nada previsto neste mês',
                     subtitle: 'Parcelas, recorrências e contas futuras aparecerão aqui.',
+                    actionLabel: 'Adicionar previsto',
+                    onAction: () => showPlannedForm(context),
                   )
                 : Column(
                     children: store.selectedPlanned

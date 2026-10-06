@@ -159,9 +159,16 @@ class SurfaceCard extends StatelessWidget {
       child: child,
     );
     if (onTap == null) return content;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(19), child: content),
+    return Semantics(
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(19),
+          child: content,
+        ),
+      ),
     );
   }
 }
@@ -202,7 +209,11 @@ class EmptyState extends StatelessWidget {
             Text(subtitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 10.3, height: 1.45, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 12),
-              FilledButton.tonal(onPressed: onAction, child: Text(actionLabel!)),
+              FilledButton.tonalIcon(
+                onPressed: onAction,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text(actionLabel!),
+              ),
             ],
           ],
         ),

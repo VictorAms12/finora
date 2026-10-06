@@ -17,6 +17,7 @@ class GoalsScreen extends StatelessWidget {
         title: const Text('Metas'),
         actions: [
           IconButton(
+            tooltip: 'Nova meta',
             onPressed: () => showGoalForm(context),
             icon: const Icon(Icons.add_rounded),
           ),
@@ -323,6 +324,7 @@ class InvestmentsScreen extends StatelessWidget {
         title: const Text('Investimentos'),
         actions: [
           IconButton(
+            tooltip: 'Adicionar investimento',
             onPressed: () => showInvestmentForm(context),
             icon: const Icon(Icons.add_rounded),
           ),
