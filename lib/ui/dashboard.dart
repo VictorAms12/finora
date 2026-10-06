@@ -6,6 +6,7 @@ import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
 import 'forms.dart';
+import 'global_search.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -67,6 +68,14 @@ class DashboardScreen extends StatelessWidget {
       eyebrow: 'VISÃO GERAL',
       title: 'Início',
       actions: [
+        IconButton(
+          tooltip: 'Buscar',
+          onPressed: () => Navigator.push(
+            context,
+            PremiumRoute(page: const GlobalSearchScreen()),
+          ),
+          icon: const Icon(Icons.search_rounded),
+        ),
         IconButton(
           tooltip: 'Ocultar valores',
           onPressed: () => store.setPrivacyMode(!store.data.privacyMode),
