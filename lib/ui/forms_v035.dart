@@ -1171,7 +1171,30 @@ Future<void> showRecurringEditForm(BuildContext context, RecurringRule item) asy
                     if (value <= 0) {
                       showFormError(context, 'Informe um valor maior que zero.');
                       return;
-                    } store.updateRecurring(item, title: title.text.trim(), category: category, amount: value, frequency: frequency, endDate: duration == 'data' ? endDate : null, maxOccurrences: duration == 'quantidade' ? (int.tryParse(count.text) ?? 12).clamp(2, 120) : null); Navigator.pop(sheetContext); }, child: const Text('Salvar alterações'))),
+                    } final occurrences = duration == 'quantidade' ? int.tryParse(count.text.trim()) : null;
+                    if (duration == 'quantidade' &&
+                        (occurrences == null || occurrences < 2 || occurrences > 120)) {
+                      showFormError(context, 'Use entre 2 e 120 ocorrências.');
+                      return;
+                    }
+                    if (duration == 'data' && endDate.isBefore(item.startDate)) {
+                      showFormError(context, 'A data final não pode ser anterior ao início da recorrência.');
+                      return;
+                    }
+                    final updated = store.updateRecurring(
+                      item,
+                      title: title.text.trim(),
+                      category: category,
+                      amount: value,
+                      frequency: frequency,
+                      endDate: duration == 'data' ? endDate : null,
+                      maxOccurrences: occurrences,
+                    );
+                    if (!updated) {
+                      showFormError(context, 'Não foi possível atualizar a recorrência.');
+                      return;
+                    }
+                    Navigator.pop(sheetContext); }, child: const Text('Salvar alterações'))),
             ],
           ),
         ),
@@ -1257,7 +1280,12 @@ Future<void> showTransferForm(BuildContext context) async {
                 if (from == to) {
                   showFormError(context, 'Escolha contas diferentes para origem e destino.');
                   return;
-                } store.transfer(amount: value, from: from, to: to, date: date); Navigator.pop(sheetContext); }, child: const Text('Transferir'))),
+                } final transferred = store.transfer(amount: value, from: from, to: to, date: date);
+                if (!transferred) {
+                  showFormError(context, 'Não foi possível concluir a transferência.');
+                  return;
+                }
+                Navigator.pop(sheetContext); }, child: const Text('Transferir'))),
           ],
         ),
       ),
@@ -1324,15 +1352,17 @@ Future<void> showGoalForm(BuildContext context, {GoalItem? editing}) async {
             const SizedBox(height: 9),
             InkWell(onTap: () async { final picked = await pickFinoraDate(sheetContext, deadline); if (picked != null) setLocal(() => deadline = picked); }, child: InputDecorator(decoration: const InputDecoration(labelText: 'Prazo'), child: Text(fullDate(deadline)))),
             const SizedBox(height: 13),
-            SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final tv = parseNumberInput(target.text) ?? 0; final sv = parseNumberInput(saved.text) ?? 0; if (name.text.trim().isEmpty) {
+            SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final tv = parseNumberInput(target.text);
+                final sv = parseNumberInput(saved.text);
+                if (name.text.trim().isEmpty) {
                   showFormError(context, 'Informe um nome para a meta.');
                   return;
                 }
-                if (tv <= 0) {
+                if (tv == null || tv <= 0) {
                   showFormError(context, 'Informe um valor alvo maior que zero.');
                   return;
                 }
-                if (!sv.isFinite || sv < 0) {
+                if (sv == null || sv < 0) {
                   showFormError(context, 'O valor guardado não pode ser negativo.');
                   return;
                 } if (editing == null) { store.addGoal(name.text.trim(), tv, sv, deadline); } else { store.updateGoal(editing, name.text.trim(), tv, sv, deadline); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
@@ -1376,15 +1406,17 @@ Future<void> showInvestmentForm(BuildContext context, {InvestmentItem? editing})
         const SizedBox(height: 9),
         TextField(controller: estimated, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Rentabilidade estimada (%)')),
         const SizedBox(height: 13),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final av = parseNumberInput(amount.text) ?? 0; final rv = parseNumberInput(estimated.text) ?? 0; if (name.text.trim().isEmpty) {
+        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final av = parseNumberInput(amount.text);
+                final rv = parseNumberInput(estimated.text);
+                if (name.text.trim().isEmpty) {
                   showFormError(context, 'Informe o nome do investimento.');
                   return;
                 }
-                if (av <= 0) {
+                if (av == null || av <= 0) {
                   showFormError(context, 'Informe um valor atual maior que zero.');
                   return;
                 }
-                if (!rv.isFinite) {
+                if (rv == null) {
                   showFormError(context, 'Informe uma rentabilidade válida.');
                   return;
                 } if (editing == null) { store.addInvestment(name.text.trim(), assetClass, av, rv); } else { store.updateInvestment(editing, name.text.trim(), assetClass, av, rv); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
@@ -1414,11 +1446,12 @@ Future<void> showAccountForm(BuildContext context, {AccountItem? editing}) async
         const SizedBox(height: 9),
         TextField(controller: balance, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Saldo atual')),
         const SizedBox(height: 13),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final bv = parseNumberInput(balance.text) ?? 0; if (name.text.trim().isEmpty) {
+        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final bv = parseNumberInput(balance.text);
+                if (name.text.trim().isEmpty) {
                   showFormError(context, 'Informe o nome da conta.');
                   return;
                 }
-                if (!bv.isFinite) {
+                if (bv == null) {
                   showFormError(context, 'Informe um saldo válido.');
                   return;
                 }
@@ -1458,19 +1491,23 @@ Future<void> showCardForm(BuildContext context, {CardItem? editing}) async {
           DropdownButtonFormField<String>(initialValue: store.data.accounts.any((e) => e.name == defaultAccount) ? defaultAccount : store.data.accounts.first.name, decoration: const InputDecoration(labelText: 'Conta padrão para pagar'), items: store.data.accounts.map((e) => DropdownMenuItem(value: e.name, child: Text(e.name))).toList(), onChanged: (v) { if (v != null) setLocal(() => defaultAccount = v); }),
         ],
         const SizedBox(height: 13),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final lv = parseNumberInput(limit.text) ?? 0; final uv = parseNumberInput(used.text) ?? 0; final cv = int.tryParse(close.text) ?? 25; final dv = int.tryParse(due.text) ?? 5; if (name.text.trim().isEmpty) {
+        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final lv = parseNumberInput(limit.text);
+                final uv = parseNumberInput(used.text);
+                final cv = int.tryParse(close.text.trim());
+                final dv = int.tryParse(due.text.trim());
+                if (name.text.trim().isEmpty) {
                   showFormError(context, 'Informe o nome do cartão.');
                   return;
                 }
-                if (lv <= 0) {
+                if (lv == null || lv <= 0) {
                   showFormError(context, 'Informe um limite maior que zero.');
                   return;
                 }
-                if (!uv.isFinite || uv < 0) {
-                  showFormError(context, 'A fatura/saldo inicial não pode ser negativa.');
+                if (uv == null || uv < 0) {
+                  showFormError(context, 'Informe uma fatura/saldo inicial válido e não negativo.');
                   return;
                 }
-                if (cv < 1 || cv > 31 || dv < 1 || dv > 31) {
+                if (cv == null || dv == null || cv < 1 || cv > 31 || dv < 1 || dv > 31) {
                   showFormError(context, 'Os dias de fechamento e vencimento devem ficar entre 1 e 31.');
                   return;
                 }
