@@ -721,6 +721,8 @@ class MonthlySnapshot {
 
 class FinanceData {
   bool darkMode;
+  String accentLight;
+  String accentDark;
   bool privacyMode;
   bool biometricEnabled;
   bool notificationsEnabled;
@@ -753,6 +755,8 @@ class FinanceData {
 
   FinanceData({
     required this.darkMode,
+    this.accentLight = 'gold',
+    this.accentDark = 'gold',
     required this.privacyMode,
     required this.biometricEnabled,
     required this.notificationsEnabled,
@@ -787,6 +791,8 @@ class FinanceData {
 
   Map<String, dynamic> toJson() => {
     'darkMode': darkMode,
+    'accentLight': accentLight,
+    'accentDark': accentDark,
     'privacyMode': privacyMode,
     'biometricEnabled': biometricEnabled,
     'notificationsEnabled': notificationsEnabled,
@@ -822,6 +828,8 @@ class FinanceData {
 
   factory FinanceData.fromJson(Map<String, dynamic> j) => FinanceData(
     darkMode: j['darkMode'] as bool? ?? true,
+    accentLight: j['accentLight'] as String? ?? 'gold',
+    accentDark: j['accentDark'] as String? ?? 'gold',
     privacyMode: j['privacyMode'] as bool? ?? false,
     biometricEnabled: j['biometricEnabled'] as bool? ?? false,
     notificationsEnabled: j['notificationsEnabled'] as bool? ?? false,
