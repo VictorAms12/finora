@@ -4,16 +4,30 @@ import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'common.dart';
+import 'accounts.dart';
+import 'forms.dart';
+import 'planning.dart';
 
-class NotificationCenterScreen extends StatelessWidget {
+enum _NoticeKind { overdue, upcoming, card, budget, projection }
+
+class NotificationCenterScreen extends StatefulWidget {
   const NotificationCenterScreen({super.key});
+
+  @override
+  State<NotificationCenterScreen> createState() =>
+      _NotificationCenterScreenState();
+}
+
+class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
+  _NoticeKind? _filter;
 
   @override
   Widget build(BuildContext context) {
     final store = context.watch<FinanceStore>();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final threshold = today.add(Duration(days: store.data.notificationDaysBefore));
+    final threshold =
+        today.add(Duration(days: store.data.notificationDaysBefore));
     final pending = store.data.planned
         .where((item) => item.status == PlannedStatus.planned)
         .toList()
@@ -26,50 +40,152 @@ class NotificationCenterScreen extends StatelessWidget {
     }).toList();
 
     final notices = <_Notice>[
-      ...overdue.map((item) => _Notice(
-            icon: Icons.error_outline_rounded,
-            title: '${item.title} está atrasado',
-            subtitle: '${fullDate(item.date)} · ${money(context, item.amount)}',
-            color: FinoraColors.expense,
-          )),
-      ...upcoming.map((item) => _Notice(
-            icon: Icons.schedule_rounded,
-            title: item.title,
-            subtitle:
-                'Previsto para ${fullDate(item.date)} · ${money(context, item.amount)}',
-            color: FinoraColors.warning,
-          )),
+      ...overdue.map(
+        (item) => _Notice(
+          kind: _NoticeKind.overdue,
+          icon: Icons.error_outline_rounded,
+          title: '${item.title} está atrasado',
+          subtitle: '${fullDate(item.date)} · ${money(context, item.amount)}',
+          color: FinoraColors.expense,
+          onTap: () => showPlannedDetails(context, item),
+        ),
+      ),
+      ...upcoming.map(
+        (item) => _Notice(
+          kind: _NoticeKind.upcoming,
+          icon: Icons.schedule_rounded,
+          title: item.title,
+          subtitle:
+              'Previsto para ${fullDate(item.date)} · ${money(context, item.amount)}',
+          color: FinoraColors.warning,
+          onTap: () => showPlannedDetails(context, item),
+        ),
+      ),
     ];
 
     for (final card in store.data.cards) {
       final amount = store.cardOutstandingDueForPlanningMonth(card.id, today);
-      if (amount <= 0) continue;
-      notices.add(_Notice(
-        icon: Icons.credit_card_rounded,
-        title: '${card.name} · fatura',
-        subtitle: 'Vence dia ${card.dueDay} · ${money(context, amount)}',
-        color: FinoraColors.expense,
-      ));
+      final usage = card.limit <= 0 ? 0.0 : card.used / card.limit;
+      if (amount > 0) {
+        notices.add(
+          _Notice(
+            kind: _NoticeKind.card,
+            icon: Icons.credit_card_rounded,
+            title: '${card.name} · fatura',
+            subtitle: 'Vence dia ${card.dueDay} · ${money(context, amount)}',
+            color: FinoraColors.expense,
+            onTap: () => Navigator.push(
+              context,
+              PremiumRoute(page: CardInvoiceScreen(cardId: card.id)),
+            ),
+          ),
+        );
+      }
+      if (usage >= .80) {
+        notices.add(
+          _Notice(
+            kind: _NoticeKind.card,
+            icon: Icons.credit_score_outlined,
+            title: '${card.name} · limite em atenção',
+            subtitle:
+                '${(usage * 100).round()}% usado · disponível ${money(context, card.available)}',
+            color: usage >= 1 ? FinoraColors.expense : FinoraColors.warning,
+            onTap: () => Navigator.push(
+              context,
+              PremiumRoute(page: CardInvoiceScreen(cardId: card.id)),
+            ),
+          ),
+        );
+      }
     }
 
+    for (final budget in store.data.budgets) {
+      final spent = store.expensesByCategory[budget.category] ?? 0;
+      final ratio = budget.limit <= 0 ? 0.0 : spent / budget.limit;
+      if (ratio < .80) continue;
+      notices.add(
+        _Notice(
+          kind: _NoticeKind.budget,
+          icon: Icons.speed_rounded,
+          title: '${budget.category} · orçamento',
+          subtitle: ratio >= 1
+              ? 'Limite ultrapassado: ${money(context, spent)} de ${money(context, budget.limit)}'
+              : '${(ratio * 100).round()}% usado · ${money(context, budget.limit - spent)} restantes',
+          color: ratio >= 1 ? FinoraColors.expense : FinoraColors.warning,
+          onTap: () => Navigator.push(
+            context,
+            PremiumRoute(page: const PlanningScreen()),
+          ),
+        ),
+      );
+    }
+
+    final negativeMonth = store.firstProjectedNegativeMonth(monthsAhead: 6);
+    if (negativeMonth != null) {
+      notices.add(
+        _Notice(
+          kind: _NoticeKind.projection,
+          icon: Icons.trending_down_rounded,
+          title: 'Projeção de caixa negativa',
+          subtitle:
+              'Com os compromissos atuais, ${monthLabel(negativeMonth)} pode encerrar no negativo.',
+          color: FinoraColors.expense,
+          onTap: () => Navigator.push(
+            context,
+            PremiumRoute(page: const PlanningScreen()),
+          ),
+        ),
+      );
+    }
+
+    final filtered = _filter == null
+        ? notices
+        : notices.where((notice) => notice.kind == _filter).toList();
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Notificações')),
-      body: notices.isEmpty
-          ? const Center(
+      appBar: AppBar(
+        title: const Text('Notificações'),
+        actions: [
+          if (_filter != null)
+            IconButton(
+              tooltip: 'Limpar filtro',
+              onPressed: () => setState(() => _filter = null),
+              icon: const Icon(Icons.filter_alt_off_rounded),
+            ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(14),
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _filterChip('Todos', null),
+                _filterChip('Atrasados', _NoticeKind.overdue),
+                _filterChip('Próximos', _NoticeKind.upcoming),
+                _filterChip('Cartões', _NoticeKind.card),
+                _filterChip('Orçamentos', _NoticeKind.budget),
+                _filterChip('Projeções', _NoticeKind.projection),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (filtered.isEmpty)
+            const SurfaceCard(
               child: EmptyState(
                 icon: Icons.notifications_none_rounded,
                 title: 'Tudo em dia',
                 subtitle:
-                    'Contas próximas, atrasos e avisos de fatura aparecerão aqui.',
+                    'Não há avisos correspondentes ao filtro selecionado.',
               ),
             )
-          : ListView.separated(
-              padding: const EdgeInsets.all(14),
-              itemCount: notices.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, index) {
-                final notice = notices[index];
-                return SurfaceCard(
+          else
+            ...filtered.map(
+              (notice) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: SurfaceCard(
+                  onTap: notice.onTap,
                   padding: const EdgeInsets.all(13),
                   child: Row(
                     children: [
@@ -80,7 +196,8 @@ class NotificationCenterScreen extends StatelessWidget {
                           color: notice.color.withValues(alpha: .10),
                           borderRadius: BorderRadius.circular(13),
                         ),
-                        child: Icon(notice.icon, color: notice.color, size: 20),
+                        child:
+                            Icon(notice.icon, color: notice.color, size: 20),
                       ),
                       const SizedBox(width: 11),
                       Expanded(
@@ -107,26 +224,43 @@ class NotificationCenterScreen extends StatelessWidget {
                           ],
                         ),
                       ),
+                      if (notice.onTap != null)
+                        const Icon(Icons.chevron_right_rounded, size: 18),
                     ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
+        ],
+      ),
     );
   }
+
+  Widget _filterChip(String label, _NoticeKind? kind) => Padding(
+        padding: const EdgeInsets.only(right: 7),
+        child: ChoiceChip(
+          label: Text(label),
+          selected: _filter == kind,
+          onSelected: (_) => setState(() => _filter = kind),
+        ),
+      );
 }
 
 class _Notice {
+  final _NoticeKind kind;
   final IconData icon;
   final String title;
   final String subtitle;
   final Color color;
+  final VoidCallback? onTap;
 
   const _Notice({
+    required this.kind,
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.color,
+    this.onTap,
   });
 }
 
