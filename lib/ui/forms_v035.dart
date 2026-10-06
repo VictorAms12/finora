@@ -826,42 +826,102 @@ Future<void> showTransactionDetails(BuildContext context, TransactionItem item) 
             if (item.recurrenceId != null) detailRow(context, 'Tipo', 'Recorrente'),
             if (item.note.isNotEmpty) detailRow(context, 'Observação', item.note),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                if (item.type != TransactionType.transfer) ...[
+            if (item.type != TransactionType.transfer)
+              Row(
+                children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
                         Navigator.pop(sheetContext);
-                        await Future<void>.delayed(const Duration(milliseconds: 220));
+                        await Future<void>.delayed(
+                          const Duration(milliseconds: 220),
+                        );
                         if (!context.mounted) return;
-                        await showTransactionForm(context, item.type, editing: item);
+                        await showTransactionForm(
+                          context,
+                          item.type,
+                          editing: item,
+                        );
                       },
                       icon: const Icon(Icons.edit_outlined),
                       label: const Text('Editar'),
                     ),
                   ),
                   const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final ok = await confirmAction(
-                        context,
-                        'Excluir lançamento?',
-                        item.type == TransactionType.transfer
-                            ? 'Os saldos envolvidos serão recompostos automaticamente.'
-                            : 'O saldo da conta ou a fatura será ajustado automaticamente.',
-                      );
-                      if (!ok || !context.mounted) return;
-                      context.read<FinanceStore>().deleteTransaction(item);
-                      if (sheetContext.mounted) Navigator.pop(sheetContext);
-                    },
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    label: const Text('Excluir'),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        final duplicated =
+                            store.duplicateTransaction(item);
+                        if (!duplicated) {
+                          showFormError(
+                            context,
+                            'Não foi possível duplicar este lançamento.',
+                          );
+                          return;
+                        }
+                        Navigator.pop(sheetContext);
+                        showSuccessFeedback(
+                          context,
+                          'Lançamento duplicado.',
+                        );
+                      },
+                      icon: const Icon(Icons.copy_rounded),
+                      label: const Text('Duplicar'),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            if (item.type != TransactionType.transfer)
+              const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final ok = await confirmAction(
+                    context,
+                    'Excluir lançamento?',
+                    item.type == TransactionType.transfer
+                        ? 'Os saldos envolvidos serão recompostos automaticamente.'
+                        : 'O saldo da conta ou a fatura será ajustado automaticamente.',
+                  );
+                  if (!ok || !context.mounted) return;
+
+                  final undoAllowed =
+                      item.recurrenceId == null && item.installmentId == null;
+                  final snapshot = undoAllowed
+                      ? TransactionItem.fromJson(item.toJson())
+                      : null;
+                  store.deleteTransaction(item);
+                  if (sheetContext.mounted) Navigator.pop(sheetContext);
+                  if (!context.mounted) return;
+
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.hideCurrentSnackBar();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: const Text('Lançamento excluído.'),
+                      action: snapshot == null
+                          ? null
+                          : SnackBarAction(
+                              label: 'Desfazer',
+                              onPressed: () {
+                                final restored =
+                                    store.addTransaction(snapshot);
+                                if (!restored) {
+                                  showFormError(
+                                    context,
+                                    'Não foi possível restaurar o lançamento.',
+                                  );
+                                }
+                              },
+                            ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Excluir'),
+              ),
             ),
           ],
         ),
