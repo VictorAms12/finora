@@ -11,21 +11,93 @@ class FinoraColors {
   static const balance = Color(0xFFCBB56D);
 }
 
-class FinoraTheme {
-  static ThemeData dark() => _theme(true);
-  static ThemeData light() => _theme(false);
+class FinoraAccentOption {
+  final String key;
+  final String label;
+  final Color light;
+  final Color dark;
 
-  static ThemeData _theme(bool dark) {
+  const FinoraAccentOption({
+    required this.key,
+    required this.label,
+    required this.light,
+    required this.dark,
+  });
+}
+
+class FinoraTheme {
+  static const accentOptions = <FinoraAccentOption>[
+    FinoraAccentOption(
+      key: 'gold',
+      label: 'Dourado',
+      light: Color(0xFF806027),
+      dark: Color(0xFFC0A05B),
+    ),
+    FinoraAccentOption(
+      key: 'blue',
+      label: 'Azul',
+      light: Color(0xFF2563EB),
+      dark: Color(0xFF60A5FA),
+    ),
+    FinoraAccentOption(
+      key: 'green',
+      label: 'Verde',
+      light: Color(0xFF15803D),
+      dark: Color(0xFF4ADE80),
+    ),
+    FinoraAccentOption(
+      key: 'purple',
+      label: 'Roxo',
+      light: Color(0xFF7C3AED),
+      dark: Color(0xFFA78BFA),
+    ),
+    FinoraAccentOption(
+      key: 'pink',
+      label: 'Rosa',
+      light: Color(0xFFBE185D),
+      dark: Color(0xFFF472B6),
+    ),
+    FinoraAccentOption(
+      key: 'orange',
+      label: 'Laranja',
+      light: Color(0xFFC2410C),
+      dark: Color(0xFFFB923C),
+    ),
+    FinoraAccentOption(
+      key: 'cyan',
+      label: 'Ciano',
+      light: Color(0xFF0E7490),
+      dark: Color(0xFF22D3EE),
+    ),
+  ];
+
+  static FinoraAccentOption accentOption(String key) => accentOptions.firstWhere(
+        (option) => option.key == key,
+        orElse: () => accentOptions.first,
+      );
+
+  static Color accentColor(String key, {required bool dark}) {
+    final option = accentOption(key);
+    return dark ? option.dark : option.light;
+  }
+
+  static ThemeData dark({String accentKey = 'gold'}) =>
+      _theme(true, accentKey);
+  static ThemeData light({String accentKey = 'gold'}) =>
+      _theme(false, accentKey);
+
+  static ThemeData _theme(bool dark, String accentKey) {
     final bg = dark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
     final surface = dark ? const Color(0xFF080808) : const Color(0xFFFFFFFF);
     final field = dark ? const Color(0xFF101010) : const Color(0xFFF7F6F2);
     final line = dark ? const Color(0xFF202020) : const Color(0xFFE8E4DA);
+    final accent = accentColor(accentKey, dark: dark);
     final scheme = ColorScheme.fromSeed(
-      seedColor: FinoraColors.gold,
+      seedColor: accent,
       brightness: dark ? Brightness.dark : Brightness.light,
     ).copyWith(
-      primary: dark ? FinoraColors.goldBright : const Color(0xFF806027),
-      secondary: FinoraColors.gold,
+      primary: accent,
+      secondary: accent,
       surface: surface,
       error: dark ? FinoraColors.expense : const Color(0xFFC84A52),
     );
@@ -43,12 +115,25 @@ class FinoraTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: accent,
+        foregroundColor: dark ? Colors.black : Colors.white,
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: field,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: line)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: line)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: FinoraColors.goldBright)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: line),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: line),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: accent),
+        ),
       ),
     );
   }
