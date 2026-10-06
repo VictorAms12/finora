@@ -550,16 +550,6 @@ class CardInvoiceScreen extends StatelessWidget {
         );
         return;
       }
-      if (selectedAccount.balance < outstanding) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Saldo insuficiente em ${selectedAccount.name}. Disponível: ${money(context, selectedAccount.balance)}.',
-            ),
-          ),
-        );
-        return;
-      }
       final paid = store.payInvoice(
         cardId: card.id,
         accountName: account,
@@ -569,7 +559,7 @@ class CardInvoiceScreen extends StatelessWidget {
         SnackBar(
           content: Text(
             paid
-                ? 'Fatura paga'
+                ? 'Fatura paga usando ${selectedAccount.name}.'
                 : 'Não foi possível pagar a fatura. Confira a conta e o valor pendente.',
           ),
         ),
