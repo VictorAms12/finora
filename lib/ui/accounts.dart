@@ -230,9 +230,11 @@ class AccountsScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(sheetContext);
-                        showAccountForm(context, editing: account);
+                        await Future<void>.delayed(const Duration(milliseconds: 220));
+                        if (!context.mounted) return;
+                        await showAccountForm(context, editing: account);
                       },
                       icon: const Icon(Icons.edit_outlined),
                       label: const Text('Editar'),
@@ -541,6 +543,23 @@ class CardInvoiceScreen extends StatelessWidget {
         false;
 
     if (ok && context.mounted) {
+      final selectedAccount = store.findAccount(account);
+      if (selectedAccount == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('A conta selecionada não está mais disponível.')),
+        );
+        return;
+      }
+      if (selectedAccount.balance < outstanding) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Saldo insuficiente em ${selectedAccount.name}. Disponível: ${money(context, selectedAccount.balance)}.',
+            ),
+          ),
+        );
+        return;
+      }
       final paid = store.payInvoice(
         cardId: card.id,
         accountName: account,
@@ -548,7 +567,11 @@ class CardInvoiceScreen extends StatelessWidget {
       );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(paid ? 'Fatura paga' : 'Não há saldo pendente nesta fatura.'),
+          content: Text(
+            paid
+                ? 'Fatura paga'
+                : 'Não foi possível pagar a fatura. Confira a conta e o valor pendente.',
+          ),
         ),
       );
     }
