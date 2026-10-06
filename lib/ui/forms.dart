@@ -530,12 +530,13 @@ Future<void> showPlannedForm(BuildContext context) async {
                     onPressed: sources.isEmpty
                         ? null
                         : () {
-                            final value = double.tryParse(
-                                  amount.text.replaceAll(',', '.'),
-                                ) ??
-                                0;
-                            if (!store.isValidAmount(value) ||
-                                title.text.trim().isEmpty) {
+                            final value = parseNumberInput(amount.text);
+                            if (title.text.trim().isEmpty) {
+                              showFormError(context, 'Informe uma descrição.');
+                              return;
+                            }
+                            if (value == null || !store.isValidAmount(value)) {
+                              showFormError(context, 'Informe um valor maior que zero.');
                               return;
                             }
 
@@ -544,12 +545,18 @@ Future<void> showPlannedForm(BuildContext context) async {
                             final sourceName = isCard
                                 ? store.findCard(cardId)?.name ?? ''
                                 : sourceKey.substring('account:'.length);
-                            if (sourceName.isEmpty) return;
+                            if (sourceName.isEmpty) {
+                              showFormError(context, 'A origem selecionada não está mais disponível.');
+                              return;
+                            }
 
                             DateTime? invoiceMonth;
                             if (isCard) {
                               final card = store.findCard(cardId);
-                              if (card == null) return;
+                              if (card == null) {
+                                showFormError(context, 'O cartão selecionado não está mais disponível.');
+                                return;
+                              }
                               invoiceMonth =
                                   store.invoiceMonthForPurchase(card, date);
                             }
@@ -797,14 +804,25 @@ Future<void> showSalaryForm(BuildContext context) async {
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: () {
-                      final value =
-                          double.tryParse(amount.text.replaceAll(',', '.')) ?? 0;
-                      if (value <= 0 || title.text.trim().isEmpty) return;
+                      final value = parseNumberInput(amount.text);
+                      if (title.text.trim().isEmpty) {
+                        showFormError(context, 'Informe uma descrição para o salário.');
+                        return;
+                      }
+                      if (value == null || value <= 0) {
+                        showFormError(context, 'Informe um valor de salário maior que zero.');
+                        return;
+                      }
                       final maxOccurrences = duration == 'quantidade'
-                          ? int.tryParse(count.text)
+                          ? int.tryParse(count.text.trim())
                           : null;
                       if (duration == 'quantidade' &&
-                          (maxOccurrences == null || maxOccurrences < 1)) {
+                          (maxOccurrences == null || maxOccurrences < 1 || maxOccurrences > 120)) {
+                        showFormError(context, 'Use entre 1 e 120 ocorrências.');
+                        return;
+                      }
+                      if (duration == 'data' && endDate.isBefore(calculated)) {
+                        showFormError(context, 'A data final deve ser posterior ao primeiro salário.');
                         return;
                       }
 
@@ -817,8 +835,12 @@ Future<void> showSalaryForm(BuildContext context) async {
                         endDate: duration == 'data' ? endDate : null,
                         maxOccurrences: maxOccurrences,
                       );
-                      if (!added) return;
+                      if (!added) {
+                        showFormError(context, 'Não foi possível programar o salário. Revise conta, valor e período.');
+                        return;
+                      }
                       Navigator.pop(sheetContext);
+                      showSuccessFeedback(context, 'Salário programado.');
                     },
                     icon: const Icon(Icons.event_available_rounded),
                     label: const Text('Programar salário'),
@@ -899,9 +921,11 @@ Future<void> showPlannedDetails(
                       item.recurrenceId == null) ...[
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () {
+                        onPressed: () async {
                           Navigator.pop(sheetContext);
-                          showPlannedEditForm(context, item);
+                          await Future<void>.delayed(const Duration(milliseconds: 220));
+                          if (!context.mounted) return;
+                          await showPlannedEditForm(context, item);
                         },
                         icon: const Icon(Icons.edit_outlined),
                         label: const Text('Editar'),
@@ -1096,10 +1120,13 @@ Future<void> showPlannedEditForm(
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: () {
-                    final value =
-                        double.tryParse(amount.text.replaceAll(',', '.')) ?? 0;
-                    if (!store.isValidAmount(value) ||
-                        title.text.trim().isEmpty) {
+                    final value = parseNumberInput(amount.text);
+                    if (title.text.trim().isEmpty) {
+                      showFormError(context, 'Informe uma descrição.');
+                      return;
+                    }
+                    if (value == null || !store.isValidAmount(value)) {
+                      showFormError(context, 'Informe um valor maior que zero.');
                       return;
                     }
 
