@@ -46,10 +46,12 @@ class GoalsScreen extends StatelessWidget {
                     .clamp(0.0, double.infinity)
                     .toDouble();
                 final now = DateTime.now();
-                final months = ((goal.deadline.year - now.year) * 12 +
-                        goal.deadline.month -
-                        now.month)
-                    .clamp(1, 1200);
+                final rawMonths = (goal.deadline.year - now.year) * 12 +
+                    goal.deadline.month -
+                    now.month;
+                final overdue = remaining > 0 &&
+                    goal.deadline.isBefore(DateTime(now.year, now.month, now.day));
+                final months = rawMonths.clamp(1, 1200);
                 final monthly = remaining / months;
 
                 return SurfaceCard(
@@ -114,7 +116,9 @@ class GoalsScreen extends StatelessWidget {
                       Text(
                         remaining <= 0
                             ? 'Meta concluída.'
-                            : 'Para atingir até ${shortDate(goal.deadline)}: cerca de ${money(context, monthly)}/mês.',
+                            : overdue
+                                ? 'Prazo encerrado em ${shortDate(goal.deadline)}. Edite a meta para definir um novo prazo.'
+                                : 'Para atingir até ${shortDate(goal.deadline)}: cerca de ${money(context, monthly)}/mês.',
                         style: const TextStyle(fontSize: 9.2),
                       ),
                       Row(

@@ -3,6 +3,18 @@ import '../models.dart';
 import '../theme.dart';
 import 'forms.dart';
 
+Future<void> _closeThenOpen(
+  BuildContext context,
+  BuildContext dialogContext,
+  Future<void> Function() open,
+) async {
+  Navigator.pop(dialogContext);
+  await Future<void>.delayed(const Duration(milliseconds: 180));
+  if (!context.mounted) return;
+  await open();
+}
+
+
 Future<void> showDesktopQuickActions(BuildContext context) async {
   await showDialog<void>(
     context: context,
@@ -53,13 +65,14 @@ Future<void> showDesktopQuickActions(BuildContext context) async {
                       title: 'Despesa',
                       subtitle: 'Registrar saída',
                       color: FinoraColors.expense,
-                      onTap: () {
-                        Navigator.pop(dialogContext);
-                        showTransactionForm(
+                      onTap: () => _closeThenOpen(
+                        context,
+                        dialogContext,
+                        () => showTransactionForm(
                           context,
                           TransactionType.expense,
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -69,13 +82,14 @@ Future<void> showDesktopQuickActions(BuildContext context) async {
                       title: 'Receita',
                       subtitle: 'Registrar entrada',
                       color: FinoraColors.income,
-                      onTap: () {
-                        Navigator.pop(dialogContext);
-                        showTransactionForm(
+                      onTap: () => _closeThenOpen(
+                        context,
+                        dialogContext,
+                        () => showTransactionForm(
                           context,
                           TransactionType.income,
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -85,10 +99,11 @@ Future<void> showDesktopQuickActions(BuildContext context) async {
                 color: FinoraColors.goldBright.withValues(alpha: .08),
                 borderRadius: BorderRadius.circular(16),
                 child: InkWell(
-                  onTap: () {
-                    Navigator.pop(dialogContext);
-                    showSalaryForm(context);
-                  },
+                  onTap: () => _closeThenOpen(
+                    context,
+                    dialogContext,
+                    () => showSalaryForm(context),
+                  ),
                   borderRadius: BorderRadius.circular(16),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -140,26 +155,29 @@ Future<void> showDesktopQuickActions(BuildContext context) async {
                   _ActionChip(
                     icon: Icons.swap_horiz_rounded,
                     label: 'Transferir',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      showTransferForm(context);
-                    },
+                    onTap: () => _closeThenOpen(
+                      context,
+                      dialogContext,
+                      () => showTransferForm(context),
+                    ),
                   ),
                   _ActionChip(
                     icon: Icons.event_note_rounded,
                     label: 'Previsto',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      showPlannedForm(context);
-                    },
+                    onTap: () => _closeThenOpen(
+                      context,
+                      dialogContext,
+                      () => showPlannedForm(context),
+                    ),
                   ),
                   _ActionChip(
                     icon: Icons.speed_rounded,
                     label: 'Orçamento',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      showBudgetForm(context);
-                    },
+                    onTap: () => _closeThenOpen(
+                      context,
+                      dialogContext,
+                      () => showBudgetForm(context),
+                    ),
                   ),
                 ],
               ),
@@ -180,50 +198,56 @@ Future<void> showDesktopQuickActions(BuildContext context) async {
                   _ActionChip(
                     icon: Icons.track_changes_rounded,
                     label: 'Meta',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      showGoalForm(context);
-                    },
+                    onTap: () => _closeThenOpen(
+                      context,
+                      dialogContext,
+                      () => showGoalForm(context),
+                    ),
                   ),
                   _ActionChip(
                     icon: Icons.shield_outlined,
                     label: 'Reserva',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      showReserveForm(context);
-                    },
+                    onTap: () => _closeThenOpen(
+                      context,
+                      dialogContext,
+                      () => showReserveForm(context),
+                    ),
                   ),
                   _ActionChip(
                     icon: Icons.show_chart_rounded,
                     label: 'Investimento',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      showInvestmentForm(context);
-                    },
+                    onTap: () => _closeThenOpen(
+                      context,
+                      dialogContext,
+                      () => showInvestmentForm(context),
+                    ),
                   ),
                   _ActionChip(
                     icon: Icons.account_balance_wallet_outlined,
                     label: 'Conta',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      showAccountForm(context);
-                    },
+                    onTap: () => _closeThenOpen(
+                      context,
+                      dialogContext,
+                      () => showAccountForm(context),
+                    ),
                   ),
                   _ActionChip(
                     icon: Icons.credit_card_rounded,
                     label: 'Cartão',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      showCardForm(context);
-                    },
+                    onTap: () => _closeThenOpen(
+                      context,
+                      dialogContext,
+                      () => showCardForm(context),
+                    ),
                   ),
                   _ActionChip(
                     icon: Icons.category_outlined,
                     label: 'Categoria',
-                    onTap: () {
-                      Navigator.pop(dialogContext);
-                      showCategoryForm(context);
-                    },
+                    onTap: () => _closeThenOpen(
+                      context,
+                      dialogContext,
+                      () => showCategoryForm(context),
+                    ),
                   ),
                 ],
               ),

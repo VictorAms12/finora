@@ -1,3 +1,14 @@
+## v0.6.1 — Revisão de UX e build paralela
+
+- formulários principais passam a exibir validações claras para descrição, valores, parcelas, recorrências, contas, cartões, metas, investimentos, categorias e transferências;
+- campos em que zero é válido deixam de converter entrada inválida silenciosamente em zero;
+- transições entre detalhes, diálogos e formulários aguardam o fechamento da superfície anterior, reduzindo sobreposição e telas em branco;
+- pagamento de fatura volta a seguir a mesma regra de saldo das demais movimentações, sem bloqueio exclusivo da interface;
+- metas com prazo vencido mostram orientação para redefinir o prazo em vez de sugerir aporte mensal incorreto;
+- configuração Android aceita identidade alternativa por ambiente sem alterar o pacote padrão do Finora;
+- adicionada build paralela **Finora Novo** (`com.finora.parallel`) para instalação lado a lado durante migração manual de dados;
+- versão atualizada para 0.6.1+22.
+
 ## v0.6.0 — Finora Intelligence
 
 - novo centro **Finora Intelligence** reúne insights, recorrências detectadas e captura inteligente;

@@ -65,6 +65,30 @@ String money(BuildContext context, double value) {
   return privacy ? 'R\$ ••••••' : formatMoney(value);
 }
 
+void showFormError(BuildContext context, String message) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+}
+
+void showSuccessFeedback(BuildContext context, String message) {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+}
+
 TextStyle eyebrowStyle(BuildContext context) => TextStyle(
       fontSize: 8.5,
       letterSpacing: 1.3,

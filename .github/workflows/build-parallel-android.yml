@@ -1,0 +1,135 @@
+name: Compilar Finora Paralelo Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [review/full-ux-side-by-side]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finora-parallel-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FINORA_APPLICATION_ID: com.finora.parallel
+  FINORA_APP_NAME: Finora Novo
+
+jobs:
+  build:
+    name: Validar e compilar app paralelo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v5
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Instalar Flutter Stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolver versão do app
+        shell: bash
+        run: |
+          FULL_VERSION=$(awk '/^version:/{print $2}' pubspec.yaml)
+          VERSION_NAME=${FULL_VERSION%%+*}
+          echo "FINORA_VERSION=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "Versão detectada: $VERSION_NAME"
+
+      - name: Gerar estrutura Android
+        run: flutter create . --platforms=android --project-name=finora --org=com.finora
+
+      - name: Gerar nova assinatura paralela
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android/app
+          keytool -genkeypair \
+            -keystore android/app/finora-parallel.jks \
+            -storepass 'FinoraParallel2026!' \
+            -keypass 'FinoraParallel2026!' \
+            -alias finora-parallel \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 3650 \
+            -dname 'CN=Finora Parallel, OU=Migration, O=Finora, C=BR' \
+            -noprompt
+          cat > android/key.properties <<'EOF'
+          storePassword=FinoraParallel2026!
+          keyPassword=FinoraParallel2026!
+          keyAlias=finora-parallel
+          storeFile=finora-parallel.jks
+          EOF
+
+      - name: Configurar Android paralelo
+        run: python tool/configure_android.py
+
+      - name: Verificar identidade e assinatura
+        shell: bash
+        run: |
+          grep -q 'applicationId = "com.finora.parallel"' android/app/build.gradle.kts
+          grep -q 'android:label="Finora Novo"' android/app/src/main/AndroidManifest.xml
+          keytool -list -v \
+            -keystore android/app/finora-parallel.jks \
+            -storepass 'FinoraParallel2026!' \
+            -alias finora-parallel | grep -E 'Alias name:|SHA256:'
+
+      - name: Aplicar identidade visual Finora
+        run: |
+          python -m pip install --quiet pillow
+          python tool/generate_branding.py
+
+      - name: Remover teste padrão
+        run: rm -f test/widget_test.dart
+
+      - name: Baixar dependências
+        run: flutter pub get
+
+      - name: Verificar código
+        run: flutter analyze --no-fatal-infos
+
+      - name: Executar testes
+        run: flutter test
+
+      - name: Compilar APK Release
+        run: flutter build apk --release
+
+      - name: Compilar AAB Release
+        run: flutter build appbundle --release
+
+      - name: Resumo da build paralela
+        shell: bash
+        run: |
+          {
+            echo '### Finora Novo'
+            echo ''
+            echo '- Pacote: `com.finora.parallel`'
+            echo '- Pode ser instalado lado a lado com `com.finora.finora`.'
+            echo '- Esta assinatura é exclusiva desta execução de migração.'
+            echo '- Para futuras atualizações deste app paralelo, será necessário preservar a mesma chave.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar APK paralelo
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finora-Novo-APK-v${{ env.FINORA_VERSION }}
+          if-no-files-found: error
+          retention-days: 14
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publicar AAB paralelo
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finora-Novo-AAB-v${{ env.FINORA_VERSION }}
+          if-no-files-found: error
+          retention-days: 14
+          path: build/app/outputs/bundle/release/app-release.aab
