@@ -15,6 +15,9 @@ class PlanningScreen extends StatelessWidget {
     final history = store.selectedPlannedHistory
         .where((e) => e.status != PlannedStatus.planned)
         .toList();
+    final next7 = store.pendingWithinDays(7);
+    final next30 = store.pendingWithinDays(30);
+    final riskMonth = store.firstProjectedNegativeMonth(monthsAhead: 6);
 
     return PageScaffold(
       eyebrow: 'PLANEJAMENTO',
@@ -113,6 +116,81 @@ class PlanningScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                ],
+              ),
+            ),
+          ],
+          if (store.selectedIsCurrent) ...[
+            const SizedBox(height: 10),
+            SurfaceCard(
+              padding: const EdgeInsets.all(13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('HORIZONTE PRÓXIMO', style: eyebrowStyle(context)),
+                  const SizedBox(height: 9),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _metric(
+                          context,
+                          '7 dias',
+                          '${next7.length} item(ns)',
+                          FinoraColors.warning,
+                        ),
+                      ),
+                      Expanded(
+                        child: _metric(
+                          context,
+                          'A pagar · 30d',
+                          money(
+                            context,
+                            store.plannedPayableWithinDays(30),
+                          ),
+                          FinoraColors.expense,
+                        ),
+                      ),
+                      Expanded(
+                        child: _metric(
+                          context,
+                          'A receber · 30d',
+                          money(
+                            context,
+                            store.plannedReceivableWithinDays(30),
+                          ),
+                          FinoraColors.income,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (riskMonth != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: FinoraColors.expense.withValues(alpha: .08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        'Atenção: a projeção indica saldo negativo em ${monthLabel(riskMonth)} se os compromissos atuais forem mantidos.',
+                        style: const TextStyle(
+                          fontSize: 8.8,
+                          fontWeight: FontWeight.w800,
+                          color: FinoraColors.expense,
+                        ),
+                      ),
+                    ),
+                  ] else if (next30.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Nenhum mês com saldo projetado negativo foi encontrado nos próximos 6 meses.',
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
