@@ -57,6 +57,38 @@ extension FinanceStorePlanning on FinanceStore {
     return total;
   }
 
+  List<PlannedItem> pendingWithinDays(int days, {DateTime? from}) {
+    final base = from ?? DateTime.now();
+    final start = DateTime(base.year, base.month, base.day);
+    final end = start.add(Duration(days: days.clamp(1, 365)));
+    final items = data.planned
+        .where((item) {
+          if (item.status != PlannedStatus.planned) return false;
+          final date = DateTime(item.date.year, item.date.month, item.date.day);
+          return !date.isBefore(start) && date.isBefore(end);
+        })
+        .toList();
+    items.sort((a, b) => a.date.compareTo(b.date));
+    return items;
+  }
+
+  double plannedPayableWithinDays(int days) => pendingWithinDays(days)
+      .where((item) => item.type == TransactionType.expense)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+
+  double plannedReceivableWithinDays(int days) => pendingWithinDays(days)
+      .where((item) => item.type == TransactionType.income)
+      .fold<double>(0, (sum, item) => sum + item.amount);
+
+  DateTime? firstProjectedNegativeMonth({int monthsAhead = 6}) {
+    final now = DateTime.now();
+    for (var index = 0; index <= monthsAhead.clamp(0, 24); index++) {
+      final month = DateTime(now.year, now.month + index);
+      if (cashProjectedClosingForMonth(month) < 0) return month;
+    }
+    return null;
+  }
+
   double get currentAvailableToSpend => availableToSpend;
 
   double get currentAvailablePerDay {
