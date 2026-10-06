@@ -1546,22 +1546,123 @@ Future<void> showCategoryForm(BuildContext context, {CategoryItem? editing}) asy
 
 Future<void> showContribution(BuildContext context, bool goal, String id) async {
   final controller = TextEditingController();
+  final store = context.read<FinanceStore>();
+  var adding = true;
+  var accountName = '';
+
   await showDialog<void>(
     context: context,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text('Adicionar aporte'),
-      content: TextField(controller: controller, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor')),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
-        FilledButton(onPressed: () { final value = parseNumberInput(controller.text) ?? 0;
-          if (value <= 0) {
-            showFormError(context, 'Informe um valor maior que zero.');
-            return;
-          }
-          if (goal) { context.read<FinanceStore>().contributeGoal(id, value); } else { context.read<FinanceStore>().contributeReserve(id, value); } Navigator.pop(dialogContext); }, child: const Text('Adicionar')),
-      ],
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setLocal) => AlertDialog(
+        title: Text(goal ? 'Movimentar meta' : 'Movimentar reserva'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.add_rounded),
+                    label: Text('Aportar'),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.remove_rounded),
+                    label: Text('Retirar'),
+                  ),
+                ],
+                selected: {adding},
+                onSelectionChanged: (values) {
+                  if (values.isNotEmpty) setLocal(() => adding = values.first);
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: adding ? 'Valor do aporte' : 'Valor da retirada',
+                  prefixText: 'R\$ ',
+                ),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: accountName,
+                decoration: const InputDecoration(
+                  labelText: 'Movimentar saldo da conta',
+                  helperText:
+                      'Opcional. Se escolher uma conta, o saldo dela será atualizado junto.',
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('Somente acompanhamento'),
+                  ),
+                  ...store.data.accounts.map(
+                    (account) => DropdownMenuItem(
+                      value: account.name,
+                      child: Text(account.name),
+                    ),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setLocal(() => accountName = value ?? ''),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = parseNumberInput(controller.text);
+              if (value == null || value <= 0) {
+                showFormError(context, 'Informe um valor maior que zero.');
+                return;
+              }
+
+              final ok = goal
+                  ? store.moveGoalFunds(
+                      goalId: id,
+                      value: value,
+                      withdraw: !adding,
+                      accountName: accountName,
+                    )
+                  : store.moveReserveFunds(
+                      reserveId: id,
+                      value: value,
+                      withdraw: !adding,
+                      accountName: accountName,
+                    );
+              if (!ok) {
+                showFormError(
+                  context,
+                  adding
+                      ? 'Não foi possível registrar o aporte.'
+                      : 'Confira o valor disponível antes de retirar.',
+                );
+                return;
+              }
+              Navigator.pop(dialogContext);
+              showSuccessFeedback(
+                context,
+                adding ? 'Aporte registrado.' : 'Retirada registrada.',
+              );
+            },
+            child: Text(adding ? 'Aportar' : 'Retirar'),
+          ),
+        ],
+      ),
     ),
   );
+  controller.dispose();
 }
 
 class FormFieldData {
