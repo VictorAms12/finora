@@ -1382,47 +1382,285 @@ Future<void> showReserveForm(BuildContext context, {ReserveItem? editing}) async
   await showSimpleForm(context, editing == null ? 'Nova reserva' : 'Editar reserva', [FormFieldData('Nome', name), FormFieldData('Valor alvo', target, number: true), FormFieldData('Valor guardado', saved, number: true), FormFieldData('Meses de proteção', months, number: true)], () { final tv = parseNumberInput(target.text) ?? 0; final sv = parseNumberInput(saved.text) ?? 0; final mv = int.tryParse(months.text) ?? 6; if (name.text.trim().isEmpty || tv <= 0) return false; if (editing == null) { store.addReserve(name.text.trim(), tv, sv, months: mv); } else { store.updateReserve(editing, name.text.trim(), tv, sv, mv); } return true; });
 }
 
-Future<void> showInvestmentForm(BuildContext context, {InvestmentItem? editing}) async {
+Future<void> showInvestmentForm(
+  BuildContext context, {
+  InvestmentItem? editing,
+}) async {
   final store = context.read<FinanceStore>();
   final name = TextEditingController(text: editing?.name ?? '');
-  final amount = TextEditingController(text: editing == null ? '' : editing.amount.toStringAsFixed(2));
-  final estimated = TextEditingController(text: editing == null ? '0' : editing.estimatedReturn.toStringAsFixed(2));
+  final amount = TextEditingController(
+    text: editing == null ? '' : editing.amount.toStringAsFixed(2),
+  );
+  final invested = TextEditingController(
+    text: editing == null ? '' : editing.investedAmount.toStringAsFixed(2),
+  );
+  final quantity = TextEditingController(
+    text: editing == null || editing.quantity <= 0
+        ? ''
+        : editing.quantity.toStringAsFixed(4),
+  );
+  final averagePrice = TextEditingController(
+    text: editing == null || editing.averagePrice <= 0
+        ? ''
+        : editing.averagePrice.toStringAsFixed(2),
+  );
+  final currentPrice = TextEditingController(
+    text: editing == null || editing.currentPrice <= 0
+        ? ''
+        : editing.currentPrice.toStringAsFixed(2),
+  );
+  final estimated = TextEditingController(
+    text: editing == null ? '0' : editing.estimatedReturn.toStringAsFixed(2),
+  );
   var assetClass = editing?.assetClass ?? 'Renda fixa';
-  const classes = ['Renda fixa', 'Ações', 'FIIs', 'ETF', 'Cripto', 'Previdência', 'Outros'];
+  var detailed = editing?.hasPositionDetails ?? false;
+  const classes = [
+    'Renda fixa',
+    'Ações',
+    'FIIs',
+    'ETF',
+    'Cripto',
+    'Previdência',
+    'Outros',
+  ];
+
   await showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
     builder: (sheetContext) => Padding(
-      padding: EdgeInsets.fromLTRB(14, 0, 14, MediaQuery.of(sheetContext).viewInsets.bottom + 16),
-      child: StatefulBuilder(builder: (_, setLocal) => Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(editing == null ? 'Novo investimento' : 'Editar investimento', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 13),
-        TextField(controller: name, decoration: const InputDecoration(labelText: 'Ativo')),
-        const SizedBox(height: 9),
-        DropdownButtonFormField<String>(initialValue: assetClass, decoration: const InputDecoration(labelText: 'Classe'), items: classes.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(), onChanged: (v) { if (v != null) setLocal(() => assetClass = v); }),
-        const SizedBox(height: 9),
-        TextField(controller: amount, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Valor atual')),
-        const SizedBox(height: 9),
-        TextField(controller: estimated, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Rentabilidade estimada (%)')),
-        const SizedBox(height: 13),
-        SizedBox(width: double.infinity, child: FilledButton(onPressed: () { final av = parseNumberInput(amount.text);
-                final rv = parseNumberInput(estimated.text);
-                if (name.text.trim().isEmpty) {
-                  showFormError(context, 'Informe o nome do investimento.');
-                  return;
-                }
-                if (av == null || av <= 0) {
-                  showFormError(context, 'Informe um valor atual maior que zero.');
-                  return;
-                }
-                if (rv == null) {
-                  showFormError(context, 'Informe uma rentabilidade válida.');
-                  return;
-                } if (editing == null) { store.addInvestment(name.text.trim(), assetClass, av, rv); } else { store.updateInvestment(editing, name.text.trim(), assetClass, av, rv); } Navigator.pop(sheetContext); }, child: const Text('Salvar'))),
-      ])),
+      padding: EdgeInsets.fromLTRB(
+        14,
+        0,
+        14,
+        MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+      ),
+      child: StatefulBuilder(
+        builder: (_, setLocal) => SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                editing == null ? 'Novo investimento' : 'Editar investimento',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 13),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Ativo'),
+              ),
+              const SizedBox(height: 9),
+              DropdownButtonFormField<String>(
+                initialValue: assetClass,
+                decoration: const InputDecoration(labelText: 'Classe'),
+                items: classes
+                    .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setLocal(() => assetClass = value);
+                },
+              ),
+              const SizedBox(height: 9),
+              TextField(
+                controller: amount,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Valor atual',
+                  prefixText: 'R\$ ',
+                ),
+              ),
+              const SizedBox(height: 9),
+              TextField(
+                controller: invested,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Total investido / custo',
+                  prefixText: 'R\$ ',
+                  helperText:
+                      'Usado para calcular lucro ou prejuízo da posição.',
+                ),
+              ),
+              const SizedBox(height: 4),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Detalhar quantidade e preços',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                subtitle: const Text(
+                  'Opcional para ações, FIIs, ETFs, cripto e outros ativos.',
+                  style: TextStyle(fontSize: 8.5),
+                ),
+                value: detailed,
+                onChanged: (value) => setLocal(() => detailed = value),
+              ),
+              if (detailed) ...[
+                TextField(
+                  controller: quantity,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Quantidade'),
+                ),
+                const SizedBox(height: 9),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: averagePrice,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Preço médio',
+                          prefixText: 'R\$ ',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: TextField(
+                        controller: currentPrice,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Preço atual',
+                          prefixText: 'R\$ ',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Quando quantidade e preços forem informados, o Finora recalcula automaticamente o custo e o valor atual.',
+                  style: TextStyle(
+                    fontSize: 8.2,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 9),
+              TextField(
+                controller: estimated,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Rentabilidade estimada anual (%)',
+                ),
+              ),
+              const SizedBox(height: 13),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () {
+                    var currentValue = parseNumberInput(amount.text);
+                    var costValue = parseNumberInput(invested.text);
+                    final returnValue = parseNumberInput(estimated.text);
+                    final qty = detailed
+                        ? (parseNumberInput(quantity.text) ?? 0)
+                        : 0.0;
+                    final avg = detailed
+                        ? (parseNumberInput(averagePrice.text) ?? 0)
+                        : 0.0;
+                    final current = detailed
+                        ? (parseNumberInput(currentPrice.text) ?? 0)
+                        : 0.0;
+
+                    if (name.text.trim().isEmpty) {
+                      showFormError(context, 'Informe o nome do investimento.');
+                      return;
+                    }
+                    if (detailed && (qty < 0 || avg < 0 || current < 0)) {
+                      showFormError(
+                        context,
+                        'Quantidade e preços não podem ser negativos.',
+                      );
+                      return;
+                    }
+                    if (detailed && qty > 0 && current > 0) {
+                      currentValue = qty * current;
+                    }
+                    if (detailed && qty > 0 && avg > 0) {
+                      costValue = qty * avg;
+                    }
+                    if (currentValue == null || currentValue <= 0) {
+                      showFormError(
+                        context,
+                        'Informe um valor atual maior que zero.',
+                      );
+                      return;
+                    }
+                    costValue ??= currentValue;
+                    if (costValue < 0) {
+                      showFormError(
+                        context,
+                        'O total investido não pode ser negativo.',
+                      );
+                      return;
+                    }
+                    if (returnValue == null) {
+                      showFormError(
+                        context,
+                        'Informe uma rentabilidade estimada válida.',
+                      );
+                      return;
+                    }
+
+                    final ok = editing == null
+                        ? store.addInvestment(
+                            name.text.trim(),
+                            assetClass,
+                            currentValue,
+                            returnValue,
+                            investedAmount: costValue,
+                            quantity: qty,
+                            averagePrice: avg,
+                            currentPrice: current,
+                          )
+                        : store.updateInvestment(
+                            editing,
+                            name.text.trim(),
+                            assetClass,
+                            currentValue,
+                            returnValue,
+                            investedAmount: costValue,
+                            quantity: qty,
+                            averagePrice: avg,
+                            currentPrice: current,
+                          );
+                    if (!ok) {
+                      showFormError(
+                        context,
+                        'Não foi possível salvar esse investimento.',
+                      );
+                      return;
+                    }
+                    Navigator.pop(sheetContext);
+                  },
+                  child: const Text('Salvar investimento'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     ),
   );
+
+  name.dispose();
+  amount.dispose();
+  invested.dispose();
+  quantity.dispose();
+  averagePrice.dispose();
+  currentPrice.dispose();
+  estimated.dispose();
 }
 
 Future<void> showAccountForm(BuildContext context, {AccountItem? editing}) async {
