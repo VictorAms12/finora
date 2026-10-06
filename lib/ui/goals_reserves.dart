@@ -417,12 +417,153 @@ Future<void> _showFundingHistory(
     ),
   );
 }
+Future<void> _showInvestmentMovement(
+  BuildContext context,
+  InvestmentItem item,
+) async {
+  final store = context.read<FinanceStore>();
+  final controller = TextEditingController();
+  var adding = true;
+  var accountName = '';
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) => StatefulBuilder(
+      builder: (context, setLocal) => AlertDialog(
+        title: Text('Movimentar ${item.name}'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: true,
+                    icon: Icon(Icons.add_rounded),
+                    label: Text('Aportar'),
+                  ),
+                  ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.remove_rounded),
+                    label: Text('Resgatar'),
+                  ),
+                ],
+                selected: {adding},
+                onSelectionChanged: (values) {
+                  if (values.isNotEmpty) setLocal(() => adding = values.first);
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: adding ? 'Valor do aporte' : 'Valor do resgate',
+                  prefixText: 'R\$ ',
+                ),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: accountName,
+                decoration: const InputDecoration(
+                  labelText: 'Movimentar saldo da conta',
+                  helperText:
+                      'Opcional. Vincular mantém o patrimônio consistente entre conta e investimento.',
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('Somente acompanhamento'),
+                  ),
+                  ...store.data.accounts.map(
+                    (account) => DropdownMenuItem(
+                      value: account.name,
+                      child: Text(account.name),
+                    ),
+                  ),
+                ],
+                onChanged: (value) =>
+                    setLocal(() => accountName = value ?? ''),
+              ),
+              if (item.hasPositionDetails) ...[
+                const SizedBox(height: 9),
+                Text(
+                  'A movimentação ajusta valor atual e custo. Quantidade/preços podem ser refinados depois em Editar.',
+                  style: TextStyle(
+                    fontSize: 8.2,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = parseNumberInput(controller.text);
+              if (value == null || value <= 0) {
+                showFormError(context, 'Informe um valor maior que zero.');
+                return;
+              }
+              final ok = store.moveInvestmentFunds(
+                investmentId: item.id,
+                value: value,
+                withdraw: !adding,
+                accountName: accountName,
+              );
+              if (!ok) {
+                showFormError(
+                  context,
+                  adding
+                      ? 'Não foi possível registrar o aporte.'
+                      : 'O resgate não pode ser maior que o valor atual.',
+                );
+                return;
+              }
+              Navigator.pop(dialogContext);
+              showSuccessFeedback(
+                context,
+                adding ? 'Aporte registrado.' : 'Resgate registrado.',
+              );
+            },
+            child: Text(adding ? 'Aportar' : 'Resgatar'),
+          ),
+        ],
+      ),
+    ),
+  );
+  controller.dispose();
+}
+
 class InvestmentsScreen extends StatelessWidget {
   const InvestmentsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final store = context.watch<FinanceStore>();
+    final totalCurrent = store.investmentBalance;
+    final totalCost = store.data.investments.fold<double>(
+      0,
+      (sum, item) => sum + item.investedAmount,
+    );
+    final totalResult = totalCurrent - totalCost;
+    final totalPercent =
+        totalCost <= 0 ? 0.0 : (totalResult / totalCost) * 100;
+    final byClass = <String, double>{};
+    for (final item in store.data.investments) {
+      byClass[item.assetClass] = (byClass[item.assetClass] ?? 0) + item.amount;
+    }
+    final allocation = byClass.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Investimentos'),
@@ -440,7 +581,7 @@ class InvestmentsScreen extends StatelessWidget {
                 icon: Icons.show_chart_rounded,
                 title: 'Carteira vazia',
                 subtitle:
-                    'Adicione seus investimentos para acompanhar o patrimônio.',
+                    'Adicione seus investimentos para acompanhar patrimônio, custo e resultado.',
                 actionLabel: 'Adicionar',
                 onAction: () => showInvestmentForm(context),
               ),
@@ -452,23 +593,119 @@ class InvestmentsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('TOTAL INVESTIDO', style: eyebrowStyle(context)),
+                      Text('CARTEIRA', style: eyebrowStyle(context)),
                       const SizedBox(height: 6),
                       Text(
-                        money(context, store.investmentBalance),
+                        money(context, totalCurrent),
                         style: const TextStyle(
                           color: FinoraColors.investment,
                           fontSize: 23,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _investmentMetric(
+                              context,
+                              'Custo',
+                              money(context, totalCost),
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          Expanded(
+                            child: _investmentMetric(
+                              context,
+                              'Resultado',
+                              '${totalResult >= 0 ? '+' : '-'}${money(context, totalResult.abs())}',
+                              totalResult >= 0
+                                  ? FinoraColors.income
+                                  : FinoraColors.expense,
+                            ),
+                          ),
+                          Expanded(
+                            child: _investmentMetric(
+                              context,
+                              'Rentabilidade',
+                              '${totalPercent >= 0 ? '+' : ''}${totalPercent.toStringAsFixed(1)}%',
+                              totalResult >= 0
+                                  ? FinoraColors.income
+                                  : FinoraColors.expense,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
+                if (allocation.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  SurfaceCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('ALOCAÇÃO POR CLASSE', style: eyebrowStyle(context)),
+                        const SizedBox(height: 9),
+                        ...allocation.map((entry) {
+                          final ratio = totalCurrent <= 0
+                              ? 0.0
+                              : (entry.value / totalCurrent)
+                                  .clamp(0.0, 1.0)
+                                  .toDouble();
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 9),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        entry.key,
+                                        style: const TextStyle(
+                                          fontSize: 9.2,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${(ratio * 100).round()}%',
+                                      style: const TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                LinearProgressIndicator(
+                                  value: ratio,
+                                  minHeight: 5,
+                                  borderRadius: BorderRadius.circular(20),
+                                  color: FinoraColors.investment,
+                                  backgroundColor:
+                                      Theme.of(context).dividerColor,
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 SurfaceCard(
                   child: Column(
                     children: store.data.investments.map((item) {
+                      final history = store.fundingHistory(
+                        FundingTargetType.investment,
+                        item.id,
+                      );
+                      final resultColor = item.profitLoss >= 0
+                          ? FinoraColors.income
+                          : FinoraColors.expense;
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(
@@ -479,24 +716,50 @@ class InvestmentsScreen extends StatelessWidget {
                           ),
                         ),
                         subtitle: Text(
-                          '${item.assetClass} · ${item.estimatedReturn.toStringAsFixed(1)}%',
+                          item.hasPositionDetails
+                              ? '${item.assetClass} · ${item.quantity.toStringAsFixed(4)} un. · PM ${money(context, item.averagePrice)}'
+                              : '${item.assetClass} · custo ${money(context, item.investedAmount)}',
                           style: const TextStyle(fontSize: 8.6),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              money(context, item.amount),
-                              style: const TextStyle(
-                                color: FinoraColors.investment,
-                                fontSize: 10.4,
-                                fontWeight: FontWeight.w900,
-                              ),
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  money(context, item.amount),
+                                  style: const TextStyle(
+                                    color: FinoraColors.investment,
+                                    fontSize: 10.4,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                Text(
+                                  '${item.profitLoss >= 0 ? '+' : ''}${item.profitLossPercent.toStringAsFixed(1)}%',
+                                  style: TextStyle(
+                                    color: resultColor,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
                             ),
                             PopupMenuButton<String>(
                               onSelected: (value) async {
-                                if (value == 'edit') {
-                                  showInvestmentForm(
+                                if (value == 'move') {
+                                  await _showInvestmentMovement(context, item);
+                                } else if (value == 'history') {
+                                  await _showFundingHistory(
+                                    context,
+                                    store,
+                                    FundingTargetType.investment,
+                                    item.id,
+                                    item.name,
+                                  );
+                                } else if (value == 'edit') {
+                                  await showInvestmentForm(
                                     context,
                                     editing: item,
                                   );
@@ -504,17 +767,26 @@ class InvestmentsScreen extends StatelessWidget {
                                   final ok = await confirmAction(
                                     context,
                                     'Excluir investimento?',
-                                    'O ativo será removido da carteira.',
+                                    'O ativo e o histórico de aportes vinculados serão removidos da carteira.',
                                   );
                                   if (ok) store.deleteInvestment(item.id);
                                 }
                               },
-                              itemBuilder: (_) => const [
-                                PopupMenuItem(
+                              itemBuilder: (_) => [
+                                const PopupMenuItem(
+                                  value: 'move',
+                                  child: Text('Aportar / resgatar'),
+                                ),
+                                if (history.isNotEmpty)
+                                  const PopupMenuItem(
+                                    value: 'history',
+                                    child: Text('Histórico'),
+                                  ),
+                                const PopupMenuItem(
                                   value: 'edit',
                                   child: Text('Editar'),
                                 ),
-                                PopupMenuItem(
+                                const PopupMenuItem(
                                   value: 'delete',
                                   child: Text('Excluir'),
                                 ),
@@ -530,4 +802,32 @@ class InvestmentsScreen extends StatelessWidget {
             ),
     );
   }
+
+  Widget _investmentMetric(
+    BuildContext context,
+    String label,
+    String value,
+    Color color,
+  ) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 8,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 9.8,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      );
 }
