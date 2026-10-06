@@ -409,9 +409,7 @@ Future<void> showPlannedForm(BuildContext context) async {
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      top: false,
-      child: Padding(
+    builder: (sheetContext) => Padding(
       padding: EdgeInsets.fromLTRB(
         14,
         0,
@@ -581,7 +579,6 @@ Future<void> showPlannedForm(BuildContext context) async {
           );
         },
       ),
-      ),
     ),
   );
 
@@ -612,9 +609,7 @@ Future<void> showSalaryForm(BuildContext context) async {
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      top: false,
-      child: Padding(
+    builder: (sheetContext) => Padding(
       padding: EdgeInsets.fromLTRB(
         14,
         0,
@@ -834,7 +829,6 @@ Future<void> showSalaryForm(BuildContext context) async {
           );
         },
       ),
-      ),
     ),
   );
 
@@ -1021,9 +1015,7 @@ Future<void> showPlannedEditForm(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      top: false,
-      child: Padding(
+    builder: (sheetContext) => Padding(
       padding: EdgeInsets.fromLTRB(
         14,
         0,
