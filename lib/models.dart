@@ -446,6 +446,10 @@ class InvestmentItem {
   String assetClass;
   double amount;
   double estimatedReturn;
+  double investedAmount;
+  double quantity;
+  double averagePrice;
+  double currentPrice;
 
   InvestmentItem({
     required this.id,
@@ -453,7 +457,20 @@ class InvestmentItem {
     required this.assetClass,
     required this.amount,
     required this.estimatedReturn,
-  });
+    double? investedAmount,
+    this.quantity = 0,
+    this.averagePrice = 0,
+    this.currentPrice = 0,
+  }) : investedAmount = investedAmount ?? amount;
+
+  double get profitLoss => amount - investedAmount;
+
+  double get profitLossPercent => investedAmount <= 0
+      ? 0
+      : (profitLoss / investedAmount) * 100;
+
+  bool get hasPositionDetails =>
+      quantity > 0 && (averagePrice > 0 || currentPrice > 0);
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -461,15 +478,26 @@ class InvestmentItem {
     'assetClass': assetClass,
     'amount': amount,
     'estimatedReturn': estimatedReturn,
+    'investedAmount': investedAmount,
+    'quantity': quantity,
+    'averagePrice': averagePrice,
+    'currentPrice': currentPrice,
   };
 
-  factory InvestmentItem.fromJson(Map<String, dynamic> j) => InvestmentItem(
-    id: j['id'] as String,
-    name: j['name'] as String? ?? 'Investimento',
-    assetClass: j['assetClass'] as String? ?? 'Renda fixa',
-    amount: (j['amount'] as num? ?? 0).toDouble(),
-    estimatedReturn: (j['estimatedReturn'] as num? ?? 0).toDouble(),
-  );
+  factory InvestmentItem.fromJson(Map<String, dynamic> j) {
+    final amount = (j['amount'] as num? ?? 0).toDouble();
+    return InvestmentItem(
+      id: j['id'] as String,
+      name: j['name'] as String? ?? 'Investimento',
+      assetClass: j['assetClass'] as String? ?? 'Renda fixa',
+      amount: amount,
+      estimatedReturn: (j['estimatedReturn'] as num? ?? 0).toDouble(),
+      investedAmount: (j['investedAmount'] as num?)?.toDouble() ?? amount,
+      quantity: (j['quantity'] as num? ?? 0).toDouble(),
+      averagePrice: (j['averagePrice'] as num? ?? 0).toDouble(),
+      currentPrice: (j['currentPrice'] as num? ?? 0).toDouble(),
+    );
+  }
 }
 
 class RecurringRule {
