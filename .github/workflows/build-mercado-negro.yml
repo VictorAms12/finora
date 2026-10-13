@@ -28,6 +28,14 @@ jobs:
           cp mercado_negro/lib/main.dart mercado_build/lib/main.dart
           mkdir -p mercado_build/assets
           cp mercado_negro/assets/logo.jpg mercado_build/assets/logo.jpg
+          python3 - <<'PY'
+          from pathlib import Path
+          manifest = Path("mercado_build/android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text(encoding="utf-8")
+          text = text.replace('android:label="mercado_build"', 'android:label="Mercado Negro"')
+          manifest.write_text(text, encoding="utf-8")
+          print("Nome do app:", "Mercado Negro")
+          PY
 
       - name: Dependencies
         working-directory: mercado_build
@@ -40,6 +48,10 @@ jobs:
       - name: Build release APK
         working-directory: mercado_build
         run: flutter build apk --release
+
+      - name: Verify Android app name
+        run: |
+          grep -n 'android:label="Mercado Negro"' mercado_build/android/app/src/main/AndroidManifest.xml
 
       - name: Prepare artifact
         run: |
