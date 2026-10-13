@@ -1,0 +1,22 @@
+name: mercado_negro
+version: 1.0.0+1
+publish_to: 'none'
+description: App de pegadinha Mercado Negro.
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+dependencies:
+  flutter:
+    sdk: flutter
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.14.3
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.jpg
+flutter_launcher_icons:
+  android: true
+  image_path: assets/logo.jpg
+  adaptive_icon_background: '#000000'
+  adaptive_icon_foreground: assets/logo.jpg

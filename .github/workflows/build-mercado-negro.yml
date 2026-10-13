@@ -1,0 +1,56 @@
+name: Build Mercado Negro APK
+
+on:
+  push:
+    branches:
+      - build/mercado-negro-apk-20261013
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create Android project
+        run: |
+          rm -rf mercado_build
+          flutter create --platforms=android --org com.pegadinha mercado_build
+          cp mercado_negro/pubspec.yaml mercado_build/pubspec.yaml
+          cp mercado_negro/lib/main.dart mercado_build/lib/main.dart
+          mkdir -p mercado_build/assets
+          cp mercado_negro/assets/logo.jpg mercado_build/assets/logo.jpg
+
+      - name: Dependencies
+        working-directory: mercado_build
+        run: flutter pub get
+
+      - name: App icon
+        working-directory: mercado_build
+        run: dart run flutter_launcher_icons
+
+      - name: Build release APK
+        working-directory: mercado_build
+        run: flutter build apk --release
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p out
+          cp mercado_build/build/app/outputs/flutter-apk/app-release.apk out/MercadoNegro.apk
+          ls -lh out/MercadoNegro.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MercadoNegro-APK
+          path: out/MercadoNegro.apk
+          if-no-files-found: error
+          retention-days: 7
