@@ -1,7 +1,11 @@
 package com.victor.stickerfast
 
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
+import java.io.ByteArrayOutputStream
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -33,6 +37,58 @@ class MainActivity : FlutterActivity() {
                         return@setMethodCallHandler
                     }
                     openWhatsAppPack(identifier, name, result)
+                }
+                "compressWebp" -> {
+                    val bytes = call.argument<ByteArray>("pngBytes")
+                    val quality = call.argument<Int>("quality") ?: 80
+                    if (bytes == null || bytes.isEmpty()) {
+                        result.error(
+                            "INVALID_IMAGE",
+                            "Imagem vazia.",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    val bitmap = BitmapFactory.decodeByteArray(
+                        bytes,
+                        0,
+                        bytes.size,
+                    )
+                    if (bitmap == null) {
+                        result.error(
+                            "INVALID_IMAGE",
+                            "Nao foi possivel decodificar a imagem.",
+                            null,
+                        )
+                        return@setMethodCallHandler
+                    }
+
+                    try {
+                        val stream = ByteArrayOutputStream()
+                        @Suppress("DEPRECATION")
+                        val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            Bitmap.CompressFormat.WEBP_LOSSY
+                        } else {
+                            Bitmap.CompressFormat.WEBP
+                        }
+                        val ok = bitmap.compress(
+                            format,
+                            quality.coerceIn(0, 100),
+                            stream,
+                        )
+                        if (!ok) {
+                            result.error(
+                                "WEBP_FAILED",
+                                "Falha ao comprimir WebP.",
+                                null,
+                            )
+                        } else {
+                            result.success(stream.toByteArray())
+                        }
+                    } finally {
+                        bitmap.recycle()
+                    }
                 }
                 "notifyStickerDataChanged" -> {
                     val authority = "$packageName.stickercontentprovider"
