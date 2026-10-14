@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 
 import 'processor.dart';
 import 'sticker_store.dart';
@@ -420,10 +421,17 @@ class EditorPage extends StatefulWidget {
 
 class _EditorPageState extends State<EditorPage> {
   final TextEditingController _text = TextEditingController();
+  late XFile _currentFile;
   bool _removeBackground = true;
   OutlineMode _outline = OutlineMode.white;
   bool _textBottom = true;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentFile = widget.file;
+  }
 
   @override
   void dispose() {
@@ -431,11 +439,44 @@ class _EditorPageState extends State<EditorPage> {
     super.dispose();
   }
 
+  Future<void> _cropImage() async {
+    if (_saving) return;
+
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: _currentFile.path,
+      compressQuality: 100,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Cortar foto',
+          toolbarColor: const Color(0xFF0E1113),
+          toolbarWidgetColor: Colors.white,
+          activeControlsWidgetColor: const Color(0xFF25D366),
+          backgroundColor: const Color(0xFF0E1113),
+          dimmedLayerColor: Colors.black87,
+          cropFrameColor: Colors.white,
+          cropGridColor: Colors.white54,
+          lockAspectRatio: false,
+          freeStyleCropEnabled: true,
+          aspectRatioPresets: [
+            CropAspectRatioPreset.original,
+            CropAspectRatioPreset.square,
+          ],
+        ),
+      ],
+    );
+
+    if (cropped != null && mounted) {
+      setState(() {
+        _currentFile = XFile(cropped.path);
+      });
+    }
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
       final processed = await processSticker(
-        source: widget.file,
+        source: _currentFile,
         options: StickerOptions(
           removeBackground: _removeBackground,
           outline: _removeBackground ? _outline : OutlineMode.none,
@@ -479,9 +520,21 @@ class _EditorPageState extends State<EditorPage> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Image.file(
-                      File(widget.file.path),
+                      File(_currentFile.path),
                       fit: BoxFit.contain,
                     ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _saving ? null : _cropImage,
+                  icon: const Icon(Icons.crop_rounded),
+                  label: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('CORTAR FOTO'),
                   ),
                 ),
               ),
@@ -571,7 +624,7 @@ class _EditorPageState extends State<EditorPage> {
               ),
               const SizedBox(height: 12),
               Text(
-                'O app recorta automaticamente em quadrado, ajusta para '
+                'Se quiser, use Cortar foto antes. Ao criar, o app ajusta para '
                 '512x512 e comprime em WebP no limite exigido pelo WhatsApp.',
                 style: TextStyle(
                   fontSize: 12,
