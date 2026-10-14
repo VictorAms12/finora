@@ -116,15 +116,30 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _syncPack(StickerPackData pack) async {
     try {
-      await widget.store.syncWithWhatsApp(pack);
+      final status = await widget.store.syncWithWhatsApp(pack);
+      if (!mounted) return;
+      if (status == 'updated') {
+        _toast(
+          'Esse pacote ja esta no WhatsApp. A nova versao foi publicada para atualizacao.',
+        );
+      } else {
+        _toast('Pacote confirmado pelo WhatsApp.');
+      }
     } on PlatformException catch (e) {
-      _toast(
-        e.code == 'WHATSAPP_NOT_INSTALLED'
-            ? 'WhatsApp ou WhatsApp Business nao encontrado.'
-            : 'Nao foi possivel abrir o WhatsApp: ${e.message ?? e.code}',
-      );
+      if (!mounted) return;
+      if (e.code == 'WHATSAPP_NOT_INSTALLED') {
+        _toast('WhatsApp ou WhatsApp Business nao encontrado.');
+      } else if (e.code == 'PACK_INVALID') {
+        _toast('Pacote invalido: ${e.message ?? e.code}');
+      } else if (e.code == 'WHATSAPP_VALIDATION') {
+        _toast('WhatsApp recusou o pacote: ${e.message ?? e.code}');
+      } else if (e.code == 'WHATSAPP_CANCELED') {
+        _toast('Exportacao cancelada.');
+      } else {
+        _toast('Falha ao exportar: ${e.message ?? e.code}');
+      }
     } catch (e) {
-      _toast(e.toString());
+      if (mounted) _toast(e.toString());
     }
   }
 
@@ -138,7 +153,7 @@ class _HomePageState extends State<HomePage> {
         title: const Text('Excluir figurinha?'),
         content: const Text(
           'Ela sera removida desse pacote. Depois toque em '
-          '"WhatsApp" para sincronizar a alteracao.',
+          '"Exportar" para sincronizar a alteracao.',
         ),
         actions: [
           TextButton(
@@ -349,8 +364,8 @@ class _HomePageState extends State<HomePage> {
                     onPressed: pack.stickers.length >= 3
                         ? () => _syncPack(pack)
                         : null,
-                    icon: const Icon(Icons.sync_rounded, size: 18),
-                    label: const Text('WhatsApp'),
+                    icon: const Icon(Icons.ios_share_rounded, size: 18),
+                    label: const Text('Exportar'),
                   ),
                 ],
               ),

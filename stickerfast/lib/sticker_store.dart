@@ -181,16 +181,21 @@ class StickerStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> syncWithWhatsApp(StickerPackData pack) async {
+  Future<String> syncWithWhatsApp(StickerPackData pack) async {
     if (pack.stickers.length < 3) {
       throw StateError(
         'O WhatsApp exige pelo menos 3 figurinhas por pacote.',
       );
     }
-    await _channel.invokeMethod<void>('addPack', {
-      'identifier': pack.identifier,
-      'name': pack.name,
-    });
+
+    final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+      'addPack',
+      {
+        'identifier': pack.identifier,
+        'name': pack.name,
+      },
+    );
+    return result?['status']?.toString() ?? 'added';
   }
 
   Future<void> _save() async {

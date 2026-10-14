@@ -21,7 +21,7 @@ class StickerContentProvider : ContentProvider() {
         private const val PACK_PUBLISHER = "sticker_pack_publisher"
         private const val PACK_ICON = "sticker_pack_icon"
         private const val ANDROID_LINK = "android_play_store_link"
-        private const val IOS_LINK = "ios_app_store_link"
+        private const val IOS_LINK = "ios_app_download_link"
         private const val PUBLISHER_EMAIL = "sticker_pack_publisher_email"
         private const val PUBLISHER_WEBSITE = "sticker_pack_publisher_website"
         private const val PRIVACY_WEBSITE = "sticker_pack_privacy_policy_website"
