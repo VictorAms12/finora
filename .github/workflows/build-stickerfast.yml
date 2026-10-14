@@ -29,6 +29,7 @@ jobs:
           cp stickerfast/android/MainActivity.kt stickerfast_build/android/app/src/main/kotlin/com/victor/stickerfast/MainActivity.kt
           cp stickerfast/android/StickerContentProvider.kt stickerfast_build/android/app/src/main/kotlin/com/victor/stickerfast/StickerContentProvider.kt
           cp stickerfast/android/AndroidManifest.xml stickerfast_build/android/app/src/main/AndroidManifest.xml
+          rm -rf stickerfast_build/test
 
           python3 - <<'PY'
           from pathlib import Path
