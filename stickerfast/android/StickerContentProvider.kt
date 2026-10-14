@@ -52,7 +52,7 @@ class StickerContentProvider : ContentProvider() {
     )
 
     private val authority: String
-        get() = "${BuildConfig.APPLICATION_ID}.stickercontentprovider"
+        get() = "${requireNotNull(context).packageName}.stickercontentprovider"
 
     override fun onCreate(): Boolean = true
 
@@ -112,7 +112,7 @@ class StickerContentProvider : ContentProvider() {
 
         for (pack in packs) {
             cursor.addRow(
-                arrayOf(
+                arrayOf<Any?>(
                     pack.identifier,
                     pack.name,
                     pack.publisher,
@@ -141,7 +141,7 @@ class StickerContentProvider : ContentProvider() {
 
         for (sticker in pack.stickers) {
             cursor.addRow(
-                arrayOf(
+                arrayOf<Any?>(
                     sticker.fileName,
                     sticker.emojis,
                     sticker.accessibilityText,
