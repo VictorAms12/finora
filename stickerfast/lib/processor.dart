@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:google_mlkit_selfie_segmentation/google_mlkit_selfie_segmentation.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/services.dart';
 
 enum OutlineMode { none, white, black }
 
@@ -81,20 +82,7 @@ Future<ProcessedSticker> processSticker({
     );
   }
 
-  Uint8List? encoded;
-  for (final quality in [88, 80, 70, 60, 50, 40, 30, 22, 16]) {
-    final candidate = Uint8List.fromList(
-      img.encodeWebP(result, quality: quality),
-    );
-    encoded = candidate;
-    if (candidate.length <= 100 * 1024) break;
-  }
-
-  if (encoded == null || encoded.length > 100 * 1024) {
-    throw StateError(
-      'A figurinha ficou acima de 100 KB mesmo apos a compressao.',
-    );
-  }
+  final encoded = await _encodeStickerWebp(result);
 
   final tray = img.copyResize(
     result,
@@ -239,5 +227,65 @@ void _drawCaption(img.Image image, String text, bool bottom) {
     font: img.arial48,
     y: y,
     color: white,
+  );
+}
+
+
+const MethodChannel _nativeChannel = MethodChannel('stickerfast/whatsapp');
+
+Future<Uint8List> _encodeStickerWebp(img.Image image) async {
+  // Envia um PNG intermediario para o Android e usa o encoder WebP nativo.
+  // Isso permite reduzir a qualidade de forma real ate respeitar o limite.
+  final pngBytes = Uint8List.fromList(
+    img.encodePng(image, level: 6),
+  );
+
+  Uint8List? smallest;
+  for (final quality in [
+    88,
+    80,
+    72,
+    64,
+    56,
+    48,
+    40,
+    32,
+    26,
+    20,
+    16,
+    12,
+    9,
+    6,
+    4,
+    2,
+    1,
+  ]) {
+    final candidate = await _nativeChannel.invokeMethod<Uint8List>(
+      'compressWebp',
+      {
+        'pngBytes': pngBytes,
+        'quality': quality,
+      },
+    );
+
+    if (candidate == null || candidate.isEmpty) {
+      continue;
+    }
+
+    if (smallest == null || candidate.length < smallest.length) {
+      smallest = candidate;
+    }
+
+    if (candidate.length <= 100 * 1024) {
+      return candidate;
+    }
+  }
+
+  if (smallest != null && smallest.length <= 100 * 1024) {
+    return smallest;
+  }
+
+  throw StateError(
+    'Nao foi possivel comprimir a figurinha para o limite do WhatsApp.',
   );
 }
