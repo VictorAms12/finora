@@ -1,0 +1,65 @@
+name: Build StickerFast APK
+
+on:
+  push:
+    branches:
+      - build/stickerfast-apk-20261013
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create Android project
+        run: |
+          rm -rf stickerfast_build
+          flutter create --platforms=android --org com.victor --project-name stickerfast stickerfast_build
+          cp stickerfast/pubspec.yaml stickerfast_build/pubspec.yaml
+          cp -r stickerfast/lib/. stickerfast_build/lib/
+          cp stickerfast/android/MainActivity.kt stickerfast_build/android/app/src/main/kotlin/com/victor/stickerfast/MainActivity.kt
+          cp stickerfast/android/StickerContentProvider.kt stickerfast_build/android/app/src/main/kotlin/com/victor/stickerfast/StickerContentProvider.kt
+          cp stickerfast/android/AndroidManifest.xml stickerfast_build/android/app/src/main/AndroidManifest.xml
+
+          python3 - <<'PY'
+          from pathlib import Path
+          gradle = Path("stickerfast_build/android/app/build.gradle.kts")
+          text = gradle.read_text(encoding="utf-8")
+          text = text.replace("minSdk = flutter.minSdkVersion", "minSdk = 24")
+          gradle.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Dependencies
+        working-directory: stickerfast_build
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: stickerfast_build
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build release APK
+        working-directory: stickerfast_build
+        run: flutter build apk --release
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p out
+          cp stickerfast_build/build/app/outputs/flutter-apk/app-release.apk out/StickerFast.apk
+          ls -lh out/StickerFast.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: StickerFast-APK
+          path: out/StickerFast.apk
+          if-no-files-found: error
+          retention-days: 7
